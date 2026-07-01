@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>가구 제작 예가 산출기</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #232734;
+    --border: #2e3347;
+    --border-light: #3a3f54;
+    --text: #e8eaed;
+    --text-dim: #8b90a0;
+    --text-muted: #5c6178;
+    --accent: #d4a053;
+    --accent-dim: #b8893e;
+    --accent-glow: rgba(212,160,83,0.12);
+    --green: #4ade80;
+    --green-dim: rgba(74,222,128,0.1);
+    --red: #f87171;
+    --red-dim: rgba(248,113,113,0.1);
+    --blue: #60a5fa;
+    --blue-dim: rgba(96,165,250,0.1);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Noto Sans KR',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+  /* Header */
+  .header {
+    background:linear-gradient(135deg, #1a1d27 0%, #232734 100%);
+    border-bottom:1px solid var(--border);
+    padding:18px 28px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .logo { display:flex; align-items:center; gap:12px; }
+  .logo-mark {
+    width:36px; height:36px; background:linear-gradient(135deg, var(--accent) 0%, #c4853a 100%);
+    border-radius:8px; display:flex; align-items:center; justify-content:center;
+    font-size:18px; box-shadow:0 2px 12px rgba(212,160,83,0.25);
+  }
+  .logo-text { font-size:17px; font-weight:700; color:var(--text); letter-spacing:-0.3px; }
+  .logo-sub { font-size:11px; color:var(--text-muted); font-weight:400; margin-top:1px; }
+  .header-btn {
+    padding:7px 14px; border-radius:6px; border:1px solid var(--border-light);
+    background:transparent; color:var(--text-dim); font-size:12px; font-weight:500;
+    cursor:pointer; font-family:inherit; transition:all 0.2s;
+  }
+  .header-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* Layout */
+  .main { max-width:960px; margin:0 auto; padding:28px 20px 80px; }
+
+  /* Cards */
+  .card {
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    padding:20px 24px; margin-bottom:16px;
+  }
+  .card-label {
+    font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase;
+    letter-spacing:1.2px; margin-bottom:10px;
+  }
+
+  /* API Input */
+  .api-row { display:flex; gap:10px; align-items:center; }
+  .api-input {
+    flex:1; padding:10px 14px; background:var(--surface2); border:1px solid var(--border);
+    border-radius:6px; color:var(--text); font-size:13px; font-family:'JetBrains Mono',monospace;
+    outline:none; transition:border 0.2s;
+  }
+  .api-input:focus { border-color:var(--accent); }
+  .api-input::placeholder { color:var(--text-muted); }
+
+  /* Dropzone */
+  .dropzone {
+    border:2px dashed var(--border-light); border-radius:10px; padding:44px 24px;
+    text-align:center; cursor:pointer; transition:all 0.2s; margin-bottom:16px;
+  }
+  .dropzone:hover, .dropzone.hover { border-color:var(--accent); background:var(--accent-glow); }
+  .drop-icon { font-size:44px; margin-bottom:10px; filter:grayscale(0.3); }
+  .drop-title { font-size:15px; font-weight:600; color:var(--text); margin-bottom:4px; }
+  .drop-sub { font-size:12px; color:var(--text-muted); }
+
+  .previews { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+  .preview-card {
+    position:relative; width:120px; height:120px; border-radius:8px; overflow:hidden;
+    border:1px solid var(--border); background:var(--surface2);
+  }
+  .preview-card img { width:100%; height:100%; object-fit:cover; }
+  .remove-btn {
+    position:absolute; top:4px; right:4px; width:22px; height:22px; border-radius:50%;
+    background:rgba(0,0,0,0.7); color:#fff; border:none; cursor:pointer; font-size:13px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .remove-btn:hover { background:var(--red); }
+
+  /* Quantity selector */
+  .qty-section { display:flex; align-items:center; gap:16px; margin-bottom:16px; }
+  .qty-label { font-size:13px; font-weight:600; color:var(--text-dim); }
+  .qty-input {
+    width:80px; padding:8px 12px; background:var(--surface2); border:1px solid var(--border);
+    border-radius:6px; color:var(--text); font-size:14px; font-family:'JetBrains Mono',monospace;
+    text-align:center; outline:none;
+  }
+  .qty-input:focus { border-color:var(--accent); }
+  .qty-unit { font-size:13px; color:var(--text-muted); }
+
+  /* Analyze button */
+  .analyze-btn {
+    width:100%; padding:14px; border:none; border-radius:8px; font-size:14px; font-weight:700;
+    cursor:pointer; font-family:inherit; transition:all 0.2s; display:flex;
+    align-items:center; justify-content:center; gap:8px;
+    background:linear-gradient(135deg, var(--accent) 0%, #c4853a 100%);
+    color:#1a1d27; box-shadow:0 2px 16px rgba(212,160,83,0.25);
+  }
+  .analyze-btn:hover { box-shadow:0 4px 24px rgba(212,160,83,0.35); transform:translateY(-1px); }
+  .analyze-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; box-shadow:none; }
+
+  .error-msg { color:var(--red); text-align:center; margin-top:10px; font-size:13px; }
+
+  /* ========== Result ========== */
+  .result-header {
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;
+  }
+  .result-title { font-size:20px; font-weight:800; color:var(--text); letter-spacing:-0.5px; }
+  .result-badge {
+    font-size:11px; font-weight:600; color:var(--accent); background:var(--accent-glow);
+    padding:4px 10px; border-radius:20px; border:1px solid rgba(212,160,83,0.2);
+  }
+  .toolbar { display:flex; gap:8px; }
+  .tool-btn {
+    padding:7px 14px; border-radius:6px; border:1px solid var(--border-light);
+    background:var(--surface2); color:var(--text-dim); font-size:12px; font-weight:500;
+    cursor:pointer; font-family:inherit; transition:all 0.2s;
+  }
+  .tool-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* Summary cards */
+  .summary-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+  .summary-card {
+    background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+    padding:14px 16px; text-align:center;
+  }
+  .summary-card.total { border-color:var(--accent); background:var(--accent-glow); }
+  .summary-label { font-size:11px; color:var(--text-muted); font-weight:500; margin-bottom:6px; }
+  .summary-value { font-size:18px; font-weight:800; font-family:'JetBrains Mono',monospace; color:var(--text); }
+  .summary-card.total .summary-value { color:var(--accent); }
+  .summary-sub { font-size:10px; color:var(--text-muted); margin-top:4px; }
+
+  /* Product info */
+  .product-info { display:flex; gap:16px; margin-bottom:20px; }
+  .product-img {
+    width:140px; height:140px; border-radius:8px; overflow:hidden; border:1px solid var(--border);
+    flex-shrink:0;
+  }
+  .product-img img { width:100%; height:100%; object-fit:cover; }
+  .product-detail { flex:1; }
+  .product-name { font-size:16px; font-weight:700; margin-bottom:6px; }
+  .product-spec { font-size:12px; color:var(--text-dim); line-height:1.8; }
+
+  /* Cost table */
+  .cost-section { margin-bottom:20px; }
+  .cost-section-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 16px; border-radius:8px 8px 0 0;
+    border:1px solid var(--border); border-bottom:none;
+  }
+  .cost-section-header.material { background:var(--blue-dim); }
+  .cost-section-header.labor { background:var(--green-dim); }
+  .cost-section-header.overhead { background:var(--accent-glow); }
+  .section-tag { font-size:13px; font-weight:700; }
+  .section-tag.material { color:var(--blue); }
+  .section-tag.labor { color:var(--green); }
+  .section-tag.overhead { color:var(--accent); }
+  .section-subtotal { font-size:13px; font-weight:700; font-family:'JetBrains Mono',monospace; color:var(--text-dim); }
+
+  .cost-table {
+    width:100%; border-collapse:collapse; font-size:12px;
+    border:1px solid var(--border); border-top:none;
+  }
+  .cost-table thead th {
+    background:var(--surface2); color:var(--text-muted); font-weight:600; font-size:11px;
+    padding:8px 12px; text-align:left; border-bottom:1px solid var(--border);
+    text-transform:uppercase; letter-spacing:0.5px;
+  }
+  .cost-table thead th:nth-child(n+3) { text-align:right; }
+  .cost-table tbody td {
+    padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:middle;
+  }
+  .cost-table tbody td:nth-child(n+3) { text-align:right; font-family:'JetBrains Mono',monospace; }
+  .cost-table tbody tr:hover { background:rgba(255,255,255,0.02); }
+
+  .cost-table input {
+    background:transparent; border:1px solid transparent; color:var(--text); font-family:'JetBrains Mono',monospace;
+    font-size:12px; padding:4px 6px; width:100%; text-align:right; outline:none; border-radius:3px;
+  }
+  .cost-table input:hover { border-color:var(--border-light); }
+  .cost-table input:focus { border-color:var(--accent); background:var(--surface2); }
+  .cost-table .item-name-input {
+    text-align:left; font-family:'Noto Sans KR',sans-serif;
+  }
+  .cost-table .computed { color:var(--accent); font-weight:600; }
+
+  .add-row-btn {
+    display:block; width:100%; padding:6px; text-align:center; border:1px dashed var(--border-light);
+    border-top:none; background:transparent; color:var(--text-muted); font-size:11px;
+    cursor:pointer; font-family:inherit; border-radius:0 0 8px 8px; transition:all 0.2s;
+  }
+  .add-row-btn:hover { background:var(--surface2); color:var(--text); border-color:var(--accent); }
+
+  /* Margin row */
+  .margin-section {
+    display:flex; align-items:center; gap:12px; padding:12px 16px;
+    background:var(--surface2); border:1px solid var(--border); border-radius:8px; margin-bottom:20px;
+  }
+  .margin-label { font-size:13px; font-weight:600; color:var(--text-dim); }
+  .margin-input {
+    width:60px; padding:6px 8px; background:var(--surface); border:1px solid var(--border);
+    border-radius:4px; color:var(--text); font-size:13px; font-family:'JetBrains Mono',monospace;
+    text-align:center; outline:none;
+  }
+  .margin-input:focus { border-color:var(--accent); }
+
+  /* Footer totals */
+  .grand-total-card {
+    background:linear-gradient(135deg, #2a2520 0%, #1f2318 100%);
+    border:1px solid var(--accent); border-radius:10px; padding:20px 24px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .grand-label { font-size:14px; font-weight:700; color:var(--text); }
+  .grand-label small { font-size:11px; color:var(--text-muted); font-weight:400; display:block; margin-top:2px; }
+  .grand-value {
+    font-size:28px; font-weight:800; font-family:'JetBrains Mono',monospace;
+    color:var(--accent); text-shadow:0 0 20px rgba(212,160,83,0.3);
+  }
+  .grand-value small { font-size:14px; font-weight:600; color:var(--text-dim); }
+
+  /* Loading */
+  .loading-overlay {
+    position:fixed; inset:0; background:rgba(15,17,23,0.85); display:flex;
+    flex-direction:column; align-items:center; justify-content:center; z-index:999;
+    backdrop-filter:blur(4px);
+  }
+  .spinner {
+    width:44px; height:44px; border:3px solid var(--border);
+    border-top:3px solid var(--accent); border-radius:50%;
+    animation:spin 0.8s linear infinite; margin-bottom:16px;
+  }
+  .loading-text { color:var(--text); font-size:14px; font-weight:600; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  .hidden { display:none !important; }
+
+  /* Print */
+  @media print {
+    :root {
+      --bg:#fff; --surface:#fff; --surface2:#f8f9fa; --border:#ddd; --border-light:#ccc;
+      --text:#1a1a1a; --text-dim:#555; --text-muted:#888; --accent:#b8893e;
+      --accent-glow:rgba(184,137,62,0.08); --green:#16a34a; --blue:#2563eb; --red:#dc2626;
+    }
+    body { background:#fff; }
+    .header, .toolbar, .no-print, .api-section, .add-row-btn { display:none !important; }
+    .main { padding:10px; max-width:100%; }
+    .card { box-shadow:none; }
+    .cost-table input { border:none !important; padding:0; }
+    .summary-row { grid-template-columns:repeat(4,1fr); }
+  }
+
+  @media (max-width:640px) {
+    .summary-row { grid-template-columns:repeat(2,1fr); }
+    .product-info { flex-direction:column; }
+    .product-img { width:100%; height:180px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-mark">₩</div>
+    <div>
+      <div class="logo-text">가구 제작 예가 산출기</div>
+      <div class="logo-sub">AI 이미지 분석 기반 원가 추정</div>
+    </div>
+  </div>
+  <button class="header-btn hidden" id="resetBtn" onclick="resetAll()">← 새로 분석</button>
+</div>
+
+<div class="main">
+  <!-- Upload Step -->
+  <div id="uploadStep">
+    <div class="card">
+      <div class="card-label">API 설정</div>
+      <div class="api-row">
+        <input type="password" class="api-input" id="apiKeyInput" placeholder="sk-ant-api03-..." />
+      </div>
+    </div>
+
+    <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+      <div class="drop-icon">📐</div>
+      <div class="drop-title">가구 이미지를 업로드하세요</div>
+      <div class="drop-sub">클릭 또는 드래그 · 최대 5장 · 자동 압축</div>
+      <input type="file" id="fileInput" accept="image/*" multiple style="display:none" />
+    </div>
+
+    <div class="previews" id="previews"></div>
+
+    <div class="card" style="padding:14px 20px;">
+      <div class="qty-section">
+        <span class="qty-label">제작 수량</span>
+        <input type="number" class="qty-input" id="qtyInput" value="1" min="1" max="9999" />
+        <span class="qty-unit">개</span>
+      </div>
+    </div>
+
+    <button class="analyze-btn" id="analyzeBtn" disabled onclick="analyze()">
+      ⚡ AI 원가 분석 시작
+    </button>
+    <div class="error-msg hidden" id="errorMsg"></div>
+  </div>
+
+  <!-- Result Step -->
+  <div id="resultStep" class="hidden">
+    <div class="result-header">
+      <div>
+        <div class="result-title">제작 예가 산출서</div>
+      </div>
+      <div class="toolbar no-print">
+        <button class="tool-btn" onclick="window.print()">🖨️ 인쇄</button>
+      </div>
+    </div>
+
+    <!-- Product info -->
+    <div class="card" style="padding:16px 20px;">
+      <div class="product-info">
+        <div class="product-img" id="productThumb"></div>
+        <div class="product-detail">
+          <div class="product-name" id="pName">—</div>
+          <div class="product-spec" id="pSpec">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-row" id="summaryRow">
+      <div class="summary-card">
+        <div class="summary-label">자재비</div>
+        <div class="summary-value" id="sumMaterial">0</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">인건비</div>
+        <div class="summary-value" id="sumLabor">0</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">경비</div>
+        <div class="summary-value" id="sumOverhead">0</div>
+      </div>
+      <div class="summary-card total">
+        <div class="summary-label">예상 단가</div>
+        <div class="summary-value" id="sumUnit">0</div>
+        <div class="summary-sub" id="sumQtyInfo">—</div>
+      </div>
+    </div>
+
+    <!-- Material cost -->
+    <div class="cost-section" id="sectionMaterial">
+      <div class="cost-section-header material">
+        <span class="section-tag material">▎자재비</span>
+        <span class="section-subtotal" id="subtotalMaterial">0 원</span>
+      </div>
+      <table class="cost-table">
+        <thead><tr><th>항목</th><th>규격 / 사양</th><th>수량</th><th>단위</th><th>단가 (원)</th><th>금액 (원)</th></tr></thead>
+        <tbody id="tbodyMaterial"></tbody>
+      </table>
+      <button class="add-row-btn" onclick="addRow('material')">+ 항목 추가</button>
+    </div>
+
+    <!-- Labor cost -->
+    <div class="cost-section" id="sectionLabor">
+      <div class="cost-section-header labor">
+        <span class="section-tag labor">▎인건비</span>
+        <span class="section-subtotal" id="subtotalLabor">0 원</span>
+      </div>
+      <table class="cost-table">
+        <thead><tr><th>항목</th><th>규격 / 사양</th><th>수량</th><th>단위</th><th>단가 (원)</th><th>금액 (원)</th></tr></thead>
+        <tbody id="tbodyLabor"></tbody>
+      </table>
+      <button class="add-row-btn" onclick="addRow('labor')">+ 항목 추가</button>
+    </div>
+
+    <!-- Overhead -->
+    <div class="cost-section" id="sectionOverhead">
+      <div class="cost-section-header overhead">
+        <span class="section-tag overhead">▎경비</span>
+        <span class="section-subtotal" id="subtotalOverhead">0 원</span>
+      </div>
+      <table class="cost-table">
+        <thead><tr><th>항목</th><th>규격 / 사양</th><th>수량</th><th>단위</th><th>단가 (원)</th><th>금액 (원)</th></tr></thead>
+        <tbody id="tbodyOverhead"></tbody>
+      </table>
+      <button class="add-row-btn" onclick="addRow('overhead')">+ 항목 추가</button>
+    </div>
+
+    <!-- Margin -->
+    <div class="margin-section no-print">
+      <span class="margin-label">이윤율</span>
+      <input type="number" class="margin-input" id="marginInput" value="15" min="0" max="100" onchange="recalc()" />
+      <span class="qty-unit">%</span>
+      <span style="margin-left:auto;" class="margin-label">부가세</span>
+      <label style="font-size:12px;color:var(--text-dim);cursor:pointer;">
+        <input type="checkbox" id="vatCheck" checked onchange="recalc()" style="margin-right:4px;" /> 포함
+      </label>
+    </div>
+
+    <!-- Grand total -->
+    <div class="grand-total-card" id="grandTotalCard">
+      <div class="grand-label">
+        최종 예상가
+        <small id="grandSub">이윤 15% + VAT 포함 · 1개 기준</small>
+      </div>
+      <div class="grand-value" id="grandTotal">0 <small>원</small></div>
+    </div>
+  </div>
+</div>
+
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">이미지 분석 중...</div>
+</div>
+
+<script>
+const SYSTEM_PROMPT = `당신은 한국의 맞춤 가구 제작 원가 산출 전문가입니다.
+업로드된 가구 이미지를 분석하여 제작에 필요한 모든 비용을 항목별로 산출해주세요.
+
+한국 시장 기준 현실적인 가격으로 산출하세요. (2024-2025년 기준)
+
+반드시 아래 JSON 형식만 반환하세요. 다른 텍스트는 절대 포함하지 마세요.
+{
+  "productName": "제품명 (한글)",
+  "productType": "제품 유형",
+  "dimensions": "추정 치수 W x D x H mm",
+  "specSummary": "주요 사양 요약 (2~3줄, 줄바꿈은 | 로 구분)",
+  "material": [
+    {"item": "항목명", "spec": "규격/사양", "qty": 수량(숫자), "unit": "단위", "unitPrice": 단가(숫자), "amount": 금액(숫자)}
+  ],
+  "labor": [
+    {"item": "항목명", "spec": "작업 내용", "qty": 수량(숫자), "unit": "단위", "unitPrice": 단가(숫자), "amount": 금액(숫자)}
+  ],
+  "overhead": [
+    {"item": "항목명", "spec": "내용", "qty": 수량(숫자), "unit": "단위", "unitPrice": 단가(숫자), "amount": 금액(숫자)}
+  ]
+}
+
+## 자재비 항목 예시 (필요한 것만 포함):
+- 원목 (수종 명시, 보드피트 또는 재 단위)
+- 합판/MDF (두께, 규격)
+- 원단/가죽 (종류, 야드/마 단위)
+- 쿠션폼/충전재
+- 접착제/본드
+- 나사/볼트/하드웨어
+- 도장재/스테인/오일/래커
+- 유리/석재/금속 부자재 (해당 시)
+
+## 인건비 항목 예시:
+- 목공 가공 (절단, 대패, 라우터 등)
+- 조립 (짜맞춤, 접합)
+- 도장/마감 (샌딩, 도포, 건조)
+- 원단 봉제/시트 제작
+- 품질 검수
+
+## 경비 항목 예시:
+- 운반/물류비
+- 포장비
+- 감가상각/공구 소모품
+- 작업장 관리비
+
+각 금액은 반드시 숫자(number)로 작성하세요. 문자열 금액은 안됩니다.
+현실적인 한국 시장가를 반영하세요.`;
+
+const loadingMessages = [
+  "이미지를 분석하고 있어요...",
+  "가구 구조를 파악 중...",
+  "자재 원가를 산출 중...",
+  "인건비를 계산 중...",
+  "예가를 정리하고 있어요..."
+];
+
+let imageDataList = [];
+let costData = { material: [], labor: [], overhead: [] };
+let loadingInterval = null;
+const MAX_IMG = 1024, JPG_Q = 0.7;
+
+function $(id) { return document.getElementById(id); }
+function fmt(n) { return Math.round(n).toLocaleString("ko-KR"); }
+
+// --- Image compress ---
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const orig = e.target.result;
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > MAX_IMG || h > MAX_IMG) {
+          if (w > h) { h = Math.round(h * MAX_IMG / w); w = MAX_IMG; }
+          else { w = Math.round(w * MAX_IMG / h); h = MAX_IMG; }
+        }
+        const c = document.createElement("canvas"); c.width = w; c.height = h;
+        c.getContext("2d").drawImage(img, 0, 0, w, h);
+        const compressed = c.toDataURL("image/jpeg", JPG_Q);
+        resolve({ b64: compressed.split(",")[1], mediaType: "image/jpeg", dataUrl: compressed, originalDataUrl: orig });
+      };
+      img.onerror = () => reject(new Error("이미지 로드 실패"));
+      img.src = orig;
+    };
+    reader.onerror = () => reject(new Error("파일 읽기 실패"));
+    reader.readAsDataURL(file);
+  });
+}
+
+// --- Dropzone ---
+const dz = $("dropzone");
+dz.addEventListener("dragover", (e) => { e.preventDefault(); dz.classList.add("hover"); });
+dz.addEventListener("dragleave", () => dz.classList.remove("hover"));
+dz.addEventListener("drop", (e) => { e.preventDefault(); dz.classList.remove("hover"); handleFiles(e.dataTransfer.files); });
+$("fileInput").addEventListener("change", (e) => handleFiles(e.target.files));
+
+async function handleFiles(files) {
+  const valid = Array.from(files).filter(f => f.type.startsWith("image/")).slice(0, 5 - imageDataList.length);
+  for (const f of valid) {
+    try { imageDataList.push(await compressImage(f)); } catch(e) { console.error(e); }
+  }
+  renderPreviews();
+  $("analyzeBtn").disabled = !imageDataList.length;
+}
+
+function renderPreviews() {
+  $("previews").innerHTML = imageDataList.map((img, i) => `
+    <div class="preview-card">
+      <img src="${img.originalDataUrl || img.dataUrl}" />
+      <button class="remove-btn" onclick="removeImage(${i})">×</button>
+    </div>`).join("");
+}
+
+function removeImage(i) {
+  imageDataList.splice(i, 1);
+  renderPreviews();
+  $("analyzeBtn").disabled = !imageDataList.length;
+}
+
+// API Key persistence
+const sk = localStorage.getItem("anthropic_api_key_cost");
+if (sk) $("apiKeyInput").value = sk;
+$("apiKeyInput").addEventListener("input", (e) => localStorage.setItem("anthropic_api_key_cost", e.target.value));
+
+// --- Analyze ---
+async function analyze() {
+  const apiKey = $("apiKeyInput").value.trim();
+  if (!apiKey) return showError("API Key를 입력해주세요.");
+  if (!imageDataList.length) return;
+
+  showLoading(true); hideError();
+  const models = ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"];
+
+  for (const model of models) {
+    try {
+      const imgs = imageDataList.map(img => ({ type:"image", source:{ type:"base64", media_type:img.mediaType, data:img.b64 } }));
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type":"application/json", "x-api-key":apiKey,
+          "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true"
+        },
+        body: JSON.stringify({
+          model, max_tokens: 2000, system: SYSTEM_PROMPT,
+          messages: [{ role:"user", content:[...imgs, { type:"text", text:"이 가구 이미지를 분석하여 제작 원가를 항목별로 산출해주세요. JSON만 반환하세요." }] }]
+        })
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        if (res.status === 401) throw new Error("API Key가 유효하지 않습니다.");
+        if (res.status === 429) throw new Error("API 요청 한도 초과. 잠시 후 다시 시도해주세요.");
+        if (res.status >= 500) { console.log(`${model} 서버 오류, 재시도...`); continue; }
+        throw new Error(data?.error?.message || `API 오류 (${res.status})`);
+      }
+
+      const text = (data.content||[]).map(c => c.text||"").join("");
+      const clean = text.replace(/```json|```/g,"").trim();
+      const parsed = JSON.parse(clean);
+
+      costData = {
+        material: (parsed.material||[]).map(r => ({...r, qty:Number(r.qty)||0, unitPrice:Number(r.unitPrice)||0, amount:Number(r.amount)||0})),
+        labor: (parsed.labor||[]).map(r => ({...r, qty:Number(r.qty)||0, unitPrice:Number(r.unitPrice)||0, amount:Number(r.amount)||0})),
+        overhead: (parsed.overhead||[]).map(r => ({...r, qty:Number(r.qty)||0, unitPrice:Number(r.unitPrice)||0, amount:Number(r.amount)||0})),
+      };
+
+      // Product info
+      $("productThumb").innerHTML = `<img src="${imageDataList[0].originalDataUrl || imageDataList[0].dataUrl}" />`;
+      $("pName").textContent = parsed.productName || "—";
+      const specLines = [
+        parsed.productType ? `유형: ${parsed.productType}` : "",
+        parsed.dimensions ? `치수: ${parsed.dimensions}` : "",
+        ...(parsed.specSummary ? parsed.specSummary.split("|") : [])
+      ].filter(Boolean);
+      $("pSpec").innerHTML = specLines.join("<br>");
+
+      renderAllTables();
+      recalc();
+      showResult();
+      showLoading(false);
+      return;
+
+    } catch(err) {
+      if (model === models[models.length-1]) { showError(err.message); showLoading(false); return; }
+      if (err.message.includes("API Key") || err.message.includes("한도")) { showError(err.message); showLoading(false); return; }
+    }
+  }
+  showLoading(false);
+}
+
+// --- Table rendering ---
+function renderTable(type) {
+  const tbody = $("tbody" + type.charAt(0).toUpperCase() + type.slice(1));
+  tbody.innerHTML = costData[type].map((r, i) => `
+    <tr>
+      <td><input class="item-name-input" value="${esc(r.item)}" onchange="updateCell('${type}',${i},'item',this.value)" /></td>
+      <td><input class="item-name-input" value="${esc(r.spec)}" onchange="updateCell('${type}',${i},'spec',this.value)" /></td>
+      <td><input value="${r.qty}" type="number" onchange="updateNum('${type}',${i},'qty',this.value)" /></td>
+      <td><input class="item-name-input" value="${esc(r.unit)}" onchange="updateCell('${type}',${i},'unit',this.value)" style="width:50px;" /></td>
+      <td><input value="${fmt(r.unitPrice)}" onfocus="this.value=costData['${type}'][${i}].unitPrice" onblur="updatePrice('${type}',${i},'unitPrice',this.value)" /></td>
+      <td class="computed">${fmt(r.qty * r.unitPrice)}</td>
+    </tr>`).join("");
+}
+
+function esc(s) { return (s||"").replace(/"/g,"&quot;"); }
+
+function renderAllTables() {
+  ["material","labor","overhead"].forEach(renderTable);
+}
+
+function updateCell(type, i, key, val) { costData[type][i][key] = val; }
+function updateNum(type, i, key, val) { costData[type][i][key] = Number(val)||0; recalcRow(type,i); recalc(); }
+function updatePrice(type, i, key, val) { costData[type][i][key] = Number(val.replace(/,/g,""))||0; recalcRow(type,i); recalc(); }
+
+function recalcRow(type, i) {
+  const r = costData[type][i];
+  r.amount = r.qty * r.unitPrice;
+  renderTable(type);
+}
+
+function addRow(type) {
+  costData[type].push({ item:"", spec:"", qty:1, unit:"EA", unitPrice:0, amount:0 });
+  renderTable(type);
+}
+
+function recalc() {
+  const sumM = costData.material.reduce((s,r) => s + (r.qty * r.unitPrice), 0);
+  const sumL = costData.labor.reduce((s,r) => s + (r.qty * r.unitPrice), 0);
+  const sumO = costData.overhead.reduce((s,r) => s + (r.qty * r.unitPrice), 0);
+
+  $("subtotalMaterial").textContent = fmt(sumM) + " 원";
+  $("subtotalLabor").textContent = fmt(sumL) + " 원";
+  $("subtotalOverhead").textContent = fmt(sumO) + " 원";
+
+  $("sumMaterial").textContent = fmt(sumM);
+  $("sumLabor").textContent = fmt(sumL);
+  $("sumOverhead").textContent = fmt(sumO);
+
+  const subtotal = sumM + sumL + sumO;
+  const margin = Number($("marginInput").value) || 0;
+  const withMargin = subtotal * (1 + margin / 100);
+  const vat = $("vatCheck").checked;
+  const grand = vat ? withMargin * 1.1 : withMargin;
+  const qty = Number($("qtyInput").value) || 1;
+
+  $("sumUnit").textContent = fmt(subtotal);
+  $("sumQtyInfo").textContent = `원가 기준 · ${qty}개 시 총 ${fmt(subtotal * qty)}원`;
+
+  $("grandTotal").innerHTML = `${fmt(grand)} <small>원</small>`;
+  const parts = [];
+  if (margin > 0) parts.push(`이윤 ${margin}%`);
+  if (vat) parts.push("VAT 포함");
+  parts.push(qty > 1 ? `${qty}개 시 총 ${fmt(grand * qty)}원` : "1개 기준");
+  $("grandSub").textContent = parts.join(" · ");
+}
+
+// --- UI ---
+function showResult() {
+  $("uploadStep").classList.add("hidden");
+  $("resultStep").classList.remove("hidden");
+  $("resetBtn").classList.remove("hidden");
+}
+
+function resetAll() {
+  imageDataList = [];
+  costData = { material:[], labor:[], overhead:[] };
+  $("previews").innerHTML = "";
+  $("analyzeBtn").disabled = true;
+  $("uploadStep").classList.remove("hidden");
+  $("resultStep").classList.add("hidden");
+  $("resetBtn").classList.add("hidden");
+  hideError();
+}
+
+function showLoading(show) {
+  if (show) {
+    $("loadingOverlay").classList.remove("hidden");
+    let idx = 0;
+    $("loadingText").textContent = loadingMessages[0];
+    loadingInterval = setInterval(() => {
+      idx = Math.min(idx+1, loadingMessages.length-1);
+      $("loadingText").textContent = loadingMessages[idx];
+    }, 2500);
+  } else {
+    $("loadingOverlay").classList.add("hidden");
+    if (loadingInterval) { clearInterval(loadingInterval); loadingInterval = null; }
+  }
+}
+
+function showError(msg) { $("errorMsg").textContent = msg; $("errorMsg").classList.remove("hidden"); }
+function hideError() { $("errorMsg").classList.add("hidden"); }
+</script>
+</body>
+</html>

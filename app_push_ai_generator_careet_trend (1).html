@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>앱푸시 AI 문구 생성기</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --blue: #2563eb;
+      --blue2: #1d4ed8;
+      --soft-blue: #eff6ff;
+      --green: #16a34a;
+      --red: #ef4444;
+      --shadow: 0 14px 38px rgba(15, 23, 42, 0.08);
+      --radius: 22px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, #dbeafe 0, transparent 34%),
+        radial-gradient(circle at top right, #fee2e2 0, transparent 28%),
+        var(--bg);
+      color: var(--ink);
+    }
+
+    .wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 42px 22px 64px;
+    }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-end;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--soft-blue);
+      color: var(--blue);
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 46px);
+      letter-spacing: -0.04em;
+      line-height: 1.08;
+    }
+
+    .desc {
+      margin: 12px 0 0;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 15px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.75);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 800;
+      margin: 18px 0 8px;
+    }
+
+    label:first-child {
+      margin-top: 0;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px 15px;
+      font-size: 15px;
+      outline: none;
+      background: #fff;
+      color: var(--ink);
+      transition: 0.18s ease;
+    }
+
+    textarea {
+      min-height: 112px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .checks {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      font-size: 14px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .check input {
+      width: auto;
+      box-shadow: none;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 0;
+      border-radius: 16px;
+      padding: 14px 17px;
+      font-size: 15px;
+      font-weight: 850;
+      cursor: pointer;
+      transition: 0.18s ease;
+    }
+
+    .primary {
+      background: linear-gradient(135deg, var(--blue), var(--blue2));
+      color: white;
+      flex: 1;
+      box-shadow: 0 10px 24px rgba(37, 99, 235, 0.24);
+    }
+
+    .primary:hover {
+      transform: translateY(-1px);
+    }
+
+    .ghost {
+      background: #f3f4f6;
+      color: var(--ink);
+    }
+
+    .result-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .result-head h2 {
+      margin: 0;
+      letter-spacing: -0.03em;
+    }
+
+    .count {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .push-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .push {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: #fff;
+      padding: 18px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .push::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 5px;
+      background: linear-gradient(var(--blue), #60a5fa);
+    }
+
+    .push-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .badge {
+      background: #f3f4f6;
+      color: #374151;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .push-title {
+      font-size: 17px;
+      font-weight: 900;
+      margin: 0 0 9px;
+      letter-spacing: -0.02em;
+      line-height: 1.38;
+      padding-right: 8px;
+    }
+
+    .push-body {
+      margin: 0;
+      color: #374151;
+      line-height: 1.62;
+      white-space: pre-line;
+    }
+
+    .copy {
+      margin-top: 14px;
+      background: var(--soft-blue);
+      color: var(--blue);
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+    }
+
+    .guide {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 18px;
+      background: #fff7ed;
+      color: #9a3412;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .sample {
+      margin-top: 16px;
+      border-top: 1px dashed var(--line);
+      padding-top: 16px;
+    }
+
+    .sample-title {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .sample p {
+      margin: 8px 0;
+      color: #4b5563;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 900px) {
+      .hero {
+        display: block;
+      }
+
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .row,
+      .checks {
+        grid-template-columns: 1fr;
+      }
+
+      .card {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">🤖 PUSH COPY GENERATOR</div>
+        <h1>앱푸시 AI 문구 생성기</h1>
+        <p class="desc">
+          키워드와 혜택만 넣으면 파바앱 스타일의 앱푸시 제목/내용을 자동으로 생성합니다.<br>
+          광고성 문구에는 수신거부 안내가 자동으로 붙습니다.
+        </p>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="card">
+        <label for="keyword">넣고싶은 키워드나 혜택을 적어주세요</label>
+        <textarea id="keyword" placeholder="예) 망고 케이크 20% 쿠폰, 선착순, 오늘 단 하루, 픽업 주문"></textarea>
+
+        <div class="row">
+          <div>
+            <label for="purpose">목적</label>
+            <select id="purpose">
+              <option value="coupon">쿠폰/할인</option>
+              <option value="event">이벤트/응모</option>
+              <option value="product">신제품/상품 홍보</option>
+              <option value="season">시즌/기념일</option>
+              <option value="remind">리마인드/마감임박</option>
+            </select>
+          </div>
+          <div>
+            <label for="tone">톤앤매너</label>
+            <select id="tone">
+              <option value="bright">발랄하게</option>
+              <option value="premium">고급스럽게</option>
+              <option value="urgent">긴급하게</option>
+              <option value="cute">귀엽게</option>
+              <option value="simple">깔끔하게</option>
+              <option value="trend">최신트렌드</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="target">대상</label>
+            <input id="target" placeholder="예) 파바앱 고객, 디저트 좋아하는 고객" />
+          </div>
+          <div>
+            <label for="benefit">핵심 혜택</label>
+            <input id="benefit" placeholder="예) 최대 50%, 선착순 쿠폰, 무료배송" />
+          </div>
+        </div>
+
+        <label>옵션</label>
+        <div class="checks">
+          <label class="check"><input type="checkbox" id="ad" checked /> (광고) 표기</label>
+          <label class="check"><input type="checkbox" id="emoji" checked /> 이모지 사용</label>
+          <label class="check"><input type="checkbox" id="refusal" checked /> 수신거부 안내</label>
+          <label class="check"><input type="checkbox" id="short" /> 더 짧게</label>
+        </div>
+
+        <div class="actions">
+          <button class="primary" onclick="generatePush()">AI 생성하기</button>
+          <button class="ghost" onclick="resetForm()">초기화</button>
+        </div>
+
+        <div class="guide">
+          실제 AI API를 연결하지 않아도 단독 실행됩니다. 최신트렌드 톤은 캐릿의 최근 밈 흐름을 참고해 더 현재감 있게 조정했습니다.
+        </div>
+
+        <div class="sample">
+          <div class="sample-title">참고 스타일</div>
+          <p>제목 : (광고) LAFC 단독 팬미팅 응모이벤트🎁</p>
+          <p>내용 : 세상에서 가장 쉬운 LA 여행 방법: 파바앱 결제만 하면 응모 끝‼️</p>
+          <p>제목 : 시원한음료+인기디저트 SET 최대 50% 혜택🔥</p>
+          <p>내용 : (광고) 선착순 쿠폰 미리 챙기고, 밥 먹고 파바 고? ☕🍰</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="result-head">
+          <div>
+            <h2>생성 결과</h2>
+            <div class="count" id="count">아직 생성된 문구가 없습니다.</div>
+          </div>
+          <button class="ghost" onclick="copyAll()">전체 복사</button>
+        </div>
+
+        <div id="results" class="push-list">
+          <div class="push">
+            <div class="push-top">
+              <div>
+                <p class="push-title">키워드와 혜택을 입력한 뒤 AI 생성하기를 눌러주세요.</p>
+                <p class="push-body">푸시 제목과 내용이 이곳에 자동으로 생성됩니다.</p>
+              </div>
+              <span class="badge">READY</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const titlePatterns = {
+      coupon: [
+        "{ad}{main} {benefit} 혜택 도착{emoji}",
+        "{ad}놓치면 아쉬운 {main} 혜택{emoji}",
+        "{main} 지금 챙기면 더 달콤해요{emoji}",
+        "{ad}{main}, 오늘은 혜택까지 듬뿍{emoji}"
+      ],
+      event: [
+        "{ad}{main} 응모 이벤트 오픈{emoji}",
+        "{main} 참여하고 선물 기회까지{emoji}",
+        "{ad}파바앱에서 만나는 {main}{emoji}",
+        "{main} 이벤트, 지금 바로 응모하세요{emoji}"
+      ],
+      product: [
+        "{ad}{main} 맛보러 갈 시간{emoji}",
+        "{main}, 파바앱에서 먼저 만나보세요{emoji}",
+        "{ad}오늘의 디저트 후보는 {main}{emoji}",
+        "기분 전환이 필요할 땐 {main}{emoji}"
+      ],
+      season: [
+        "{ad}{main}로 마음을 전하세요{emoji}",
+        "{main}, 오늘을 더 특별하게{emoji}",
+        "{ad}기념일엔 역시 {main}{emoji}",
+        "{main} 선물하기 좋은 날{emoji}"
+      ],
+      remind: [
+        "{ad}{main} 혜택 마감임박{emoji}",
+        "아직 안 챙겼다면 지금 {main}{emoji}",
+        "{ad}오늘 지나면 아쉬운 {main}{emoji}",
+        "{main} 혜택, 마지막 콜{emoji}"
+      ]
+    };
+
+    const toneSets = {
+      bright: {
+        label: "발랄",
+        title: [
+          "{ad}{main} 혜택이 톡! 도착했어요{emoji}",
+          "{ad}오늘 파바 갈 이유 생겼다{emoji}",
+          "{main} 챙기고 달콤하게 출발{emoji}",
+          "{ad}{benefit} 혜택, 파바앱에 떴어요{emoji}"
+        ],
+        body: [
+          "{benefitText} 밥 먹고 파바 고? 지금 파바앱에서 바로 챙겨보세요!",
+          "{targetText} 오늘의 달콤한 핑계는 {main}! 놓치기 전에 확인해요.",
+          "기분 전환 버튼이 필요할 때. {main} 혜택을 파바앱에서 열어보세요!"
+        ]
+      },
+      premium: {
+        label: "고급",
+        title: [
+          "{ad}특별한 순간을 위한 {main}{emoji}",
+          "{main}, 오늘을 조금 더 근사하게{emoji}",
+          "{ad}파바앱에서 준비한 프리미엄 혜택{emoji}",
+          "소중한 날엔 {main}{emoji}"
+        ],
+        body: [
+          "{benefitText} 특별한 순간에 어울리는 선택을 파바앱에서 만나보세요.",
+          "{targetText} 달콤함에 품격을 더한 {main}, 지금 준비해보세요.",
+          "선물과 디저트가 필요한 순간. {main}으로 오늘의 분위기를 완성하세요."
+        ]
+      },
+      urgent: {
+        label: "긴급",
+        title: [
+          "{ad}{main} 혜택 마감임박{emoji}",
+          "{ad}지금 안 보면 놓칠 수 있어요{emoji}",
+          "{benefit} 혜택, 오늘이 찬스{emoji}",
+          "{ad}{main} 선착순 혜택 오픈{emoji}"
+        ],
+        body: [
+          "수량과 기간은 한정! {benefitText} 지금 파바앱에서 빠르게 확인하세요.",
+          "망설이면 혜택이 사라질 수 있어요. {main} 지금 바로 챙기세요!",
+          "오늘 지나면 아쉬운 기회. {main} 혜택을 파바앱에서 바로 확인하세요."
+        ]
+      },
+      cute: {
+        label: "귀여움",
+        title: [
+          "{ad}{main}이 빵긋 기다려요{emoji}",
+          "{main} 데려갈 사람 여기요{emoji}",
+          "{ad}달콤한 알림이 콕 도착{emoji}",
+          "오늘의 소확행은 {main}{emoji}"
+        ],
+        body: [
+          "{benefitText} 파바앱에서 쏙 챙기고 달콤한 하루로 데려가세요!",
+          "{main}이 주인을 찾고 있어요. 지금 파바앱에서 귀엽게 픽업 완료!",
+          "{targetText} 오늘은 {main} 하나로 마음까지 몽글하게 채워봐요."
+        ]
+      },
+      trend: {
+        label: "최신트렌드",
+        title: [
+          "{ad}{main} 좋음 좋음 좋음{emoji}",
+          "{ad}{main} 챙기는 사람? 영크크{emoji}",
+          "{benefit} 혜택 커졌어, 공룡만해{emoji}",
+          "{ad}{main} 놓치면 올크크 모먼트{emoji}",
+          "파바앱 {main}, 난 널 버리지 않아{emoji}"
+        ],
+        body: [
+          "{benefitText} 오늘 파바앱 켜는 사람 완전 영크크입니다.",
+          "{main} 혜택이 커졌어요. 진짜 커, 막 공룡만해. 지금 확인해보세요.",
+          "늦게 보면 올크크 모먼트 올 수 있어요. {benefitText} 파바앱에서 먼저 챙기세요.",
+          "{targetText} 이건 그냥 좋음 좋음 좋음. {main} 지금 만나보세요.",
+          "난 널 버리지 않아. 오늘의 {main} 혜택도 파바앱에서 챙겨드림."
+        ]
+      },
+      simple: {
+        label: "심플",
+        title: [
+          "{ad}{main} 혜택 안내",
+          "{main} 프로모션 진행 중",
+          "{ad}{benefit} 혜택 확인",
+          "파바앱 {main} 안내"
+        ],
+        body: [
+          "{main} 관련 혜택을 파바앱에서 확인해보세요. {benefitText}",
+          "지금 파바앱에서 {main} 혜택을 확인할 수 있습니다.",
+          "{targetText} 파바앱에서 {main}을 간편하게 확인해보세요."
+        ]
+      }
+    };
+
+    const emojis = ["🎁", "🔥", "💙", "✨", "☕", "🍰", "🥭", "🎉", "💌", "⏰", "🧁", "🍞"];
+    const defaultMain = "파바앱 혜택";
+    const refusalText = "\n\n※ 수신거부: 설정 > 알림 수신 동의";
+
+    function pick(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function cleanText(text) {
+      return (text || "").trim().replace(/\s+/g, " ");
+    }
+
+    function extractMain(keyword) {
+      const text = cleanText(keyword);
+      if (!text) return defaultMain;
+      return text.split(",")[0].trim().slice(0, 26);
+    }
+
+    function makeBenefitText(benefit) {
+      const clean = cleanText(benefit);
+      return clean ? `${clean}까지 챙길 수 있는 기회.` : "특별한 혜택을 준비했어요.";
+    }
+
+    function makeTargetText(target) {
+      const clean = cleanText(target);
+      return clean ? `${clean}을 위한 추천.` : "파바앱 고객님을 위한 추천.";
+    }
+
+    function applyShort(text) {
+      if (!document.getElementById("short").checked) return text;
+      return text
+        .replace("파바앱에서 ", "")
+        .replace("지금 바로 ", "지금 ")
+        .replace("확인해보세요", "확인하세요")
+        .slice(0, 72);
+    }
+
+    function buildCopy(index) {
+      const keyword = cleanText(document.getElementById("keyword").value);
+      const benefit = cleanText(document.getElementById("benefit").value);
+      const target = cleanText(document.getElementById("target").value);
+      const purpose = document.getElementById("purpose").value;
+      const tone = document.getElementById("tone").value;
+      const useAd = document.getElementById("ad").checked;
+      const useEmoji = document.getElementById("emoji").checked;
+      const useRefusal = document.getElementById("refusal").checked;
+
+      const main = extractMain(keyword);
+      const emoji = useEmoji ? pick(emojis) : "";
+      const adTitle = useAd && index % 2 === 0 ? "(광고) " : "";
+      const adBody = useAd && index % 2 === 1 ? "(광고) " : "";
+
+      const toneSet = toneSets[tone];
+
+      let title = pick(toneSet.title)
+        .replace("{ad}", adTitle)
+        .replace("{main}", main)
+        .replace("{benefit}", benefit || "특별")
+        .replace("{emoji}", emoji);
+
+      let body = pick(toneSet.body)
+        .replace("{main}", main)
+        .replace("{benefitText}", makeBenefitText(benefit || keyword))
+        .replace("{targetText}", makeTargetText(target));
+
+      body = adBody + applyShort(body);
+      if (useRefusal) body += refusalText;
+
+      return {
+        title,
+        body,
+        type: ["추천", "혜택형", "이벤트형", "긴급형", "감성형", "심플형"][index]
+      };
+    }
+
+    function generatePush() {
+      const keyword = cleanText(document.getElementById("keyword").value);
+      const benefit = cleanText(document.getElementById("benefit").value);
+
+      if (!keyword && !benefit) {
+        alert("키워드나 혜택을 하나 이상 입력해주세요.");
+        return;
+      }
+
+      const results = document.getElementById("results");
+      results.innerHTML = "";
+
+      const copies = [];
+      for (let i = 0; i < 6; i++) {
+        copies.push(buildCopy(i));
+      }
+
+      copies.forEach((copy, idx) => {
+        const item = document.createElement("div");
+        item.className = "push";
+        item.innerHTML = `
+          <div class="push-top">
+            <div>
+              <p class="push-title">제목 : ${escapeHtml(copy.title)}</p>
+              <p class="push-body">내용 : ${escapeHtml(copy.body)}</p>
+            </div>
+            <span class="badge">${copy.type}</span>
+          </div>
+          <button class="copy" onclick="copyOne(${idx})">이 문구 복사</button>
+        `;
+        item.dataset.copy = `제목 : ${copy.title}\n내용 : ${copy.body}`;
+        results.appendChild(item);
+      });
+
+      document.getElementById("count").textContent = "총 6개 문구가 생성되었습니다.";
+    }
+
+    function copyOne(index) {
+      const items = document.querySelectorAll(".push");
+      const text = items[index].dataset.copy;
+      navigator.clipboard.writeText(text).then(() => {
+        alert("복사되었습니다.");
+      });
+    }
+
+    function copyAll() {
+      const items = [...document.querySelectorAll(".push")];
+      const text = items
+        .map(item => item.dataset.copy)
+        .filter(Boolean)
+        .join("\n\n--------------------\n\n");
+
+      if (!text) {
+        alert("복사할 생성 결과가 없습니다.");
+        return;
+      }
+
+      navigator.clipboard.writeText(text).then(() => {
+        alert("전체 문구가 복사되었습니다.");
+      });
+    }
+
+    function resetForm() {
+      document.getElementById("keyword").value = "";
+      document.getElementById("target").value = "";
+      document.getElementById("benefit").value = "";
+      document.getElementById("purpose").value = "coupon";
+      document.getElementById("tone").value = "bright";
+      document.getElementById("ad").checked = true;
+      document.getElementById("emoji").checked = true;
+      document.getElementById("refusal").checked = true;
+      document.getElementById("short").checked = false;
+      document.getElementById("count").textContent = "아직 생성된 문구가 없습니다.";
+      document.getElementById("results").innerHTML = `
+        <div class="push">
+          <div class="push-top">
+            <div>
+              <p class="push-title">키워드와 혜택을 입력한 뒤 AI 생성하기를 눌러주세요.</p>
+              <p class="push-body">푸시 제목과 내용이 이곳에 자동으로 생성됩니다.</p>
+            </div>
+            <span class="badge">READY</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/[&<>"']/g, function(match) {
+        return {
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#039;"
+        }[match];
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>실무형 이미지 변환기</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      color: #222;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.08);
+    }
+
+    h1 { margin: 0 0 8px; font-size: 28px; }
+
+    .sub {
+      margin: 0 0 22px;
+      color: #666;
+      line-height: 1.6;
+    }
+
+    .drop-zone {
+      border: 2px dashed #9ca3af;
+      background: #f9fafb;
+      border-radius: 16px;
+      padding: 34px;
+      text-align: center;
+      cursor: pointer;
+      margin-bottom: 18px;
+    }
+
+    .drop-zone.dragover {
+      border-color: #111827;
+      background: #eef2ff;
+    }
+
+    .drop-zone strong { font-size: 18px; }
+    .drop-zone p { margin: 8px 0 0; color: #666; }
+    input[type="file"] { display: none; }
+
+    .panel {
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      background: #fbfcfd;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    .panel-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .panel-title strong { font-size: 17px; }
+    .count { font-size: 14px; color: #555; }
+
+    .list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 14px;
+    }
+
+    .empty {
+      padding: 24px;
+      text-align: center;
+      color: #888;
+      border: 1px dashed #d1d5db;
+      border-radius: 12px;
+      background: #fff;
+      grid-column: 1 / -1;
+    }
+
+    .card {
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    .thumb {
+      width: 100%;
+      height: 150px;
+      object-fit: contain;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      display: block;
+    }
+
+    .name {
+      margin-top: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      word-break: break-all;
+      line-height: 1.4;
+    }
+
+    .meta {
+      margin-top: 5px;
+      font-size: 12px;
+      color: #666;
+      line-height: 1.5;
+    }
+
+    .status {
+      display: inline-block;
+      margin-top: 7px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: #eef2ff;
+      color: #3730a3;
+    }
+
+    .warning {
+      background: #fff7ed;
+      color: #9a3412;
+    }
+
+    .check-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 9px 0;
+      font-size: 14px;
+    }
+
+    .check-line input {
+      width: 18px;
+      height: 18px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .box {
+      background: #fff;
+      border: 1px solid #e4e8ee;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    select,
+    input[type="text"],
+    input[type="color"],
+    input[type="range"],
+    button {
+      width: 100%;
+      padding: 11px;
+      border-radius: 10px;
+      border: 1px solid #cfd6df;
+      font-size: 14px;
+      background: #fff;
+    }
+
+    button {
+      border: none;
+      background: #1f2937;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover { opacity: 0.92; }
+
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .danger { background: #b91c1c; }
+    .download { background: #065f46; }
+
+    .action-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .summary {
+      margin-top: 14px;
+      padding: 14px;
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      line-height: 1.7;
+      color: #444;
+    }
+
+    .log {
+      margin-top: 20px;
+      background: #111827;
+      color: #e5e7eb;
+      border-radius: 12px;
+      padding: 14px;
+      min-height: 130px;
+      max-height: 300px;
+      overflow: auto;
+      white-space: pre-wrap;
+      line-height: 1.6;
+      font-size: 13px;
+    }
+
+    .note {
+      margin-top: 16px;
+      font-size: 13px;
+      color: #666;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 900px) {
+      .grid, .action-row { grid-template-columns: 1fr; }
+      body { padding: 14px; }
+      .container { padding: 18px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>실무형 이미지 변환기</h1>
+    <p class="sub">
+      업로드 → 원본 확인 → 옵션 선택 → 변환 실행 → 결과 확인 순서로 사용할 수 있습니다.
+    </p>
+
+    <div class="drop-zone" id="dropZone">
+      <strong>이미지를 여기에 드래그하거나 클릭해서 업로드</strong>
+      <p>여러 장을 한 번에 넣을 수 있습니다.</p>
+      <input type="file" id="imageInput" accept="image/*" multiple />
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">
+        <strong>1. 업로드된 원본 이미지</strong>
+        <span class="count" id="fileCount">0개</span>
+      </div>
+
+      <div class="list" id="sourceList">
+        <div class="empty">아직 업로드된 이미지가 없습니다.</div>
+      </div>
+
+      <div class="action-row">
+        <button id="selectAllBtn">전체 선택</button>
+        <button id="unselectAllBtn">전체 해제</button>
+        <button id="deleteSelectedBtn" class="danger">선택 삭제</button>
+        <button id="resetBtn">전체 초기화</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">
+        <strong>2. 변환 옵션 설정</strong>
+      </div>
+
+      <div class="grid">
+        <div class="box">
+          <label for="presetMode">규격 선택</label>
+          <select id="presetMode">
+            <option value="POS">POS : 500 × 500 px</option>
+            <option value="KIOSK">키오스크 : 150 × 140 px</option>
+            <option value="QR">QR주문하기 페이지 : 400 × 400 px</option>
+            <option value="ONLINE">온라인등록 : 1000 × 1000 px</option>
+            <option value="ALL">전체 규격 한 번에 생성</option>
+          </select>
+        </div>
+
+        <div class="box">
+          <label for="fitMode">맞춤 방식</label>
+          <select id="fitMode">
+            <option value="contain">비율 유지 + 여백</option>
+            <option value="cover">꽉 채우기 + 크롭</option>
+          </select>
+        </div>
+
+        <div class="box">
+          <label for="format">저장 형식</label>
+          <select id="format">
+            <option value="image/png">PNG</option>
+            <option value="image/jpeg">JPG</option>
+            <option value="image/webp">WEBP</option>
+          </select>
+        </div>
+
+        <div class="box">
+          <label for="upscaleMode">업스케일링</label>
+          <select id="upscaleMode">
+            <option value="none">없음</option>
+            <option value="auto">자동</option>
+            <option value="2">2배</option>
+            <option value="4">4배</option>
+          </select>
+        </div>
+
+        <div class="box">
+          <label for="backgroundMode">여백 배경</label>
+          <select id="backgroundMode">
+            <option value="transparent">투명</option>
+            <option value="white">흰색</option>
+            <option value="black">검정</option>
+            <option value="custom">사용자 지정</option>
+          </select>
+          <input type="color" id="customBgColor" value="#ffffff" style="margin-top:8px;" />
+        </div>
+
+        <div class="box">
+          <label>추가 옵션</label>
+          <label class="check-line">
+            <input type="checkbox" id="removeBg" />
+            배경 제거
+          </label>
+          <label class="check-line">
+            <input type="checkbox" id="enhance" checked />
+            업스케일 품질 보정
+          </label>
+        </div>
+
+        <div class="box">
+          <label for="prefix">파일명 접두어</label>
+          <input type="text" id="prefix" placeholder="예: PB_" />
+        </div>
+
+        <div class="box">
+          <label for="suffix">파일명 접미어</label>
+          <input type="text" id="suffix" placeholder="예: _완료" />
+        </div>
+
+        <div class="box">
+          <label for="quality">JPG / WEBP 품질: <span id="qualityText">95</span>%</label>
+          <input type="range" id="quality" min="60" max="100" value="95" />
+        </div>
+      </div>
+
+      <div class="summary" id="summary">선택된 파일이 없습니다.</div>
+
+      <div class="action-row">
+        <button id="processBtn">변환 실행</button>
+        <button id="clearResultBtn">결과 초기화</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">
+        <strong>3. 결과 미리보기</strong>
+        <span class="count" id="resultCount">0개</span>
+      </div>
+
+      <div class="list" id="resultList">
+        <div class="empty">아직 변환된 이미지가 없습니다.</div>
+      </div>
+    </div>
+
+    <div class="log" id="log">대기 중...</div>
+
+    <div class="note">
+      ※ 배경 제거는 인터넷 연결이 필요합니다.<br>
+      ※ 배경 제거 오류가 나면 우선 배경 제거 체크를 해제하고 변환해보세요.<br>
+      ※ JPG는 투명 배경을 지원하지 않아 흰색 배경으로 저장됩니다.
+    </div>
+  </div>
+
+  <script type="module">
+    import JSZip from "https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm";
+    import { removeBackground } from "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/+esm";
+
+    const BG_REMOVE_PUBLIC_PATH = "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/dist/";
+
+    const presets = {
+      POS: { width: 500, height: 500, label: "POS_500x500" },
+      KIOSK: { width: 150, height: 140, label: "KIOSK_150x140" },
+      QR: { width: 400, height: 400, label: "QR_400x400" },
+      ONLINE: { width: 1000, height: 1000, label: "ONLINE_1000x1000" }
+    };
+
+    const dropZone = document.getElementById("dropZone");
+    const imageInput = document.getElementById("imageInput");
+    const sourceList = document.getElementById("sourceList");
+    const resultList = document.getElementById("resultList");
+    const fileCount = document.getElementById("fileCount");
+    const resultCount = document.getElementById("resultCount");
+    const summary = document.getElementById("summary");
+    const logEl = document.getElementById("log");
+
+    const presetMode = document.getElementById("presetMode");
+    const fitMode = document.getElementById("fitMode");
+    const format = document.getElementById("format");
+    const upscaleMode = document.getElementById("upscaleMode");
+    const backgroundMode = document.getElementById("backgroundMode");
+    const customBgColor = document.getElementById("customBgColor");
+    const removeBg = document.getElementById("removeBg");
+    const enhance = document.getElementById("enhance");
+    const prefix = document.getElementById("prefix");
+    const suffix = document.getElementById("suffix");
+    const quality = document.getElementById("quality");
+    const qualityText = document.getElementById("qualityText");
+
+    const selectAllBtn = document.getElementById("selectAllBtn");
+    const unselectAllBtn = document.getElementById("unselectAllBtn");
+    const deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const processBtn = document.getElementById("processBtn");
+    const clearResultBtn = document.getElementById("clearResultBtn");
+
+    let items = [];
+    let results = [];
+
+    function log(msg) {
+      const time = new Date().toLocaleTimeString();
+      if (logEl.textContent === "대기 중...") logEl.textContent = "";
+      logEl.textContent += `[${time}] ${msg}\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function resetLog() {
+      logEl.textContent = "대기 중...";
+    }
+
+    function getExt(mime) {
+      if (mime === "image/jpeg") return "jpg";
+      if (mime === "image/webp") return "webp";
+      return "png";
+    }
+
+    function getPresetList() {
+      if (presetMode.value === "ALL") {
+        return [presets.POS, presets.KIOSK, presets.QR, presets.ONLINE];
+      }
+      return [presets[presetMode.value]];
+    }
+
+    function getBaseName(name) {
+      const idx = name.lastIndexOf(".");
+      return idx > -1 ? name.slice(0, idx) : name;
+    }
+
+    function getBgColor(mime) {
+      if (mime === "image/jpeg") return "#ffffff";
+      if (backgroundMode.value === "transparent") return null;
+      if (backgroundMode.value === "white") return "#ffffff";
+      if (backgroundMode.value === "black") return "#000000";
+      return customBgColor.value;
+    }
+
+    function updateSummary() {
+      const selected = items.filter(x => x.selected).length;
+      const presetText = presetMode.options[presetMode.selectedIndex].text;
+      const resultExpected = selected * getPresetList().length;
+
+      if (items.length === 0) {
+        summary.innerHTML = "선택된 파일이 없습니다.";
+      } else {
+        summary.innerHTML = `
+          선택 파일: <strong>${selected}개</strong> / 전체 ${items.length}개<br>
+          변환 규격: <strong>${presetText}</strong><br>
+          예상 결과물: <strong>${resultExpected}개</strong><br>
+          저장 형식: <strong>${format.options[format.selectedIndex].text}</strong>
+        `;
+      }
+
+      fileCount.textContent = `${items.length}개`;
+      resultCount.textContent = `${results.length}개`;
+    }
+
+    function loadImageFromFile(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          resolve(img);
+        };
+
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error("이미지 로드 실패"));
+        };
+
+        img.src = url;
+      });
+    }
+
+    function fileToDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = () => reject(new Error("파일 읽기 실패"));
+
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function addFiles(fileList) {
+      const files = Array.from(fileList).filter(f => f.type.startsWith("image/"));
+      if (files.length === 0) return;
+
+      resetLog();
+      log(`${files.length}개 이미지 추가 중`);
+
+      for (const file of files) {
+        try {
+          const img = await loadImageFromFile(file);
+          const dataUrl = await fileToDataUrl(file);
+
+          items.push({
+            id: crypto.randomUUID(),
+            file,
+            dataUrl,
+            width: img.width,
+            height: img.height,
+            selected: true,
+            status: "업로드 완료"
+          });
+
+          log(`업로드 완료: ${file.name}`);
+        } catch {
+          log(`추가 실패: ${file.name}`);
+        }
+      }
+
+      renderSourceList();
+      updateSummary();
+    }
+
+    function renderSourceList() {
+      sourceList.innerHTML = "";
+
+      if (items.length === 0) {
+        sourceList.innerHTML = `<div class="empty">아직 업로드된 이미지가 없습니다.</div>`;
+        return;
+      }
+
+      items.forEach(item => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        const statusClass = item.width < 500 || item.height < 500 ? "status warning" : "status";
+        const statusText = item.width < 500 || item.height < 500 ? "저해상도 주의" : item.status;
+
+        card.innerHTML = `
+          <img class="thumb" src="${item.dataUrl}" />
+          <div class="name">${item.file.name}</div>
+          <div class="meta">
+            원본: ${item.width} × ${item.height}px<br>
+            크기: ${(item.file.size / 1024).toFixed(1)}KB
+          </div>
+          <div class="${statusClass}">${statusText}</div>
+          <label class="check-line">
+            <input type="checkbox" ${item.selected ? "checked" : ""} data-id="${item.id}" class="selectItem" />
+            변환 대상
+          </label>
+          <button class="danger deleteItem" data-id="${item.id}">삭제</button>
+        `;
+
+        sourceList.appendChild(card);
+      });
+
+      document.querySelectorAll(".selectItem").forEach(el => {
+        el.addEventListener("change", e => {
+          const item = items.find(x => x.id === e.target.dataset.id);
+          if (item) item.selected = e.target.checked;
+          updateSummary();
+        });
+      });
+
+      document.querySelectorAll(".deleteItem").forEach(el => {
+        el.addEventListener("click", e => {
+          items = items.filter(x => x.id !== e.target.dataset.id);
+          renderSourceList();
+          updateSummary();
+        });
+      });
+    }
+
+    function renderResultList() {
+      resultList.innerHTML = "";
+
+      if (results.length === 0) {
+        resultList.innerHTML = `<div class="empty">아직 변환된 이미지가 없습니다.</div>`;
+        resultCount.textContent = "0개";
+        return;
+      }
+
+      results.forEach(result => {
+        const url = URL.createObjectURL(result.blob);
+        const card = document.createElement("div");
+        card.className = "card";
+
+        card.innerHTML = `
+          <img class="thumb" src="${url}" />
+          <div class="name">${result.name}</div>
+          <div class="meta">
+            결과: ${result.width} × ${result.height}px<br>
+            크기: ${(result.blob.size / 1024).toFixed(1)}KB
+          </div>
+          <div class="status">완료</div>
+          <button class="download">개별 다운로드</button>
+        `;
+
+        card.querySelector(".download").addEventListener("click", () => {
+          downloadBlob(result.blob, result.name);
+        });
+
+        resultList.appendChild(card);
+      });
+
+      resultCount.textContent = `${results.length}개`;
+    }
+
+    function calculateFactor(img, target) {
+      const mode = upscaleMode.value;
+
+      if (mode === "none") return 1;
+      if (mode === "2") return 2;
+      if (mode === "4") return 4;
+
+      const ratio = Math.min(target.width / img.width, target.height / img.height);
+      return ratio > 1 ? ratio : 1;
+    }
+
+    function makeUpscaledSource(img, factor) {
+      if (factor <= 1) return img;
+
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * factor);
+      c.height = Math.round(img.height * factor);
+
+      const ctx = c.getContext("2d");
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+
+      if (enhance.checked) {
+        ctx.filter = "contrast(103%) saturate(102%)";
+      }
+
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      ctx.filter = "none";
+
+      return c;
+    }
+
+    function drawFinal(source, target, mime) {
+      const c = document.createElement("canvas");
+      c.width = target.width;
+      c.height = target.height;
+
+      const ctx = c.getContext("2d");
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+
+      const bg = getBgColor(mime);
+
+      if (bg) {
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, c.width, c.height);
+      } else {
+        ctx.clearRect(0, 0, c.width, c.height);
+      }
+
+      const sw = source.width;
+      const sh = source.height;
+
+      let scale;
+
+      if (fitMode.value === "cover") {
+        scale = Math.max(target.width / sw, target.height / sh);
+      } else {
+        scale = Math.min(target.width / sw, target.height / sh);
+      }
+
+      const dw = sw * scale;
+      const dh = sh * scale;
+      const dx = (target.width - dw) / 2;
+      const dy = (target.height - dh) / 2;
+
+      ctx.drawImage(source, dx, dy, dw, dh);
+
+      return c;
+    }
+
+    function canvasToBlob(canvas, mime, q) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob(blob => {
+          if (blob) resolve(blob);
+          else reject(new Error("저장 파일 생성 실패"));
+        }, mime, q);
+      });
+    }
+
+    function downloadBlob(blob, name) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+
+      a.href = url;
+      a.download = name;
+
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      URL.revokeObjectURL(url);
+    }
+
+    async function removeBgAi(file) {
+      return await removeBackground(file, {
+        publicPath: BG_REMOVE_PUBLIC_PATH,
+        debug: false
+      });
+    }
+
+    function makeFileName(originalName, target, ext) {
+      const pre = prefix.value || "";
+      const suf = suffix.value || "";
+      const base = getBaseName(originalName);
+      const bg = removeBg.checked ? "_NOBG" : "";
+      const up = upscaleMode.value !== "none"
+        ? `_UP${upscaleMode.value === "auto" ? "AUTO" : upscaleMode.value + "X"}`
+        : "";
+      const fit = fitMode.value === "cover" ? "_CROP" : "_FIT";
+
+      return `${pre}${base}_${target.label}${fit}${up}${bg}${suf}.${ext}`;
+    }
+
+    function nowStamp() {
+      const d = new Date();
+      const pad = n => String(n).padStart(2, "0");
+
+      return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+    }
+
+    async function processImages() {
+      const selected = items.filter(x => x.selected);
+
+      if (selected.length === 0) {
+        alert("변환할 이미지를 선택해주세요.");
+        return;
+      }
+
+      processBtn.disabled = true;
+      results = [];
+      renderResultList();
+      resetLog();
+
+      const mime = format.value;
+      const ext = getExt(mime);
+      const q = Number(quality.value) / 100;
+      const targets = getPresetList();
+      const zip = new JSZip();
+
+      let success = 0;
+      let fail = 0;
+
+      log("작업 시작");
+
+      for (const item of selected) {
+        try {
+          log(`처리 중: ${item.file.name}`);
+
+          let workingBlob = item.file;
+
+          if (removeBg.checked) {
+            log(`배경 제거 중: ${item.file.name}`);
+            workingBlob = await removeBgAi(item.file);
+            log(`배경 제거 완료: ${item.file.name}`);
+          }
+
+          const img = await loadImageFromFile(workingBlob);
+
+          for (const target of targets) {
+            const factor = calculateFactor(img, target);
+            const upscaled = makeUpscaledSource(img, factor);
+            const finalCanvas = drawFinal(upscaled, target, mime);
+            const outBlob = await canvasToBlob(finalCanvas, mime, q);
+            const outName = makeFileName(item.file.name, target, ext);
+
+            results.push({
+              name: outName,
+              blob: outBlob,
+              width: target.width,
+              height: target.height
+            });
+
+            zip.file(outName, outBlob);
+            success++;
+
+            log(`완료: ${outName}`);
+          }
+        } catch (err) {
+          fail++;
+          log(`실패: ${item.file.name} / ${err.message}`);
+        }
+      }
+
+      renderResultList();
+
+      if (results.length > 0) {
+        log("ZIP 생성 중");
+
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        downloadBlob(zipBlob, `converted_images_${nowStamp()}.zip`);
+
+        log("ZIP 다운로드 완료");
+      }
+
+      log(`작업 종료 / 성공 ${success}개 / 실패 ${fail}개`);
+
+      processBtn.disabled = false;
+      updateSummary();
+    }
+
+    dropZone.addEventListener("click", () => imageInput.click());
+
+    dropZone.addEventListener("dragover", e => {
+      e.preventDefault();
+      dropZone.classList.add("dragover");
+    });
+
+    dropZone.addEventListener("dragleave", () => {
+      dropZone.classList.remove("dragover");
+    });
+
+    dropZone.addEventListener("drop", e => {
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+      addFiles(e.dataTransfer.files);
+    });
+
+    imageInput.addEventListener("change", e => {
+      addFiles(e.target.files);
+      imageInput.value = "";
+    });
+
+    selectAllBtn.addEventListener("click", () => {
+      items.forEach(x => x.selected = true);
+      renderSourceList();
+      updateSummary();
+    });
+
+    unselectAllBtn.addEventListener("click", () => {
+      items.forEach(x => x.selected = false);
+      renderSourceList();
+      updateSummary();
+    });
+
+    deleteSelectedBtn.addEventListener("click", () => {
+      items = items.filter(x => !x.selected);
+      renderSourceList();
+      updateSummary();
+    });
+
+    resetBtn.addEventListener("click", () => {
+      items = [];
+      results = [];
+      sourceList.innerHTML = `<div class="empty">아직 업로드된 이미지가 없습니다.</div>`;
+      resultList.innerHTML = `<div class="empty">아직 변환된 이미지가 없습니다.</div>`;
+      resetLog();
+      updateSummary();
+    });
+
+    clearResultBtn.addEventListener("click", () => {
+      results = [];
+      renderResultList();
+      updateSummary();
+    });
+
+    processBtn.addEventListener("click", processImages);
+
+    [
+      presetMode,
+      fitMode,
+      format,
+      upscaleMode,
+      backgroundMode,
+      customBgColor,
+      removeBg,
+      enhance,
+      prefix,
+      suffix,
+      quality
+    ].forEach(el => {
+      el.addEventListener("input", () => {
+        qualityText.textContent = quality.value;
+        updateSummary();
+      });
+
+      el.addEventListener("change", updateSummary);
+    });
+
+    updateSummary();
+    renderSourceList();
+    renderResultList();
+  </script>
+</body>
+</html>

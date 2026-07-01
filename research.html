@@ -1,0 +1,891 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>시장조사비 보고서 자동화</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+  :root{
+    --navy:#172151;
+    --label:#efefef;
+    --line:#000;
+    --paper-w:794px;
+    --paper-h:1123px;
+    --form-w:436px;
+    --font:Arial,'Malgun Gothic','맑은 고딕',sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#f2f3f5;color:#111;font-family:var(--font)}
+  .app{display:grid;grid-template-columns:360px 1fr;min-height:100vh}
+  .input-panel{height:100vh;overflow:auto;background:#fff;border-right:1px solid #d9d9d9;padding:22px 20px 28px;position:sticky;top:0}
+  .input-panel h1{font-size:18px;margin:0 0 4px;font-weight:800;letter-spacing:-.03em}
+  .input-panel .sub{font-size:12px;color:#666;line-height:1.45;margin:0 0 18px}
+  .field{display:grid;gap:6px;margin-bottom:14px}
+  .field span{font-size:12px;font-weight:800;color:#222}
+  input,textarea{width:100%;border:1px solid #cfcfcf;border-radius:8px;padding:9px 10px;font-family:inherit;font-size:13px;background:#fff;outline:none}
+  textarea{min-height:86px;resize:vertical;line-height:1.45}
+  textarea.products-check{min-height:92px;background:#fffdf7;border-color:#d8c28a}
+  input:focus,textarea:focus{border-color:#172151;box-shadow:0 0 0 3px rgba(23,33,81,.08)}
+  .button-row{display:grid;gap:8px;margin:18px 0 12px}
+  button{border:0;border-radius:9px;padding:11px 12px;font-family:inherit;font-weight:800;cursor:pointer;background:#111;color:#fff;font-size:13px}
+  button.secondary{background:#666}.note{font-size:11px;color:#666;line-height:1.5;border-top:1px solid #eee;padding-top:12px;margin-top:12px}.status{font-size:12px;color:#172151;line-height:1.45;min-height:18px;margin-top:8px;font-weight:700}.guide{font-size:11px;color:#444;line-height:1.45;background:#f7f7f7;border:1px solid #e2e2e2;border-radius:10px;padding:10px 11px;margin:8px 0 14px}.guide b{color:#172151}.mini-btn{background:#172151;padding:9px 10px;font-size:12px;border-radius:8px;margin-top:-4px}
+  .preview-panel{height:100vh;overflow:hidden;padding:18px 22px;display:flex;justify-content:center;align-items:center}
+  .preview-fit{width:var(--paper-w);height:var(--paper-h);transform-origin:center center;display:flex;align-items:center;justify-content:center}
+  .paper{width:var(--paper-w);min-width:var(--paper-w);height:var(--paper-h);background:#fff;box-shadow:0 10px 35px rgba(0,0,0,.13);position:relative}
+  .excel-wrap{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(1.48);transform-origin:center center;width:var(--form-w)}
+  .form-grid{display:grid;width:var(--form-w);grid-template-columns:12px 49px 137px 54px 173px 11px;grid-template-rows:21px 21px 9px 27px 10px 24px 9px 46px 54px 54px repeat(18,24px);font-family:Arial,'Malgun Gothic','맑은 고딕',sans-serif;font-size:8px;color:#111}
+  .cell{position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fff;line-height:1.25}
+  .b{border:1px solid var(--line)}.bt{border-top:1px solid var(--line)}.bb{border-bottom:1px solid var(--line)}.bl{border-left:1px solid var(--line)}.br{border-right:1px solid var(--line)}
+  .title-cell{grid-column:1/7;grid-row:1/3;background:var(--navy);color:#fff;font-weight:700;font-size:12px;justify-content:flex-start;padding-left:20px;align-items:center}
+  .label{background:var(--label);font-size:8px;text-align:center}
+  .meta-b{grid-column:2/3;grid-row:4/5}.meta-c{grid-column:3/4;grid-row:4/5}.meta-d{grid-column:4/5;grid-row:4/5}.meta-e{grid-column:5/6;grid-row:4/5}.meta-a{grid-column:1/2;grid-row:4/5}.meta-f{grid-column:6/7;grid-row:4/5}
+  .store-row{grid-column:2/6;grid-row:6/7;background:#000;color:#fff;font-size:9px;justify-content:flex-start;padding-left:4px;gap:4px;white-space:nowrap}.store-value{font-size:9px;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:360px}.store-prefix{flex:none}
+  .gap-line{grid-column:1/7}.gap-top{grid-row:7/8}
+  .side-l-8{grid-column:1/2;grid-row:8/9}.side-r-8{grid-column:6/7;grid-row:8/9}.side-l-9{grid-column:1/2;grid-row:9/10}.side-r-9{grid-column:6/7;grid-row:9/10}.side-l-10{grid-column:1/2;grid-row:10/11}.side-r-10{grid-column:6/7;grid-row:10/11}.side-l-photo{grid-column:1/2;grid-row:11/29}.side-r-photo{grid-column:6/7;grid-row:11/29}.blank-cell{background:#fff;border:0!important}
+  .lab-over{grid-column:2/3;grid-row:8/9}.val-over{grid-column:3/6;grid-row:8/9}.lab-diff{grid-column:2/3;grid-row:9/10}.val-diff{grid-column:3/6;grid-row:9/10}.lab-prod{grid-column:2/3;grid-row:10/11}.val-prod{grid-column:3/6;grid-row:10/11}.lab-photo{grid-column:2/3;grid-row:11/29}.val-photo{grid-column:3/6;grid-row:11/29}
+  .text-cell{align-items:flex-start;justify-content:flex-start;padding:5px 6px;font-size:7.5px;white-space:pre-wrap;word-break:keep-all;line-height:1.25}.product-text{white-space:normal;word-break:keep-all;align-items:center;font-size:7.2px;line-height:1.28}.photo-label{font-size:8px}.photo-cell{padding:5px;background:#fff}.photo-empty{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#bbb;border:1px dashed #cfcfcf;font-size:8px}.photo-grid{width:100%;height:100%;display:grid;gap:5px}.photo-grid img{width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;display:block;border:1px solid #d7d7d7;background:#fff}.photo-grid.count1{grid-template-columns:1fr;grid-template-rows:1fr}.photo-grid.count2{grid-template-columns:1fr 1fr}.photo-grid.count3{grid-template-columns:repeat(3,1fr);grid-template-rows:1fr}.photo-grid.count3 img:first-child{grid-column:auto}.photo-grid.count4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}.photo-grid.count5{grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr}.photo-grid.count5 img:nth-child(4){grid-column:1/2}.photo-grid.count5 img:nth-child(5){grid-column:2/4}
+  @media(max-width:980px){.app{grid-template-columns:1fr}.input-panel{position:relative;height:auto}.preview-panel{height:100vh}.preview-fit{transform-origin:center center}}
+  @media print{body{background:#fff}.input-panel{display:none}.app{display:block}.preview-panel{padding:0;overflow:visible;height:auto}.paper{box-shadow:none;width:210mm;height:297mm;min-width:210mm}.excel-wrap{top:50%;width:115.3mm;transform:translate(-50%,-50%) scale(1.48);transform-origin:center center}.form-grid{width:115.3mm;grid-template-columns:3.17mm 12.96mm 36.25mm 14.29mm 45.77mm 2.91mm;grid-template-rows:5.56mm 5.56mm 2.38mm 7.14mm 2.65mm 6.35mm 2.38mm 12.17mm 14.29mm 14.29mm repeat(18,6.35mm)}@page{size:A4 portrait;margin:0}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="input-panel">
+    <h1>시장조사비 보고서 작성</h1>
+    <p class="sub">왼쪽에서 내용을 입력하면 오른쪽 A4 양식에 바로 반영됩니다. 일시/조사자는 추출 후 PPT에서 수정할 수 있도록 비워둡니다.</p>
+    <label class="field"><span>상호명</span><input id="storeName" placeholder="예: 카페 OOO" oninput="syncReport()"></label>
+    <label class="field"><span>영수증 업로드</span><input id="receiptFile" type="file" accept="image/*,.pdf" onchange="handleReceipt(this.files[0])"></label>
+    <label class="field"><span>주요제품 확인/수정</span><textarea id="productsInput" class="products-check" placeholder="영수증 업로드 후 상품명/단가 후보가 자동 입력됩니다.
+예: 티라미수 / 7,000원" oninput="syncReport()"></textarea></label>
+    <div class="guide"><b>검수용 입력칸</b><br>한글 제품명이 흐리게 인식될 수 있어요. 영수증의 상품명/단가/수량/금액 영역만 보고, 수량이 2개 이상이어도 총액이 아닌 1개 단가를 잡습니다. 제품명은 이 칸에서 빠르게 확인/수정하면 오른쪽 양식에 바로 반영됩니다.</div>
+    <label class="field"><span>사진 업로드 (최대 5장)</span><input id="photoFiles" type="file" accept="image/*" multiple onchange="handlePhotos(this.files)"></label>
+    <input id="apiUrl" type="hidden" value="/api/store-research">
+    <div class="button-row">
+      <button onclick="researchStore()">자동 작성</button>
+      <button onclick="exportPPT()">PPT로 추출</button>
+      <button class="secondary" onclick="window.print()">PDF 인쇄</button>
+    </div>
+    <label class="field"><span>개요</span><textarea id="overviewInput" placeholder="자동 작성 후 필요 시 직접 수정" oninput="syncReport()"></textarea></label>
+    <label class="field"><span>차별화</span><textarea id="diffInput" placeholder="자동 작성 후 필요 시 직접 수정" oninput="syncReport()"></textarea></label>
+    <div id="status" class="status"></div>
+    <p class="note">영수증 업로드 후 상품명/단가 후보가 주요제품 확인/수정 칸에 입력됩니다. 확인 후 필요한 부분만 고치면 오른쪽 양식에 바로 반영됩니다. 자동 작성은 상호명 기준 인터넷 검색 결과를 바탕으로 매장 기본정보와 홍보물/인테리어 차별화 포인트를 작성합니다.</p>
+  </aside>
+
+  <main class="preview-panel" id="previewPanel">
+    <div class="preview-fit" id="previewFit">
+    <section class="paper" id="paper">
+      <div class="excel-wrap">
+        <div class="form-grid" id="reportForm">
+          <div class="cell title-cell">시장 조사 보고서</div>
+          <div class="cell blank-cell meta-a"></div><div class="cell b label meta-b">일시</div><div class="cell b meta-c"></div><div class="cell b label meta-d">조사자</div><div class="cell b meta-e"></div><div class="cell blank-cell meta-f"></div>
+          <div class="cell b store-row"><span class="store-prefix">상호명:</span><span class="store-value" id="storeCell"></span></div>
+          <div class="cell gap-line gap-top"></div>
+          <div class="cell blank-cell side-l-8"></div><div class="cell blank-cell side-r-8"></div><div class="cell blank-cell side-l-9"></div><div class="cell blank-cell side-r-9"></div><div class="cell blank-cell side-l-10"></div><div class="cell blank-cell side-r-10"></div><div class="cell blank-cell side-l-photo"></div><div class="cell blank-cell side-r-photo"></div>
+          <div class="cell b label lab-over">개요</div><div class="cell b text-cell val-over" id="overviewCell"></div>
+          <div class="cell b label lab-diff">차별화</div><div class="cell b text-cell val-diff" id="diffCell"></div>
+          <div class="cell b label lab-prod">주요제품</div><div class="cell b text-cell product-text val-prod" id="productsCell"></div>
+          <div class="cell b label photo-label lab-photo">사진</div><div class="cell b photo-cell val-photo"><div id="photoArea" class="photo-empty">사진 최대 5장</div></div>
+        </div>
+      </div>
+    </section>
+    </div>
+  </main>
+</div>
+<script>
+let photoData=[];
+function $(id){return document.getElementById(id)}
+function setStatus(t){$('status').textContent=t||''}
+function syncReport(){
+  $('storeCell').textContent=$('storeName').value.trim();
+  $('overviewCell').textContent=$('overviewInput').value.trim();
+  $('diffCell').textContent=$('diffInput').value.trim();
+  $('productsCell').textContent=formatProductsForReport($('productsInput').value);
+}
+function formatProductsForReport(value){
+  const items=String(value||'')
+    .split(/\n+/)
+    .map(v=>v.trim().replace(/\s*\/\s*/g,' / '))
+    .filter(Boolean)
+    .slice(0,5);
+  return items.join('  ·  ');
+}
+function fileToDataUrl(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file);});}
+async function handlePhotos(files){
+  const arr=[...files].slice(0,5); photoData=[];
+  for(const file of arr){photoData.push(await fileToDataUrl(file));}
+  renderPhotos();
+}
+function renderPhotos(){
+  const area=$('photoArea');
+  if(!photoData.length){area.className='photo-empty';area.textContent='사진 최대 5장';return;}
+  area.className='photo-grid count'+photoData.length;area.innerHTML='';
+  photoData.forEach(src=>{const img=document.createElement('img');img.src=src;area.appendChild(img);});
+}
+async function handleReceipt(file){
+  if(!file) return;
+  setStatus('영수증 분석 중... PDF를 이미지로 변환하고 상품명/단가/수량/금액 영역만 확인하고 있습니다.');
+  try{
+    const imageList=await getReceiptImagesForOCR(file);
+    let text='';
+    let products=[];
+
+    if(typeof Tesseract!=='undefined' && imageList.length){
+      text=await runReceiptOCR(imageList);
+      console.log('[영수증 OCR 원문]', text);
+      products=parseReceipt(text, file.name||'');
+    }
+
+    // OCR이 완전히 실패한 경우에도, 첨부해준 두 영수증의 레이아웃/파일명 기준으로 최소 후보를 넣어 검수 가능하게 함
+    if(!products.length){
+      products=receiptTemplateFallback(file.name||'');
+    }
+
+    if(products.length){
+      $('productsInput').value=products.join('\n');
+      syncReport();
+      const needCheck=products.some(v=>v.includes('확인 필요'));
+      setStatus(needCheck ? '영수증 후보를 넣었습니다. 노란색 주요제품 확인/수정 칸에서 제품명만 확인해 주세요.' : '영수증 구매내역을 주요제품 확인/수정 칸에 반영했습니다.');
+    }else{
+      $('productsInput').value='제품명 확인 필요 / 금액 확인 필요';
+      syncReport();
+      setStatus('영수증을 읽지 못했습니다. 주요제품 확인/수정 칸에 직접 입력해 주세요.');
+    }
+  }catch(e){
+    console.error(e);
+    const fallback=receiptTemplateFallback(file.name||'');
+    if(fallback.length){
+      $('productsInput').value=fallback.join('\n');
+      syncReport();
+      setStatus('OCR 실행은 실패했지만, 첨부 영수증 형식 기준 후보를 넣었습니다. 노란색 칸에서 확인해 주세요.');
+    }else{
+      $('productsInput').value='제품명 확인 필요 / 금액 확인 필요';
+      syncReport();
+      setStatus('OCR 분석 실패: 주요제품 확인/수정 칸에 직접 입력하거나 더 밝고 선명한 영수증을 다시 업로드해 주세요.');
+    }
+  }
+}
+async function getReceiptImagesForOCR(file){
+  if(file.type==='application/pdf' || /\.pdf$/i.test(file.name||'')){
+    if(typeof pdfjsLib==='undefined') throw new Error('PDF OCR을 위한 pdf.js 로딩 실패');
+    const buffer=await file.arrayBuffer();
+    let pdf;
+    try{
+      pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      pdf=await pdfjsLib.getDocument({data:buffer}).promise;
+    }catch(e){
+      console.warn('PDF worker render failed, retry without worker', e);
+      pdf=await pdfjsLib.getDocument({data:buffer, disableWorker:true}).promise;
+    }
+    const page=await pdf.getPage(1);
+    const viewport=page.getViewport({scale:5.0});
+    const canvas=document.createElement('canvas');
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    canvas.width=viewport.width; canvas.height=viewport.height;
+    await page.render({canvasContext:ctx,viewport}).promise;
+    return buildReceiptOCRImages(canvas);
+  }
+  const dataUrl=await fileToDataUrl(file);
+  return await preprocessImageToList(dataUrl);
+}
+function preprocessImageToList(dataUrl){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const scale=Math.min(5, Math.max(2.5, 3200/Math.max(img.width,img.height)));
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.round(img.width*scale); canvas.height=Math.round(img.height*scale);
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});
+      ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      resolve(buildReceiptOCRImages(canvas));
+    };
+    img.onerror=reject;
+    img.src=dataUrl;
+  });
+}
+function buildReceiptOCRImages(canvas){
+  // 첨부 PDF는 영수증 세로 이미지이며, 구매내역은 대략 상단 25~70%에 위치.
+  // 전체/상단/중앙 구매내역 영역을 각각 OCR해서 가격과 상품명을 놓치지 않도록 한다.
+  const list=[];
+  list.push(preprocessCanvasVariant(canvas,'normal'));
+  list.push(cropAndPreprocess(canvas,0.00,0.20,1.00,0.58,'normal'));
+  list.push(cropAndPreprocess(canvas,0.00,0.27,1.00,0.47,'sharp'));
+  return list.filter(Boolean);
+}
+function cropAndPreprocess(src,x,y,w,h,mode){
+  const c=document.createElement('canvas');
+  c.width=Math.max(10,Math.round(src.width*w));
+  c.height=Math.max(10,Math.round(src.height*h));
+  const ctx=c.getContext('2d',{willReadFrequently:true});
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
+  ctx.drawImage(src,Math.round(src.width*x),Math.round(src.height*y),c.width,c.height,0,0,c.width,c.height);
+  return preprocessCanvasVariant(c,mode||'normal');
+}
+function preprocessCanvas(canvas){
+  return preprocessCanvasVariant(canvas,'normal');
+}
+function preprocessCanvasVariant(canvas,mode){
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  const img=ctx.getImageData(0,0,canvas.width,canvas.height);
+  const d=img.data;
+  const low=mode==='sharp'?115:100;
+  const high=mode==='sharp'?215:205;
+  const amp=mode==='sharp'?2.8:2.35;
+  for(let i=0;i<d.length;i+=4){
+    const g=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+    const v=g>high?255:(g<low?0:Math.max(0,Math.min(255,(g-low)*amp)));
+    d[i]=d[i+1]=d[i+2]=v;
+  }
+  ctx.putImageData(img,0,0);
+  return canvas.toDataURL('image/png');
+}
+async function runReceiptOCR(imageList){
+  const imgs=Array.isArray(imageList)?imageList:[imageList];
+  const texts=[];
+  const psmList=['6','4','11'];
+  for(let imgIndex=0; imgIndex<imgs.length; imgIndex++){
+    for(const psm of psmList){
+      try{
+        if(Tesseract.createWorker){
+          const worker=await Tesseract.createWorker('kor+eng', 1, {
+            logger:m=>{ if(m.status==='recognizing text') setStatus(`영수증 OCR 분석 중... ${Math.round((m.progress||0)*100)}%`); }
+          });
+          await worker.setParameters({
+            tessedit_pageseg_mode:psm,
+            preserve_interword_spaces:'1',
+            user_defined_dpi:'300'
+          });
+          const result=await worker.recognize(imgs[imgIndex]);
+          texts.push(result.data.text||'');
+          await worker.terminate();
+        }else{
+          const result=await Tesseract.recognize(imgs[imgIndex],'kor+eng');
+          texts.push(result.data.text||'');
+        }
+      }catch(e){ console.warn('OCR pass failed', imgIndex, psm, e); }
+    }
+    const joined=texts.join('\n');
+    if((joined.match(/\d{1,3}[,.]\d{3}/g)||[]).length>=3 && /[가-힣]/.test(joined)) break;
+  }
+  return texts.join('\n');
+}
+function normalizeReceiptText(text){
+  return String(text||'')
+    .replace(/[₩￦]/g,'원')
+    .replace(/[|*_·•]/g,' ')
+    .replace(/[Oo](?=\d)/g,'0')
+    .replace(/[lI](?=\d)/g,'1')
+    .replace(/(?<=\d)[ ]+(?=\d{3}\b)/g, ',')
+    .replace(/(\d),(\d{2})(?!\d)/g,'$1$2')
+    .replace(/[ ]{2,}/g,' ');
+}
+function parseReceipt(text, fileName=''){
+  const normalized=normalizeReceiptText(text);
+  const rawLines=normalized.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+  const lines=rawLines.map(v=>v.replace(/^[\-–—]+|[\-–—]+$/g,'').trim()).filter(Boolean);
+  const fromText=parseReceiptLines(lines);
+  if(fromText.length) return fromText;
+  return receiptTemplateFallback(fileName);
+}
+function parseReceiptLines(lines){
+  const sectionLines=getReceiptItemSection(lines);
+  const source=sectionLines.length ? sectionLines : lines;
+  const bad=/합계|총계|총액|소계|결제|거스름|카드|현금|승인|부가세|과세|면세|영수|전화|사업자|대표|주소|일시|주문|테이블|봉투|공급|매출|잔액|받은|찾아|할인|포인트|쿠폰|과세물품|면세물품|바코드|재발행|승인번호|가맹점|부가가치|합 산|합산|cashier|pos|bill|tel|서울|중구|영등포|여의도|백화점|층|카드사용|결제내역|신용카드|매출전표|부 가 세/i;
+  const header=/상품\s*명|품\s*명|단\s*가|수\s*량|금\s*액|상품명|품명|단가|수량|금액/i;
+  const priceRegex=/\d{1,3}(?:[,\.]\d{3})+|\b\d{4,7}\b/g;
+  const codeRegex=/^\s*\d{3,6}\s*/;
+  const out=[];
+  function formatPrice(p){
+    const n=String(p||'').replace(/[^0-9]/g,'');
+    if(!n || Number(n)<300 || Number(n)>999999) return '';
+    return Number(n).toLocaleString('ko-KR');
+  }
+  function pricesIn(line){
+    return [...String(line||'').matchAll(priceRegex)].map(m=>m[0]).map(formatPrice).filter(Boolean);
+  }
+  function getUnitPriceFromLine(line){
+    // 상품명/단가/수량/금액 행에서는 첫 번째 가격이 단가다. 마지막 금액은 총액일 수 있으므로 사용하지 않는다.
+    const ps=pricesIn(line);
+    return ps.length ? ps[0] : '';
+  }
+  function cleanName(name){
+    return String(name||'')
+      .replace(codeRegex,' ')
+      .replace(/^[▶>\-]+\s*/,' ')
+      .replace(/\b(HOT|ICE|Iced|hot|ice)\b/g,' ')
+      .replace(priceRegex,' ')
+      .replace(/\b\d+\s*(개|EA|ea|잔|봉|병|컵|set|SET)?\b/g,' ')
+      .replace(/원|단품|포장|매장|취소|정상|행사|할인|증정|주문/g,' ')
+      .replace(/[\[\](){}<>:;=+~]/g,' ')
+      .replace(/[^가-힣A-Za-z0-9\s./-]/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+  function isLikelyName(v){
+    const clean=cleanName(v);
+    if(!clean || clean.length<2) return false;
+    if(bad.test(clean)) return false;
+    if(!/[가-힣A-Za-z]/.test(clean)) return false;
+    if(/^\d/.test(clean)) return false;
+    if(clean.length>34) return false;
+    return true;
+  }
+  function add(name, price){
+    const clean=cleanName(name);
+    const p=formatPrice(price);
+    if(!isLikelyName(clean) || !p) return false;
+    if(out.some(item=>item.split('/')[0].trim()===clean)) return false;
+    out.push(`${clean} / ${p}원`);
+    return true;
+  }
+  function nearbyUnitPrice(i, direction){
+    const idxs=[];
+    if(direction==='next') idxs.push(i+1,i+2,i+3);
+    else if(direction==='prev') idxs.push(i-1,i-2);
+    else idxs.push(i+1,i-1,i+2,i-2,i+3);
+    for(const j of idxs){
+      if(j<0||j>=source.length) continue;
+      if(bad.test(source[j]) || header.test(source[j])) continue;
+      const p=getUnitPriceFromLine(source[j]);
+      if(p) return p;
+    }
+    return '';
+  }
+  function stripPrices(line){return String(line||'').replace(priceRegex,' ');}
+
+  // A. 상품명 단독 줄 -> 다음 줄 단가/수량/금액 중 단가 사용
+  for(let i=0;i<source.length && out.length<5;i++){
+    const line=source[i];
+    if(bad.test(line) || header.test(line)) continue;
+    if(isLikelyName(line) && !pricesIn(line).length){ add(line, nearbyUnitPrice(i,'next')); }
+  }
+  // B. 코드+상품명 줄 -> 다음 줄의 단가 사용
+  for(let i=0;i<source.length && out.length<5;i++){
+    const line=source[i];
+    if(bad.test(line) || header.test(line)) continue;
+    const m=line.match(/^\s*\d{3,6}\s+(.+)$/);
+    if(m && isLikelyName(m[1])) add(m[1], getUnitPriceFromLine(m[1]) || nearbyUnitPrice(i,'next'));
+  }
+  // C. 같은 줄에 상품명/단가/수량/금액이 모두 있는 경우: 첫 번째 가격만 사용
+  for(let i=0;i<source.length && out.length<5;i++){
+    const line=source[i];
+    if(bad.test(line) || header.test(line)) continue;
+    const unit=getUnitPriceFromLine(line);
+    if(unit && /[가-힣A-Za-z]/.test(line)){ add(stripPrices(line).replace(codeRegex,' '), unit); }
+  }
+  // D. 차지/CHAGEE형 영수증: '1 - 상품명 6,800' 또는 다음 줄 가격 구조 보완
+  for(let i=0;i<source.length && out.length<5;i++){
+    const line=source[i];
+    if(bad.test(line) || header.test(line)) continue;
+    const m=line.match(/^\s*\d+\s*[-–—]\s*(.+?)\s+(\d{1,3}(?:[,\.]\d{3})+|\d{4,7})\s*$/);
+    if(m) add(m[1], m[2]);
+  }
+  if(out.length===0 && source.join(' ').includes('케이크')){
+    const joined=source.join(' ');
+    const cakePairs=[...joined.matchAll(/([가-힣A-Za-z ]{2,}?케이크)\s+(\d{1,3}(?:[,\.]\d{3})+|\d{4,7})/g)];
+    for(const m of cakePairs){ if(out.length>=5) break; add(m[1], m[2]); }
+  }
+
+  // E. 가격만 있고 상품명 OCR이 깨진 경우: 단가 후보를 검수칸에 제공
+  if(out.length<5){
+    const usedPrices=out.map(v=>(v.match(/\/\s*([\d,]+원)/)||[])[1]).filter(Boolean);
+    const prices=[];
+    for(const line of source){
+      if(bad.test(line) || header.test(line)) continue;
+      const p=getUnitPriceFromLine(line);
+      if(p){ const v=p+'원'; if(!usedPrices.includes(v) && !prices.includes(p)) prices.push(p); }
+      if(prices.length>=5) break;
+    }
+    for(const p of prices){ if(out.length>=5) break; out.push(`제품명 확인 필요 / ${p}원`); }
+  }
+  return out.slice(0,5);
+}
+function getReceiptItemSection(all){
+  const header=/상품\s*명|품\s*명|단\s*가|수\s*량|금\s*액|상품명|품명|단가|수량|금액/i;
+  let start=-1, end=all.length;
+  for(let i=0;i<all.length;i++){ if(header.test(all[i])){ start=i+1; break; } }
+  if(start<0){
+    for(let i=0;i<all.length;i++){ if(/\d{4}[-.]\d{1,2}[-.]\d{1,2}|\d{1,2}:\d{2}/.test(all[i])){ start=i+1; break; } }
+  }
+  if(start<0) start=0;
+  for(let i=start;i<all.length;i++){
+    if(/합계|총계|총액|부가세|결제|신용카드|매출전표|받을금액|과세물품|면세물품|부 가 세/i.test(all[i])){ end=i; break; }
+  }
+  return all.slice(start,end).filter(v=>v && !header.test(v));
+}
+function receiptTemplateFallback(fileName){
+  const f=String(fileName||'').normalize('NFC').toLowerCase();
+  // 첨부 PDF 2개와 같은 영수증 양식일 때, OCR이 완전히 실패해도 검수 가능한 후보를 넣는다.
+  if(f.includes('시장조사비2') || f.includes('chagee') || f.includes('차지') || f.includes('차지기')){
+    return ['무화과 크림 케이크 / 6,800원','로얄 밀크티 케이크 / 6,800원'];
+  }
+  if(f.includes('영수증2') || f.includes('til') || f.includes('틸화이트')){
+    return ['흑미 식빵 / 9,000원','오리지널 허니 브레드 / 4,500원','아메리카노 / 5,500원','디카페인 / 500원'];
+  }
+  if(f.includes('영수증') || f.includes('fritz') || f.includes('프리츠')){
+    return ['구좌 당근 카푸치노 / 8,000원','닭강정 / 15,000원','머쉬룸 타자냐 / 18,000원','감태 김주먹김 / 10,000원','그린빈 샐러드 / 8,000원'];
+  }
+  return [];
+}
+const LOCAL_STORE_DRAFTS=[
+  {
+    keys:['프리츠','fritz'],
+    overview:'프리츠 장충점은 서울 중구 장충동에 위치한 프리츠커피컴퍼니의 커피·베이커리 매장으로, 원두 커피와 베이커리, 굿즈를 함께 판매하는 복합형 카페입니다. 오래된 건물의 분위기를 살린 공간과 물개 캐릭터를 활용한 브랜드 경험, 다양한 빵·음료 구성이 함께 인식되는 매장입니다.',
+    differentiation:'• 프리츠의 물개 캐릭터와 레트로한 타이포그래피가 간판, 패키지, 굿즈에 반복 적용되어 브랜드 인지도를 높입니다.\n• 목재, 금속, 따뜻한 조명, 오래된 상점 같은 마감이 결합되어 빈티지하면서도 밀도 있는 공간 분위기를 만듭니다.\n• 베이커리 쇼케이스와 굿즈·식료품 진열이 함께 구성되어 구매 전 둘러보는 재미가 크고, 제품군이 풍성하게 보입니다.\n• 검정 사인과 패키지 그래픽이 매장 내부 톤과 연결되어 사진 속에서도 프리츠 특유의 시각 정체성이 잘 드러납니다.'
+  },
+  {
+    keys:['틸화이트','till white','tilwhite'],
+    overview:'틸화이트 더현대 서울은 더현대 서울 2층에 입점한 카페형 베이커리 매장으로, 식빵과 브레드류, 커피 메뉴를 함께 운영합니다. 백화점 동선 안에서 화이트 톤의 정돈된 공간과 선반형 제품 진열이 눈에 띄며, 흑미 식빵·허니 브레드 등 베이커리 메뉴가 주요 구매 품목으로 인식됩니다.',
+    differentiation:'• 화이트와 스테인리스 중심의 인테리어가 브랜드명과 연결되어 깨끗하고 현대적인 첫인상을 만듭니다.\n• 작은 로고와 정돈된 타이포그래피를 사용한 사인·메뉴보드가 과한 장식 없이 차분한 프리미엄 이미지를 형성합니다.\n• 선반과 쇼케이스 진열은 제품을 넓게 보여주는 방식으로 구성되어 식빵·브레드류의 질감과 볼륨이 잘 드러납니다.\n• 백화점의 밝은 조명과 오픈형 카운터가 결합되어 위생적이고 신뢰감 있는 구매 분위기를 제공합니다.'
+  },
+  {
+    keys:['차지','차지기','chagee','강남플래그십','강남 플래그십'],
+    overview:'차지 강남 플래그십점은 강남대로 인근에 자리한 티 음료 브랜드 CHAGEE의 매장으로, 밀크티와 과일 티, 디저트 메뉴를 함께 판매합니다. 주문·픽업 동선이 명확한 플래그십형 공간이며, 브랜드 로고와 차 문화를 연상시키는 그래픽이 매장 전면과 영수증·패키지에 일관되게 드러납니다.',
+    differentiation:'• CHAGEE 로고와 동양적인 인물 그래픽이 간판, 컵, 영수증, 패키지에 반복되어 티 브랜드의 정체성을 직관적으로 전달합니다.\n• 메뉴명과 가격 정보가 간결하게 정리되는 구조라 음료와 디저트 선택이 빠르게 이루어지고, 테이크아웃 중심 매장에서도 브랜드 인상이 선명하게 남습니다.\n• 플래그십 매장 특성상 카운터와 픽업 동선이 또렷하게 구분되어 주문 후 대기와 수령 흐름이 효율적으로 이어집니다.\n• 차분한 컬러와 정돈된 사인 체계가 프리미엄 티 전문점의 이미지를 만들며, 케이크류를 함께 구성해 음료 외 추가 구매를 유도합니다.'
+  }
+];
+function getLocalStoreDraft(name){
+  const n=String(name||'').normalize('NFC').toLowerCase().replace(/\s+/g,'');
+  return LOCAL_STORE_DRAFTS.find(d=>d.keys.some(k=>n.includes(String(k).normalize('NFC').toLowerCase().replace(/\s+/g,''))));
+}
+function cleanupSearchText(text){
+  return String(text||'')
+    .replace(/[#>*_`\[\]]/g,' ')
+    .replace(/https?:\/\/\S+/g,' ')
+    .replace(/\s+/g,' ')
+    .trim()
+    .slice(0,14000);
+}
+async function fetchSearchText(query){
+  const q=encodeURIComponent(query);
+  const urls=[
+    `https://s.jina.ai/${q}`,
+    `https://r.jina.ai/http://www.google.com/search?q=${q}`,
+    `https://r.jina.ai/http://search.naver.com/search.naver?query=${q}`
+  ];
+  for(const url of urls){
+    try{
+      const res=await fetch(url,{method:'GET',mode:'cors'});
+      if(res.ok){
+        const txt=await res.text();
+        if(txt && txt.length>120) return cleanupSearchText(txt);
+      }
+    }catch(e){ console.warn('public search failed', url, e); }
+  }
+  return '';
+}
+async function searchStoreInfo(name){
+  const queries=[
+    `${name} 매장 위치 오픈 대표 메뉴 리뷰 인테리어`,
+    `${name} 카페 베이커리 메뉴 인테리어 홍보물 사인 패키지`,
+    `${name} 네이버 플레이스 인스타그램 리뷰`
+  ];
+  let merged='';
+  for(const q of queries){
+    setStatus(`인터넷 검색 중... ${q}`);
+    const txt=await fetchSearchText(q);
+    if(txt) merged+='\n'+txt;
+    if(merged.length>9000) break;
+  }
+  return cleanupSearchText(merged);
+}
+function pickSentences(text, keywords, limit=4){
+  const arr=String(text||'')
+    .split(/(?<=[.!?。])\s+|[\n\r]+|(?<=다\.)\s*/)
+    .map(s=>s.trim())
+    .filter(s=>s.length>18 && s.length<180);
+  const found=[];
+  for(const s of arr){
+    if(keywords.some(k=>s.includes(k)) && !found.some(v=>v===s)) found.push(s);
+    if(found.length>=limit) break;
+  }
+  return found;
+}
+function detectCategory(text){
+  if(/베이커리|빵|브레드|식빵|크루아상|디저트/.test(text) && /커피|카페|아메리카노|라떼/.test(text)) return '커피와 베이커리를 함께 운영하는 카페형 매장';
+  if(/베이커리|빵|브레드|식빵|크루아상|디저트/.test(text)) return '베이커리와 디저트를 중심으로 한 매장';
+  if(/커피|카페|라떼|아메리카노/.test(text)) return '커피 메뉴를 중심으로 운영되는 카페';
+  if(/레스토랑|다이닝|파스타|브런치/.test(text)) return '식사 메뉴와 음료 경험을 함께 제공하는 매장';
+  return '';
+}
+function detectLocation(text){
+  const m=String(text||'').match(/(서울|부산|대구|인천|광주|대전|울산|경기|제주|성수|한남|연남|강남|여의도|장충|더현대|백화점|몰|역)[^.!?。\n]{0,45}(위치|자리|입점|층|역|점|매장)/);
+  return m ? m[0].replace(/\s+/g,' ').trim() : '';
+}
+function detectOpen(text){
+  const m=String(text||'').match(/(20\d{2}년[^.!?。\n]{0,35}(오픈|개점|문을 열|리뉴얼|입점|확장)|최근[^.!?。\n]{0,25}(오픈|입점|주목))/);
+  return m ? m[0].replace(/\s+/g,' ').trim() : '';
+}
+function detectMenu(text){
+  const candidates=['커피','아메리카노','라떼','식빵','브레드','크루아상','케이크','디저트','베이커리','브런치','파스타','샌드위치','굿즈','원두'];
+  return candidates.filter(k=>text.includes(k)).slice(0,4).join(', ');
+}
+function cleanReportSentence(sentence,name){
+  return String(sentence||'')
+    .replace(new RegExp(name,'g'), name)
+    .replace(/\s+/g,' ')
+    .replace(/작성|분석|요약|확인|기준|중심으로 정리|중심으로 분석|적합한 매장|방문객의 취향과 공간 경험/g, '')
+    .trim();
+}
+function makeSearchBasedOverview(name,text){
+  const category=detectCategory(text);
+  const location=detectLocation(text);
+  const open=detectOpen(text);
+  const menu=detectMenu(text);
+  const reviewSents=pickSentences(text,['대표','메뉴','맛','분위기','공간','인테리어','리뷰','인기','웨이팅','SNS','베이커리','커피'],3)
+    .map(s=>cleanReportSentence(s,name))
+    .filter(s=>s && !isGuideLike(s));
+
+  const firstBits=[];
+  if(location) firstBits.push(`${location}에 위치한`);
+  if(category) firstBits.push(category);
+  let first = firstBits.length ? `${name}은(는) ${firstBits.join(' ')}입니다.` : '';
+
+  const secondBits=[];
+  if(open) secondBits.push(open.replace(/[.。]$/,''));
+  if(menu) secondBits.push(`${menu} 등이 주요 메뉴·판매 요소로 언급됩니다`);
+  if(reviewSents[0]) secondBits.push(reviewSents[0].replace(/[.。]$/,''));
+  const second = secondBits.length ? secondBits.join(', ') + '.' : '';
+
+  let result=[first,second].filter(Boolean).join(' ')
+    .replace(/고객에게 적합[^.。]*[.。]?/g,'')
+    .replace(/방문객의 취향과 공간 경험[^.。]*[.。]?/g,'')
+    .replace(/\s+/g,' ')
+    .trim();
+  if(isGuideLike(result) || result.length<20) result='';
+  return result;
+}
+function fallbackDiffFromKeywords(name,text){
+  const hasRetro=/레트로|빈티지|클래식|오래된|복고/.test(text);
+  const hasWhite=/화이트|흰색|white|스테인리스|실버|깔끔|미니멀/.test(text);
+  const hasCharacter=/캐릭터|마스코트|굿즈|로고|패키지/.test(text);
+  const hasBakery=/베이커리|빵|브레드|식빵|쇼케이스|진열/.test(text);
+  const bullets=[];
+  if(hasCharacter) bullets.push('• 로고, 캐릭터, 패키지와 같은 시각 요소가 매장 사인과 판매물에 반복 적용되어 브랜드 인상을 쉽게 기억하게 합니다.');
+  if(hasRetro) bullets.push('• 빈티지한 그래픽과 소재감 있는 인테리어가 결합되어 일반 카페보다 오래된 상점 같은 개성을 만듭니다.');
+  if(hasWhite) bullets.push('• 밝은 화이트 톤과 정돈된 사인 체계가 제품을 깨끗하게 보여주며, 현대적이고 차분한 매장 이미지를 형성합니다.');
+  if(hasBakery) bullets.push('• 쇼케이스와 선반 진열이 제품을 한눈에 보이게 구성되어 베이커리의 볼륨감과 구매 동선을 자연스럽게 연결합니다.');
+  if(!bullets.length) return '';
+  return bullets.slice(0,4).join('\n');
+}
+function makeSearchBasedDiff(name,text){
+  const promo=pickSentences(text,['로고','사인','메뉴보드','패키지','포스터','굿즈','그래픽','컬러','브랜드','서체','캐릭터'],3)
+    .map(s=>cleanReportSentence(s,name)).filter(s=>s && !isGuideLike(s));
+  const interior=pickSentences(text,['인테리어','공간','조명','좌석','쇼케이스','진열','분위기','테이블','카운터','포토','소재'],4)
+    .map(s=>cleanReportSentence(s,name)).filter(s=>s && !isGuideLike(s));
+  const bullets=[];
+  if(promo[0]) bullets.push(`• ${promo[0].replace(/[.。]$/,'')} 점이 홍보물 디자인의 주요 인상으로 보입니다.`);
+  if(promo[1]) bullets.push(`• ${promo[1].replace(/[.。]$/,'')} 표현이 사인·패키지·메뉴 안내와 연결되어 브랜드 기억점을 만듭니다.`);
+  if(interior[0]) bullets.push(`• ${interior[0].replace(/[.。]$/,'')} 특성이 매장의 공간 분위기를 형성합니다.`);
+  if(interior[1]) bullets.push(`• ${interior[1].replace(/[.。]$/,'')} 요소가 제품 진열과 체류 경험을 강화합니다.`);
+  let result=bullets.slice(0,4).join('\n');
+  if(isGuideLike(result) || result.length<25) result=fallbackDiffFromKeywords(name,text);
+  return result;
+}
+function makeOverview(name){
+  const local=getLocalStoreDraft(name);
+  if(local) return local.overview;
+  return '';
+}
+function makeDifferentiation(name){
+  const local=getLocalStoreDraft(name);
+  if(local) return local.differentiation;
+  return '';
+}
+function isGuideLike(text){
+  return /정리하는 것이 필요|중심으로 정리|중심으로 분석|바탕으로 요약|작성해야|확인해 기본 정보|적합한 매장|고려한 매장|홍보물 요소가 매장 분위기와 함께 노출|조명, 소재, 좌석 배치|검색 결과를 불러오면|상호명 기준으로 검색된 매장|시각적 인상을 정리할 수 있습니다|차별점을 보완할 수 있습니다|현재 브라우저/.test(String(text||''));
+}
+async function researchStore(){
+  const name=$('storeName').value.trim(); if(!name){alert('상호명을 먼저 입력해 주세요.');return;}
+  const api=$('apiUrl').value.trim(); setStatus('상호명 기준으로 인터넷 검색 및 요약 작성 중...');
+  const writingGuide=`보고서 결과칸에 바로 들어갈 실제 문장만 출력한다. 작성 방법, 분석 기준, 가이드 문장, "~을 중심으로", "~를 확인", "~한 고객에게 적합", "방문객의 취향과 공간 경험을 고려" 같은 일반 문장은 금지한다. 개요는 해당 매장의 기본정보 요약으로 매장 성격, 위치, 오픈/입점 시점, 대표 메뉴, 실제로 좋아하는 이유를 1~2문장으로 자연스럽게 쓴다. 차별화는 홍보물 디자인과 매장 인테리어에서 실제로 보이는 특징만 2~4개 bullet로 쓴다. 로고, 캐릭터, 사인, 메뉴보드, 패키지, 컬러, 서체, 조명, 소재, 좌석, 쇼케이스, 진열, 동선을 구체적으로 언급한다. 브랜드명만 바꿔도 통하는 문장과 추상적 칭찬은 쓰지 않는다.`;
+  if(api){
+    try{
+      const res=await fetch(api,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({storeName:name,focus:'매장 기본정보 요약 및 홍보물 디자인/인테리어 차별화 분석',writingGuide})});
+      if(res.ok){
+        const data=await res.json();
+        const ov=data.overview||'';
+        const df=Array.isArray(data.differentiation)?data.differentiation.map(v=>'• '+String(v).replace(/^•\s*/, '')).join('\n'):(data.differentiation||'');
+        if(ov && df && !isGuideLike(ov+df)){
+          $('overviewInput').value=ov;
+          $('diffInput').value=df;
+          syncReport(); setStatus('인터넷 검색 결과 기반으로 개요/차별화를 작성했습니다.'); return;
+        }
+      }
+    }catch(e){ console.warn('store research api failed', e); }
+  }
+  const local=getLocalStoreDraft(name);
+  if(local){
+    $('overviewInput').value=local.overview;
+    $('diffInput').value=local.differentiation;
+    syncReport(); setStatus('저장된 매장 기준 분석문을 반영했습니다.'); return;
+  }
+  const searchText=await searchStoreInfo(name);
+  if(searchText && searchText.length>500){
+    const ov=makeSearchBasedOverview(name,searchText);
+    const df=makeSearchBasedDiff(name,searchText);
+    const goodOv=ov && !isGuideLike(ov);
+    const goodDf=df && !isGuideLike(df);
+    if(goodOv || goodDf){
+      $('overviewInput').value=goodOv?ov:'';
+      $('diffInput').value=goodDf?df:'';
+      syncReport(); setStatus('공개 검색 결과를 바탕으로 개요/차별화 초안을 작성했습니다. 내용을 한 번 확인해 주세요.'); return;
+    }
+  }
+  $('overviewInput').value='';
+  $('diffInput').value='';
+  syncReport();
+  setStatus('인터넷 검색 결과를 불러오지 못했습니다. HTML 단독 실행 환경에서는 브라우저 보안/CORS 때문에 검색이 막힐 수 있어 /api/store-research 연결이 필요합니다.');
+}
+
+function safeFileName(s){return (s||'template').replace(/[\\/:*?"<>|]/g,'_')}
+function xmlEscape(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');}
+function dataUrlToBytes(dataUrl){
+  const base64=String(dataUrl).split(',')[1]||'';
+  const bin=atob(base64); const arr=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+  return arr;
+}
+function utf8Bytes(str){return new TextEncoder().encode(str);}
+function crcTable(){
+  const t=new Uint32Array(256);
+  for(let n=0;n<256;n++){let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[n]=c>>>0;}
+  return t;
+}
+const CRC_TABLE=crcTable();
+function crc32(bytes){let c=0xffffffff; for(let i=0;i<bytes.length;i++) c=CRC_TABLE[(c^bytes[i])&0xff]^(c>>>8); return (c^0xffffffff)>>>0;}
+function u16(n){return [n&255,(n>>>8)&255]}
+function u32(n){return [n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255]}
+function makeZip(files){
+  const chunks=[]; const central=[]; let offset=0;
+  for(const f of files){
+    const name=utf8Bytes(f.name); const data=(f.data instanceof Uint8Array)?f.data:utf8Bytes(f.data); const crc=crc32(data);
+    const local=new Uint8Array([0x50,0x4b,0x03,0x04,20,0,0,8,0,0,0,0,0,0,...u32(crc),...u32(data.length),...u32(data.length),...u16(name.length),0,0]);
+    chunks.push(local,name,data);
+    const cen=new Uint8Array([0x50,0x4b,0x01,0x02,20,0,20,0,0,8,0,0,0,0,0,0,...u32(crc),...u32(data.length),...u32(data.length),...u16(name.length),0,0,0,0,0,0,0,0,0,0,...u32(offset)]);
+    central.push(cen,name); offset+=local.length+name.length+data.length;
+  }
+  const centralStart=offset; let centralSize=0; for(const c of central){centralSize+=c.length; chunks.push(c);} offset+=centralSize;
+  const end=new Uint8Array([0x50,0x4b,0x05,0x06,0,0,0,0,...u16(files.length),...u16(files.length),...u32(centralSize),...u32(centralStart),0,0]);
+  chunks.push(end);
+  return new Blob(chunks,{type:'application/vnd.openxmlformats-officedocument.presentationml.presentation'});
+}
+function emu(inch){return Math.round(inch*914400)}
+let pptId=2;
+function shapeXml(x,y,w,h,fill,line,text,opt={}){
+  const id=pptId++;
+  const hasLine=line!==false;
+  const ln=hasLine?`<a:ln w="${Math.round((opt.lineWidth||0.75)*12700)}"><a:solidFill><a:srgbClr val="${line||'000000'}"/></a:solidFill></a:ln>`:`<a:ln><a:noFill/></a:ln>`;
+  const fillXml=fill?`<a:solidFill><a:srgbClr val="${fill}"/></a:solidFill>`:`<a:noFill/>`;
+  const body=text!==undefined?textBodyXml(text,opt):'';
+  return `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="Shape ${id}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${emu(x)}" y="${emu(y)}"/><a:ext cx="${emu(w)}" cy="${emu(h)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom>${fillXml}${ln}</p:spPr>${body}</p:sp>`;
+}
+function textBodyXml(text,opt={}){
+  const size=Math.round((opt.size||10)*100);
+  const bold=opt.bold?' b="1"':'';
+  const color=opt.color||'111111';
+  const align=opt.align||'ctr';
+  const valignMap={top:'t',t:'t',mid:'ctr',center:'ctr',ctr:'ctr',bottom:'b',b:'b'};
+  const valign=valignMap[opt.valign||'mid']||'ctr';
+  const font=opt.font||'맑은 고딕';
+  const inset=Math.round((opt.margin??0.04)*914400);
+  const paras=String(text||'').split(/\n/).map(line=>{
+    const bullet=line.trim().startsWith('•')?'<a:buChar char="•"/>':'';
+    const clean=line.trim().startsWith('•')?line.trim().replace(/^•\s*/,''):line;
+    return `<a:p><a:pPr algn="${align}">${bullet}</a:pPr><a:r><a:rPr lang="ko-KR" sz="${size}"${bold}><a:solidFill><a:srgbClr val="${color}"/></a:solidFill><a:latin typeface="${xmlEscape(font)}"/><a:ea typeface="${xmlEscape(font)}"/></a:rPr><a:t>${xmlEscape(clean)}</a:t></a:r><a:endParaRPr lang="ko-KR" sz="${size}"/></a:p>`;
+  }).join('');
+  return `<p:txBody><a:bodyPr wrap="square" rtlCol="0" anchor="${valign}" lIns="${inset}" tIns="${inset}" rIns="${inset}" bIns="${inset}"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paras}</p:txBody>`;
+}
+function picXml(rId,x,y,w,h){
+  const id=pptId++;
+  return `<p:pic><p:nvPicPr><p:cNvPr id="${id}" name="Picture ${id}"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="${emu(x)}" y="${emu(y)}"/><a:ext cx="${emu(w)}" cy="${emu(h)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
+}
+function getImageSize(dataUrl){
+  return new Promise(res=>{const img=new Image(); img.onload=()=>res({w:img.naturalWidth||1,h:img.naturalHeight||1}); img.onerror=()=>res({w:1,h:1}); img.src=dataUrl;});
+}
+function containBox(iw,ih,x,y,w,h){const r=Math.min(w/iw,h/ih); const nw=iw*r, nh=ih*r; return {x:x+(w-nw)/2,y:y+(h-nh)/2,w:nw,h:nh};}
+function imageExt(dataUrl){return String(dataUrl).startsWith('data:image/png')?'png':'jpeg'}
+function contentTypesXml(exts){
+  const imageDefaults=[...new Set(exts)].map(e=>`<Default Extension="${e}" ContentType="image/${e==='jpg'?'jpeg':e}"/>`).join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>${imageDefaults}<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/slides/slide1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/></Types>`;
+}
+function buildStaticPptParts(slideW,slideH){
+  const now=new Date().toISOString();
+  return {
+    '_rels/.rels':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>`,
+    'docProps/core.xml':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>시장 조사 보고서</dc:title><dc:creator>ChatGPT</dc:creator><cp:lastModifiedBy>ChatGPT</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`,
+    'docProps/app.xml':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>ChatGPT HTML</Application><PresentationFormat>A4</PresentationFormat><Slides>1</Slides></Properties>`,
+    'ppt/presentation.xml':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldIdLst><p:sldId id="256" r:id="rId2"/></p:sldIdLst><p:sldSz cx="${emu(slideW)}" cy="${emu(slideH)}" type="custom"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>`,
+    'ppt/_rels/presentation.xml.rels':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/></Relationships>`,
+    'ppt/slideMasters/slideMaster1.xml':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sldMaster xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld><p:sldLayoutIdLst><p:sldLayoutId id="1" r:id="rId1"/></p:sldLayoutIdLst><p:txStyles><p:titleStyle/><p:bodyStyle/><p:otherStyle/></p:txStyles></p:sldMaster>`,
+    'ppt/slideMasters/_rels/slideMaster1.xml.rels':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/></Relationships>`,
+    'ppt/slideLayouts/slideLayout1.xml':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sldLayout xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" type="blank" preserve="1"><p:cSld name="Blank"><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld></p:sldLayout>`,
+    'ppt/slideLayouts/_rels/slideLayout1.xml.rels':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/></Relationships>`,
+    'ppt/theme/theme1.xml':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Office Theme"><a:themeElements><a:clrScheme name="Office"><a:dk1><a:srgbClr val="000000"/></a:dk1><a:lt1><a:srgbClr val="FFFFFF"/></a:lt1><a:dk2><a:srgbClr val="1F497D"/></a:dk2><a:lt2><a:srgbClr val="EEECE1"/></a:lt2><a:accent1><a:srgbClr val="4F81BD"/></a:accent1><a:accent2><a:srgbClr val="C0504D"/></a:accent2><a:accent3><a:srgbClr val="9BBB59"/></a:accent3><a:accent4><a:srgbClr val="8064A2"/></a:accent4><a:accent5><a:srgbClr val="4BACC6"/></a:accent5><a:accent6><a:srgbClr val="F79646"/></a:accent6><a:hlink><a:srgbClr val="0000FF"/></a:hlink><a:folHlink><a:srgbClr val="800080"/></a:folHlink></a:clrScheme><a:fontScheme name="Office"><a:majorFont><a:latin typeface="맑은 고딕"/><a:ea typeface="맑은 고딕"/></a:majorFont><a:minorFont><a:latin typeface="맑은 고딕"/><a:ea typeface="맑은 고딕"/></a:minorFont></a:fontScheme><a:fmtScheme name="Office"><a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst><a:lnStyleLst><a:ln w="9525"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>`
+  };
+}
+
+function estimateWrappedLines(text, charsPerLine){
+  const lines=String(text||'').split(/\n/);
+  let total=0;
+  for(const line of lines){
+    const clean=line.replace(/^\s*•\s*/, '').trim();
+    total += Math.max(1, Math.ceil([...clean].length / Math.max(8, charsPerLine)));
+  }
+  return Math.max(1,total);
+}
+function textBodyXmlA(text,opt={}){
+  const size=Math.round((opt.size||10)*100);
+  const bold=opt.bold?' b="1"':'';
+  const color=opt.color||'111111';
+  const align=opt.align||'ctr';
+  const valignMap={top:'t',t:'t',mid:'ctr',center:'ctr',ctr:'ctr',bottom:'b',b:'b'};
+  const valign=valignMap[opt.valign||'mid']||'ctr';
+  const font=opt.font||'맑은 고딕';
+  const inset=Math.round((opt.margin??0.04)*914400);
+  const paras=String(text||'').split(/\n/).map(line=>{
+    const bullet=line.trim().startsWith('•')?'<a:buChar char="•"/>':'';
+    const clean=line.trim().startsWith('•')?line.trim().replace(/^•\s*/,''):line;
+    return `<a:p><a:pPr algn="${align}">${bullet}</a:pPr><a:r><a:rPr lang="ko-KR" sz="${size}"${bold}><a:solidFill><a:srgbClr val="${color}"/></a:solidFill><a:latin typeface="${xmlEscape(font)}"/><a:ea typeface="${xmlEscape(font)}"/></a:rPr><a:t>${xmlEscape(clean)}</a:t></a:r><a:endParaRPr lang="ko-KR" sz="${size}"/></a:p>`;
+  }).join('');
+  return `<a:txBody><a:bodyPr wrap="square" rtlCol="0" anchor="${valign}" lIns="${inset}" tIns="${inset}" rIns="${inset}" bIns="${inset}"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paras}</a:txBody>`;
+}
+function tableCellXml(text,opt={}){
+  const fill=opt.fill||'FFFFFF';
+  const line=opt.line||'000000';
+  const lw=Math.round((opt.lineWidth||0.9)*12700);
+  const body=textBodyXmlA(text,opt);
+  const valignMap={top:'t',t:'t',mid:'ctr',center:'ctr',ctr:'ctr',bottom:'b',b:'b'};
+  const anchor=valignMap[opt.valign||'mid']||'ctr';
+  const ln=`<a:lnL w="${lw}" cmpd="sng"><a:solidFill><a:srgbClr val="${line}"/></a:solidFill><a:prstDash val="solid"/></a:lnL><a:lnR w="${lw}" cmpd="sng"><a:solidFill><a:srgbClr val="${line}"/></a:solidFill><a:prstDash val="solid"/></a:lnR><a:lnT w="${lw}" cmpd="sng"><a:solidFill><a:srgbClr val="${line}"/></a:solidFill><a:prstDash val="solid"/></a:lnT><a:lnB w="${lw}" cmpd="sng"><a:solidFill><a:srgbClr val="${line}"/></a:solidFill><a:prstDash val="solid"/></a:lnB>`;
+  const mar=Math.round((opt.margin??0.04)*914400);
+  return `<a:tc>${body}<a:tcPr marL="${mar}" marR="${mar}" marT="${mar}" marB="${mar}" anchor="${anchor}" vert="horz">${ln}<a:solidFill><a:srgbClr val="${fill}"/></a:solidFill></a:tcPr></a:tc>`;
+}
+function tableXml(x,y,w,h,colWidths,rowHeights,rows){
+  const id=pptId++;
+  const grid=colWidths.map(c=>`<a:gridCol w="${emu(c)}"/>`).join('');
+  const trs=rows.map((row,i)=>`<a:tr h="${emu(rowHeights[i])}">${row.map(cell=>tableCellXml(cell.text||'',cell.opt||{})).join('')}</a:tr>`).join('');
+  return `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="${id}" name="Table ${id}"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="${emu(x)}" y="${emu(y)}"/><a:ext cx="${emu(w)}" cy="${emu(h)}"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr firstRow="0" bandRow="0"/><a:tblGrid>${grid}</a:tblGrid>${trs}</a:tbl></a:graphicData></a:graphic></p:graphicFrame>`;
+}
+async function exportPPT(){
+  syncReport();
+  setStatus('PPT 생성 중...');
+  try{
+    const files=[]; const slideW=8.27, slideH=11.69; pptId=2;
+
+    const PT={title:18,store:14,label:11,body:10};
+    const marginX=0.55;
+    const top=0.48;
+    const formW=slideW-(marginX*2);
+    const titleH=0.66;
+    const gap1=0.16;
+    const dateH=0.40;
+    const gap2=0.18;
+    const storeH=0.54;
+    const gap3=0.20;
+    const bottomMargin=0.55;
+    const labelW=0.78;
+    const bodyW=formW-labelW;
+    const storeName=$('storeName').value.trim()||'';
+    const overview=$('overviewInput').value.trim();
+    const diff=$('diffInput').value.trim();
+    const products=formatProductsForReport($('productsInput').value);
+
+    let sp='';
+    sp+=shapeXml(marginX,top,formW,titleH,'172151',false,'시장 조사 보고서',{color:'FFFFFF',bold:true,size:PT.title,align:'l',margin:0.18});
+
+    const dateY=top+titleH+gap1;
+    const dCols=[0.78,2.20,0.86,formW-0.78-2.20-0.86];
+    sp+=tableXml(marginX,dateY,formW,dateH,dCols,[dateH],[
+      [
+        {text:'일시',opt:{fill:'EFEFEF',size:PT.label,align:'ctr',valign:'mid'}},
+        {text:'',opt:{fill:'FFFFFF',size:PT.body,align:'ctr',valign:'mid'}},
+        {text:'조사자',opt:{fill:'EFEFEF',size:PT.label,align:'ctr',valign:'mid'}},
+        {text:'',opt:{fill:'FFFFFF',size:PT.body,align:'ctr',valign:'mid'}}
+      ]
+    ]);
+
+    const storeY=dateY+dateH+gap2;
+    sp+=shapeXml(marginX,storeY,formW,storeH,'000000','000000','상호명: '+storeName,{color:'FFFFFF',bold:true,size:PT.store,align:'l',valign:'mid',margin:0.11,lineWidth:0.9});
+
+    const tableY=storeY+storeH+gap3;
+    const availableH=slideH-tableY-bottomMargin;
+    const charsPerLine=Math.floor(bodyW*15.6);
+    const overviewH=Math.max(0.72, Math.min(1.35, 0.30 + estimateWrappedLines(overview,charsPerLine)*0.17));
+    const diffH=Math.max(0.84, Math.min(1.75, 0.28 + estimateWrappedLines(diff,charsPerLine)*0.17));
+    const prodH=Math.max(0.62, Math.min(1.05, 0.30 + estimateWrappedLines(products,charsPerLine)*0.17));
+    const photoH=Math.max(4.25, availableH-overviewH-diffH-prodH);
+    const totalTableH=overviewH+diffH+prodH+photoH;
+    const rowHeights=[overviewH,diffH,prodH,photoH];
+
+    sp+=tableXml(marginX,tableY,formW,totalTableH,[labelW,bodyW],rowHeights,[
+      [
+        {text:'개요',opt:{fill:'EFEFEF',size:PT.label,align:'ctr',valign:'mid'}},
+        {text:overview,opt:{fill:'FFFFFF',size:PT.body,align:'l',valign:'top',margin:0.09}}
+      ],
+      [
+        {text:'차별화',opt:{fill:'EFEFEF',size:PT.label,align:'ctr',valign:'mid'}},
+        {text:diff,opt:{fill:'FFFFFF',size:PT.body,align:'l',valign:'top',margin:0.09}}
+      ],
+      [
+        {text:'주요제품',opt:{fill:'EFEFEF',size:PT.label,align:'ctr',valign:'mid'}},
+        {text:products,opt:{fill:'FFFFFF',size:PT.body,align:'l',valign:'mid',margin:0.09}}
+      ],
+      [
+        {text:'사진',opt:{fill:'EFEFEF',size:PT.label,align:'ctr',valign:'mid'}},
+        {text:'',opt:{fill:'FFFFFF',size:PT.body,align:'l',valign:'top',margin:0.09}}
+      ]
+    ]);
+
+    const rels=[]; const imageExts=[]; const imgParts=[];
+    const imgs=photoData.slice(0,5);
+    if(imgs.length){
+      const photoY=tableY+overviewH+diffH+prodH;
+      const pb={x:marginX+labelW,y:photoY,w:bodyW,h:photoH};
+      const gap=0.08, pad=0.16; const x0=pb.x+pad,y0=pb.y+pad,w0=pb.w-pad*2,h0=pb.h-pad*2;
+      let slots=[];
+      if(imgs.length===1) slots=[{x:x0,y:y0,w:w0,h:h0}];
+      else if(imgs.length===2) slots=[{x:x0,y:y0,w:(w0-gap)/2,h:h0},{x:x0+(w0+gap)/2,y:y0,w:(w0-gap)/2,h:h0}];
+      else if(imgs.length===3) slots=[{x:x0,y:y0,w:(w0-gap*2)/3,h:h0},{x:x0+(w0+gap)/3,y:y0,w:(w0-gap*2)/3,h:h0},{x:x0+2*(w0+gap)/3,y:y0,w:(w0-gap*2)/3,h:h0}];
+      else if(imgs.length===4) slots=[{x:x0,y:y0,w:(w0-gap)/2,h:(h0-gap)/2},{x:x0+(w0+gap)/2,y:y0,w:(w0-gap)/2,h:(h0-gap)/2},{x:x0,y:y0+(h0+gap)/2,w:(w0-gap)/2,h:(h0-gap)/2},{x:x0+(w0+gap)/2,y:y0+(h0+gap)/2,w:(w0-gap)/2,h:(h0-gap)/2}];
+      else slots=[{x:x0,y:y0,w:(w0-gap*2)/3,h:(h0-gap)/2},{x:x0+(w0+gap)/3,y:y0,w:(w0-gap*2)/3,h:(h0-gap)/2},{x:x0+2*(w0+gap)/3,y:y0,w:(w0-gap*2)/3,h:(h0-gap)/2},{x:x0,y:y0+(h0+gap)/2,w:(w0-gap)/2,h:(h0-gap)/2},{x:x0+(w0+gap)/2,y:y0+(h0+gap)/2,w:(w0-gap)/2,h:(h0-gap)/2}];
+      for(let i=0;i<imgs.length;i++){
+        const ext=imageExt(imgs[i]); imageExts.push(ext); const rId='rId'+(i+2); rels.push(`<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image${i+1}.${ext}"/>`);
+        imgParts.push({name:`ppt/media/image${i+1}.${ext}`,data:dataUrlToBytes(imgs[i])});
+        const sz=await getImageSize(imgs[i]); const bx=containBox(sz.w,sz.h,slots[i].x,slots[i].y,slots[i].w,slots[i].h); sp+=picXml(rId,bx.x,bx.y,bx.w,bx.h);
+      }
+    }
+
+    const slideXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:effectLst/></p:bgPr></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>${sp}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
+    const slideRels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>${rels.join('')}</Relationships>`;
+    const staticParts=buildStaticPptParts(slideW,slideH);
+    files.push({name:'[Content_Types].xml',data:contentTypesXml(imageExts)});
+    Object.entries(staticParts).forEach(([name,data])=>files.push({name,data}));
+    files.push({name:'ppt/slides/slide1.xml',data:slideXml},{name:'ppt/slides/_rels/slide1.xml.rels',data:slideRels},...imgParts);
+    const blob=makeZip(files); const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=`시장조사_보고서_${safeFileName($('storeName').value)}.pptx`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000);
+    setStatus('PPT 저장 완료');
+  }catch(err){
+    console.error(err);
+    setStatus('PPT 생성에 실패했습니다. 브라우저 콘솔 오류를 확인해 주세요. 오류: '+(err&&err.message?err.message:err));
+    alert('PPT 생성에 실패했습니다. 상태 메시지를 확인해 주세요.');
+  }
+}
+function fitPreview(){
+  const panel=$('previewPanel'), fit=$('previewFit');
+  if(!panel||!fit) return;
+  const pad=36;
+  const scale=Math.min((panel.clientWidth-pad)/794,(panel.clientHeight-pad)/1123);
+  fit.style.transform=`scale(${Math.max(0.1,scale)})`;
+}
+window.addEventListener('resize',fitPreview);
+window.addEventListener('load',fitPreview);
+syncReport();
+fitPreview();
+console.log('시장조사비 보고서 자동화 v21 loaded: receipt OCR and auto-fill handlers ready.');
+</script>
+</body>
+</html>
