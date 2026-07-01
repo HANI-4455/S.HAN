@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>회의 녹음 · AI 회의록</title>
+<style>
+  :root{
+    --paper:#FAF9F6;--card:#FFFFFF;--console:#1C2027;--text:#262A33;--muted:#7A828F;
+    --line:#EBE7DF;--line-2:#F1EEE7;--signal:#E5484D;--accent:#0F7B73;--accent-ink:#0B5C56;
+    --accent-soft:#E7F2F0;--amber:#A8650A;--radius:16px;--radius-sm:11px;font-synthesis:none;
+  }
+  *{box-sizing:border-box;} html,body{margin:0;}
+  body{background:var(--paper);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:860px;margin:0 auto;padding:20px 16px 72px;}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+
+  .console{background:linear-gradient(180deg,#22262F,#171A20);border-radius:var(--radius);color:#ECEEF2;padding:20px 22px;box-shadow:0 18px 44px -26px rgba(0,0,0,.6);position:sticky;top:10px;z-index:30;}
+  .console-top{display:flex;align-items:center;gap:12px;}
+  .badge{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:#838C9E;font-weight:700;}
+  .status{display:flex;align-items:center;gap:8px;margin-left:auto;}
+  .dot{width:9px;height:9px;border-radius:50%;background:#4A505C;flex:none;}
+  .status.live .dot{background:var(--signal);animation:pulse 1.4s infinite;}
+  .status.paused .dot{background:var(--amber);}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(229,72,77,.6);}70%{box-shadow:0 0 0 11px rgba(229,72,77,0);}100%{box-shadow:0 0 0 0 rgba(229,72,77,0);}}
+  .status-label{font-size:13px;color:#C5CBD6;font-weight:600;}
+  .clock-row{display:flex;align-items:flex-end;gap:18px;margin-top:14px;}
+  .clock{font-variant-numeric:tabular-nums;font-size:38px;font-weight:600;letter-spacing:.01em;color:#F4F6F9;line-height:1;}
+  .clock .ms{font-size:18px;color:#838C9E;}
+  .meter{display:flex;align-items:flex-end;gap:3px;height:30px;flex:1;justify-content:flex-end;}
+  .meter .bar{width:4px;height:5px;background:#363C47;border-radius:2px;transition:height .12s ease,background .12s ease;}
+  .console.live .meter .bar{background:var(--accent);}
+  .controls{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px;}
+  button{font-family:inherit;font-size:14px;font-weight:600;border:0;border-radius:var(--radius-sm);padding:11px 17px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:transform .06s,background .15s,opacity .15s;}
+  button:active{transform:translateY(1px);} button:disabled{opacity:.38;cursor:not-allowed;}
+  .btn-rec{background:var(--signal);color:#fff;} .btn-rec:hover:not(:disabled){background:#cf3b40;}
+  .btn-ghost{background:#2C323C;color:#E4E8EF;} .btn-ghost:hover:not(:disabled){background:#363d48;}
+  .btn-stop{background:#EEEBE4;color:#23262E;} .btn-stop:hover:not(:disabled){background:#e4e0d7;}
+  .ic{width:13px;height:13px;border-radius:3px;background:currentColor;flex:none;} .ic.circle{border-radius:50%;}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin-top:16px;overflow:hidden;}
+  .card-head{display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid var(--line-2);background:#FCFBF8;}
+  .card-head h2{margin:0;font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:#444A55;font-weight:700;}
+  .card-head .right{margin-left:auto;font-size:12px;color:var(--muted);}
+  .card-body{padding:16px 18px;}
+
+  .meta{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;}
+  .field{flex:1;min-width:200px;}
+  .field label{display:block;font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:6px;letter-spacing:.04em;text-transform:uppercase;}
+  .field input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);font-family:inherit;font-size:15px;color:var(--text);background:#fff;}
+  .field input:focus{outline:2px solid var(--accent-soft);border-color:var(--accent);}
+  .date-chip{font-size:14px;color:#4A505C;padding-bottom:11px;font-weight:600;}
+  .date-chip .dow{color:var(--accent-ink);}
+
+  details.settings{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin-top:16px;overflow:hidden;}
+  details.settings>summary{list-style:none;cursor:pointer;padding:13px 18px;background:#FCFBF8;font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:#444A55;font-weight:700;display:flex;align-items:center;gap:8px;}
+  details.settings>summary::-webkit-details-marker{display:none;}
+  details.settings>summary::before{content:"▸";color:var(--muted);transition:transform .15s;}
+  details.settings[open]>summary::before{transform:rotate(90deg);}
+  .settings-body{padding:16px 18px;display:flex;flex-direction:column;gap:14px;}
+  .settings-body label{display:block;font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:6px;letter-spacing:.04em;text-transform:uppercase;}
+  .settings-body input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);font-family:ui-monospace,monospace;font-size:13px;color:var(--text);background:#fff;}
+  .settings-body input:focus{outline:2px solid var(--accent-soft);border-color:var(--accent);}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;}
+
+  .memo-wrap{border-left:3px solid var(--accent);}
+  textarea#memo{width:100%;min-height:104px;resize:vertical;border:0;outline:0;padding:0;font-family:inherit;font-size:15px;line-height:1.6;color:#2A2E37;background:transparent;}
+  textarea#memo::placeholder{color:#AAB0BB;}
+
+  .ledger{max-height:44vh;overflow-y:auto;}
+  .empty{padding:38px 20px;text-align:center;color:var(--muted);font-size:14px;}
+  .seg{display:flex;gap:14px;padding:9px 18px;border-bottom:1px solid var(--line-2);}
+  .seg:last-child{border-bottom:0;}
+  .seg .ts{font-size:12px;color:var(--accent-ink);flex:none;width:58px;padding-top:2px;}
+  .seg .txt{flex:1;color:#2A2E37;}
+  .interim{padding:9px 18px;display:flex;gap:14px;color:var(--muted);font-style:italic;}
+  .interim .ts{width:58px;flex:none;}
+  .blink{display:inline-block;width:7px;height:15px;background:var(--signal);margin-left:2px;vertical-align:-2px;animation:blink 1s steps(2) infinite;}
+  @keyframes blink{50%{opacity:0;}}
+
+  .analysis{display:none;} .analysis.show{display:block;}
+  .a-block{padding:15px 18px;border-bottom:1px solid var(--line-2);}
+  .a-block:last-of-type{border-bottom:0;}
+  .a-block h3{margin:0 0 8px;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-ink);font-weight:700;}
+  .a-block p{margin:0;color:#2A2E37;} .a-block ul{margin:0;padding-left:18px;} .a-block li{margin:5px 0;color:#2A2E37;}
+  .action{display:flex;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);align-items:flex-start;}
+  .action:last-child{border-bottom:0;}
+  .action .task{flex:1;font-weight:600;color:#23262E;}
+  .action .who{font-size:12px;background:var(--accent-soft);color:var(--accent-ink);padding:3px 9px;border-radius:20px;font-weight:600;white-space:nowrap;}
+  .action .due{font-size:12px;color:var(--amber);white-space:nowrap;padding-top:3px;}
+
+  .loading{display:flex;gap:10px;align-items:center;color:var(--muted);padding:18px;}
+  .spinner{width:15px;height:15px;border:2px solid #D6D1C7;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex:none;}
+  .spinner.light{border-color:rgba(255,255,255,.4);border-top-color:#fff;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .err-box{margin:0 18px 16px;padding:11px 13px;background:#FCEEEE;border:1px solid #F3C9C9;border-radius:10px;font-size:12.5px;color:#9A2A2E;line-height:1.5;word-break:break-word;}
+  .err-box b{color:#7E1F23;}
+
+  .save-bar{display:flex;gap:10px;flex-wrap:wrap;padding:16px 18px;border-top:1px solid var(--line-2);background:#FCFBF8;}
+  .btn-sheet{background:var(--accent);color:#fff;} .btn-sheet:hover:not(:disabled){background:var(--accent-ink);}
+  .btn-drive{background:#2C323C;color:#E4E8EF;} .btn-drive:hover:not(:disabled){background:#363d48;}
+  .btn-dl{background:#EEEBE4;color:#23262E;} .btn-dl:hover:not(:disabled){background:#e4e0d7;}
+  .save-status{font-size:13px;color:var(--muted);padding:0 18px 16px;min-height:16px;line-height:1.5;}
+  .save-status.ok{color:var(--accent-ink);font-weight:600;} .save-status.err{color:var(--signal);}
+
+  .note{font-size:12px;color:var(--muted);margin-top:20px;line-height:1.55;border-left:2px solid var(--line);padding-left:12px;}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+  @media(max-width:520px){.clock{font-size:30px;}.seg .ts,.interim .ts{width:48px;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="console" id="console">
+    <div class="console-top">
+      <span class="badge">Voice Capture</span>
+      <div class="status" id="status"><span class="dot"></span><span class="status-label" id="statusLabel">대기 중</span></div>
+    </div>
+    <div class="clock-row">
+      <div class="clock"><span id="clock">00:00</span><span class="ms" id="ms">.0</span></div>
+      <div class="meter" id="meter"></div>
+    </div>
+    <div class="controls">
+      <button class="btn-rec" id="recBtn"><span class="ic circle"></span>녹음 시작</button>
+      <button class="btn-ghost" id="pauseBtn" disabled><span class="ic"></span>일시정지</button>
+      <button class="btn-stop" id="stopBtn" disabled><span class="ic"></span>종료 · AI 분석</button>
+    </div>
+  </div>
+
+  <div class="card"><div class="card-body">
+    <div class="meta">
+      <div class="field"><label for="title">회의 제목</label><input id="title" type="text" /></div>
+      <div class="date-chip" id="dateChip"></div>
+    </div>
+  </div></div>
+
+  <details class="settings" id="settings">
+    <summary>연동 설정 · Google Sheet / API 키</summary>
+    <div class="settings-body">
+      <div>
+        <label for="sheetUrl">Google Sheet 연동 URL (Apps Script 웹앱)</label>
+        <input id="sheetUrl" type="text" placeholder="https://script.google.com/macros/s/.../exec" />
+        <div class="hint">Apps Script 웹앱 URL을 넣으면 분석이 끝날 때마다 시트에 한 줄씩 자동 추가됩니다. 설정 방법은 대화 안내를 참고하세요.</div>
+      </div>
+      <div>
+        <label for="apiKey">Anthropic API 키 (다운로드해 직접 실행할 때만)</label>
+        <input id="apiKey" type="password" placeholder="sk-ant-... (Claude 아티팩트 안에서 실행하면 비워두세요)" />
+        <div class="hint">키는 이 브라우저 메모리에만 잠시 보관되며 저장·전송되지 않습니다. 아티팩트 내부 실행 시에는 불필요합니다.</div>
+      </div>
+    </div>
+  </details>
+
+  <div class="card">
+    <div class="card-head"><h2>메모</h2><span class="right">회의 중 직접 적는 메모 — 분석·시트에 함께 포함됩니다</span></div>
+    <div class="card-body memo-wrap">
+      <textarea id="memo" placeholder="회의 중 메모를 자유롭게 적어두세요. (예: 보류된 안건, 담당 배정, 다음 회의 일정 등)"></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>실시간 전사</h2><span class="right" id="count">0 구간</span></div>
+    <div class="ledger" id="ledger"><div class="empty" id="empty">녹음을 시작하면 말한 내용이 시간대별로 여기에 기록됩니다.</div></div>
+  </div>
+
+  <div class="card analysis" id="analysis">
+    <div class="card-head"><h2>AI 회의 분석</h2></div>
+    <div id="analysisBody"></div>
+    <div id="errBox"></div>
+    <div class="save-bar">
+      <button class="btn-sheet" id="sheetBtn"><span class="ic"></span>시트에 추가</button>
+      <button class="btn-drive" id="driveBtn"><span class="ic"></span>드라이브에 .md 저장</button>
+      <button class="btn-dl" id="dlBtn"><span class="ic"></span>.md 내려받기</button>
+    </div>
+    <div class="save-status" id="saveStatus"></div>
+  </div>
+
+  <p class="note">
+    크롬 Web Speech API로 음성을 텍스트로 변환합니다. 시작 시 크롬이 마이크 권한을 한 번 묻는 건 브라우저 기본 보안이라 생략할 수 없습니다. 아티팩트 안에서 마이크가 막히면 우측 상단 팝아웃 버튼으로 전체화면 실행하세요.
+  </p>
+</div>
+
+<script>
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let recognition=null,isRecording=false,isPaused=false;
+let segments=[],startEpoch=0,accumulatedMs=0,timerInt=null,meterInt=null,lastVoiceAt=0,analysis=null;
+const el=id=>document.getElementById(id);
+const statusEl=el('status'),statusLabel=el('statusLabel'),consoleEl=el('console');
+const pad=n=>String(n).padStart(2,'0');
+
+const meter=el('meter');
+for(let i=0;i<26;i++){const b=document.createElement('div');b.className='bar';meter.appendChild(b);}
+const bars=[...meter.children];
+
+const DOW=['일','월','화','수','목','금','토'];
+const now=new Date();
+const dateStr=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+const dow=DOW[now.getDay()];
+const timeStr=`${pad(now.getHours())}:${pad(now.getMinutes())}`;
+el('title').value=`팀 회의 — ${dateStr} (${dow})`;
+el('dateChip').innerHTML=`${dateStr} <span class="dow">(${dow})</span> · ${timeStr}`;
+
+if(!SR){statusLabel.textContent='이 브라우저는 미지원';el('recBtn').disabled=true;el('empty').textContent='Web Speech API 미지원 브라우저입니다. 크롬에서 열어주세요.';}
+
+function fmt(ms){const t=Math.floor(ms/1000);return `${pad(Math.floor(t/60))}:${pad(t%60)}`;}
+function tick(){const total=accumulatedMs+(isRecording&&!isPaused?Date.now()-startEpoch:0);el('clock').textContent=fmt(total);el('ms').textContent='.'+Math.floor((total%1000)/100);}
+function stamp(){return fmt(accumulatedMs+(Date.now()-startEpoch));}
+function animateMeter(){const active=isRecording&&!isPaused&&(Date.now()-lastVoiceAt<600);bars.forEach(b=>{b.style.height=(active?6+Math.random()*22:5)+'px';});}
+
+function buildRecognition(){
+  const r=new SR();r.lang='ko-KR';r.continuous=true;r.interimResults=true;r.maxAlternatives=1;
+  r.onresult=(e)=>{lastVoiceAt=Date.now();let interim='';
+    for(let i=e.resultIndex;i<e.results.length;i++){const res=e.results[i];const txt=res[0].transcript.trim();if(!txt)continue;if(res.isFinal)addSegment(txt);else interim+=txt+' ';}
+    showInterim(interim.trim());};
+  r.onerror=(e)=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){statusLabel.textContent='마이크 권한 필요';el('empty').textContent='마이크 권한이 거부되었습니다. 주소창의 마이크 아이콘에서 허용 후 다시 시작하세요.';hardStop();}};
+  r.onend=()=>{if(isRecording&&!isPaused){try{r.start();}catch(_){}}};
+  return r;
+}
+function addSegment(text){const ts=stamp();segments.push({ts,text});el('empty').style.display='none';
+  const div=document.createElement('div');div.className='seg';div.innerHTML=`<span class="ts mono">${ts}</span><span class="txt"></span>`;
+  div.querySelector('.txt').textContent=text;const ledger=el('ledger'),inode=document.getElementById('interimNode');
+  if(inode)ledger.insertBefore(div,inode);else ledger.appendChild(div);ledger.scrollTop=ledger.scrollHeight;el('count').textContent=`${segments.length} 구간`;}
+function showInterim(text){let node=document.getElementById('interimNode');if(!text){if(node)node.remove();return;}
+  if(!node){node=document.createElement('div');node.id='interimNode';node.className='interim';
+    node.innerHTML=`<span class="ts mono">${stamp()}</span><span class="itxt"></span><span class="blink"></span>`;el('ledger').appendChild(node);}
+  node.querySelector('.itxt').textContent=text;el('ledger').scrollTop=el('ledger').scrollHeight;}
+
+function startRecording(){if(isRecording)return;recognition=buildRecognition();isRecording=true;isPaused=false;startEpoch=Date.now();
+  try{recognition.start();}catch(_){}
+  statusEl.className='status live';statusLabel.textContent='녹음 중';consoleEl.classList.add('live');
+  el('recBtn').disabled=true;el('pauseBtn').disabled=false;el('stopBtn').disabled=false;el('analysis').classList.remove('show');
+  timerInt=setInterval(tick,100);meterInt=setInterval(animateMeter,110);}
+function togglePause(){if(!isRecording)return;
+  if(!isPaused){isPaused=true;accumulatedMs+=Date.now()-startEpoch;try{recognition.stop();}catch(_){}
+    statusEl.className='status paused';statusLabel.textContent='일시정지';consoleEl.classList.remove('live');el('pauseBtn').innerHTML='<span class="ic"></span>이어서 녹음';}
+  else{isPaused=false;startEpoch=Date.now();try{recognition.start();}catch(_){recognition=buildRecognition();recognition.start();}
+    statusEl.className='status live';statusLabel.textContent='녹음 중';consoleEl.classList.add('live');el('pauseBtn').innerHTML='<span class="ic"></span>일시정지';}}
+function hardStop(){isRecording=false;isPaused=false;clearInterval(timerInt);clearInterval(meterInt);bars.forEach(b=>b.style.height='5px');
+  if(recognition){try{recognition.onend=null;recognition.stop();}catch(_){}}
+  statusEl.className='status';consoleEl.classList.remove('live');el('recBtn').disabled=false;el('pauseBtn').disabled=true;el('stopBtn').disabled=true;
+  const node=document.getElementById('interimNode');if(node)node.remove();}
+async function stopAndAnalyze(){if(!isRecording)return;if(!isPaused)accumulatedMs+=Date.now()-startEpoch;hardStop();statusLabel.textContent='분석 중';
+  if(segments.length===0&&!el('memo').value.trim()){statusLabel.textContent='대기 중';alert('녹음된 내용이나 메모가 없습니다.');return;}
+  await analyzeTranscript();}
+
+/* ---------- Claude API wrapper with real error surfacing ---------- */
+async function callClaude(bodyObj){
+  const key=el('apiKey').value.trim();
+  const headers={"Content-Type":"application/json"};
+  if(key){headers["x-api-key"]=key;headers["anthropic-version"]="2023-06-01";headers["anthropic-dangerous-direct-browser-access"]="true";}
+  let res;
+  try{ res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers,body:JSON.stringify(bodyObj)}); }
+  catch(e){ throw new Error(`네트워크 오류(${e.message}). 다운로드한 파일을 로컬에서 열었다면 API 키를 입력하거나, Claude 아티팩트 안에서 실행하세요.`); }
+  const raw=await res.text();
+  if(!res.ok){
+    let hint="";
+    if(res.status===401||res.status===403)hint=" — 인증 실패. 아티팩트 내부 실행이 아니면 유효한 API 키가 필요합니다.";
+    else if(res.status===429)hint=" — 요청 한도 초과. 잠시 후 다시 시도하세요.";
+    else if(res.status>=500)hint=" — 서버 오류. 잠시 후 재시도하세요.";
+    throw new Error(`HTTP ${res.status}${hint}\n${raw.slice(0,240)}`);
+  }
+  let data;try{data=JSON.parse(raw);}catch(e){throw new Error(`응답 JSON 파싱 실패: ${raw.slice(0,240)}`);}
+  if(data.type==="error")throw new Error(`API 오류: ${(data.error&&data.error.message)||raw.slice(0,240)}`);
+  return data;
+}
+function blockText(data){return (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n");}
+function parseAnalysisJSON(text){
+  let t=text.replace(/```json|```/g,'').trim();
+  const i=t.indexOf('{'),j=t.lastIndexOf('}');
+  if(i>=0&&j>i)t=t.slice(i,j+1);
+  return JSON.parse(t);
+}
+function showErr(msg){el('errBox').innerHTML=`<div class="err-box"><b>오류 상세</b><br>${escapeHtml(msg)}</div>`;}
+function clearErr(){el('errBox').innerHTML='';}
+
+/* ---------- AI analysis ---------- */
+function transcriptText(){return segments.map(s=>`[${s.ts}] ${s.text}`).join('\n');}
+async function analyzeTranscript(){
+  clearErr();const body=el('analysisBody');el('analysis').classList.add('show');
+  body.innerHTML=`<div class="loading"><span class="spinner"></span> 회의 내용을 분석하고 있습니다…</div>`;
+  const memo=el('memo').value.trim();
+  const prompt=`다음은 팀 회의의 음성 전사와 참석자 메모입니다. 둘을 종합해 한국어로 간결하게 분석하고, 순수 JSON만 출력하세요(코드블록·설명 금지). 각 항목은 핵심만 짧게.
+
+[음성 전사]
+${transcriptText()||'(없음)'}
+
+[참석자 메모]
+${memo||'(없음)'}
+
+형식:
+{"summary":"2~4문장 요약","topics":["주제"],"decisions":["결정사항"],"actionItems":[{"task":"할 일","owner":"담당(없으면 미정)","due":"기한(없으면 미정)"}],"followups":["후속 확인"]}
+없는 항목은 빈 배열로.`;
+  try{
+    const data=await callClaude({model:"claude-sonnet-4-6",max_tokens:2000,messages:[{role:"user",content:prompt}]});
+    analysis=parseAnalysisJSON(blockText(data));
+    renderAnalysis(analysis);statusLabel.textContent='분석 완료';
+    const su=el('sheetUrl').value.trim();
+    if(su){await appendToSheet(true);}
+    else{el('saveStatus').className='save-status';el('saveStatus').textContent='시트 연동 URL을 설정하면 분석 직후 자동으로 한 줄씩 추가됩니다. (연동 설정 참고)';}
+  }catch(err){
+    body.innerHTML=`<div class="a-block"><p style="color:var(--signal)">분석에 실패했습니다. 아래 오류 상세를 확인하거나 .md로 내려받으세요.</p></div>`;
+    showErr(err.message);console.error(err);statusLabel.textContent='대기 중';
+  }
+}
+function escapeHtml(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function listOr(arr,empt){return (!arr||!arr.length)?`<p style="color:var(--muted)">${empt}</p>`:`<ul>${arr.map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul>`;}
+function renderAnalysis(a){
+  const actions=(a.actionItems&&a.actionItems.length)
+    ?a.actionItems.map(it=>`<div class="action"><span class="task">${escapeHtml(it.task||"")}</span><span class="who">${escapeHtml(it.owner||"미정")}</span><span class="due mono">${escapeHtml(it.due||"미정")}</span></div>`).join("")
+    :`<p style="color:var(--muted)">기록된 액션 아이템이 없습니다.</p>`;
+  el('analysisBody').innerHTML=`
+    <div class="a-block"><h3>요약</h3><p>${escapeHtml(a.summary||"")}</p></div>
+    <div class="a-block"><h3>논의 주제</h3>${listOr(a.topics,"기록 없음")}</div>
+    <div class="a-block"><h3>결정 사항</h3>${listOr(a.decisions,"명시적 결정 없음")}</div>
+    <div class="a-block"><h3>액션 아이템</h3>${actions}</div>
+    <div class="a-block"><h3>후속 확인</h3>${listOr(a.followups,"없음")}</div>`;
+}
+
+/* ---------- shared row payload ---------- */
+function rowPayload(){
+  const a=analysis||{};
+  return {
+    timestamp:`${dateStr} (${dow}) ${timeStr}`,
+    title:el('title').value,
+    duration:el('clock').textContent,
+    summary:a.summary||"",
+    topics:(a.topics||[]).join(" | "),
+    decisions:(a.decisions||[]).join(" | "),
+    actionItems:(a.actionItems||[]).map(it=>`${it.task||""}(${it.owner||"미정"}/${it.due||"미정"})`).join(" | "),
+    followups:(a.followups||[]).join(" | "),
+    memo:el('memo').value.trim(),
+    transcript:segments.map(s=>`[${s.ts}] ${s.text}`).join("\n")
+  };
+}
+
+/* ---------- Google Sheet (Apps Script web app) ---------- */
+async function appendToSheet(auto){
+  const url=el('sheetUrl').value.trim();const status=el('saveStatus');
+  if(!url){status.className='save-status err';status.textContent='Google Sheet 연동 URL이 비어 있습니다. 연동 설정에서 Apps Script 웹앱 URL을 입력하세요.';el('settings').open=true;return;}
+  const btn=el('sheetBtn');btn.disabled=true;btn.innerHTML=`<span class="spinner light"></span>시트 추가 중…`;
+  status.className='save-status';status.textContent=(auto?'분석 완료 — ':'')+'구글 시트에 한 줄 추가 중입니다…';
+  const payload=JSON.stringify(rowPayload());
+  try{
+    const res=await fetch(url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:payload});
+    const txt=await res.text();
+    let ok=res.ok;try{const j=JSON.parse(txt);if(j&&j.ok===false)ok=false;}catch(_){}
+    if(ok){status.className='save-status ok';status.textContent='✓ 구글 시트에 추가했습니다.';}
+    else{status.className='save-status err';status.textContent='시트 응답이 정상이 아닙니다: '+txt.slice(0,160);}
+  }catch(e){
+    // CORS로 응답을 못 읽는 경우가 흔함 → no-cors로 한 번 더 전송(낙관적 성공)
+    try{await fetch(url,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:payload});
+      status.className='save-status ok';status.textContent='✓ 시트로 전송했습니다(응답 확인 불가 — 시트에서 행 추가를 확인하세요).';}
+    catch(e2){status.className='save-status err';status.textContent='시트 전송 실패: '+e2.message+' — URL이 .../exec 로 끝나는 웹앱 주소인지, 액세스가 "모든 사용자"인지 확인하세요.';}
+  }finally{btn.disabled=false;btn.innerHTML=`<span class="ic"></span>시트에 추가`;}
+}
+
+/* ---------- Google Drive .md (in-artifact Claude + Drive MCP) ---------- */
+function buildMarkdown(){
+  const a=analysis||{};const li=arr=>(arr&&arr.length)?arr.map(x=>`- ${x}`).join("\n"):"- (없음)";
+  const acts=(a.actionItems&&a.actionItems.length)?a.actionItems.map(it=>`- ${it.task||""} · 담당: ${it.owner||"미정"} · 기한: ${it.due||"미정"}`).join("\n"):"- (없음)";
+  const memo=el('memo').value.trim();
+  return `# ${el('title').value}\n\n- 일시: ${dateStr} (${dow}) ${timeStr}\n- 길이: ${el('clock').textContent}\n- 구간 수: ${segments.length}\n\n## 요약\n${a.summary||"(분석 없음)"}\n\n## 논의 주제\n${li(a.topics)}\n\n## 결정 사항\n${li(a.decisions)}\n\n## 액션 아이템\n${acts}\n\n## 후속 확인\n${li(a.followups)}\n\n## 참석자 메모\n${memo||"(없음)"}\n\n## 전체 전사\n${segments.map(s=>`[${s.ts}] ${s.text}`).join("\n")||"(없음)"}\n`;
+}
+async function saveToDrive(){
+  clearErr();const status=el('saveStatus'),btn=el('driveBtn');
+  btn.disabled=true;btn.innerHTML=`<span class="spinner light"></span>저장 중…`;
+  status.className='save-status';status.textContent='구글 드라이브에 .md 회의록을 만드는 중…';
+  const fname=el('title').value.replace(/[\/\\:*?"<>|]/g,' ').trim()+'.md';
+  const prompt=`내 구글 드라이브에 새 파일을 만들어줘. 파일 이름은 "${fname}", 내용은 아래 마크다운 그대로. 만든 뒤 파일명과 링크를 알려줘.\n\n---\n${buildMarkdown()}`;
+  try{
+    const data=await callClaude({model:"claude-sonnet-4-6",max_tokens:1500,messages:[{role:"user",content:prompt}],
+      mcp_servers:[{type:"url",url:"https://drivemcp.googleapis.com/mcp/v1",name:"google-drive"}]});
+    const blocks=data.content||[];
+    const toolErr=blocks.find(b=>b.type==="mcp_tool_result"&&b.is_error);
+    const toolOk=blocks.some(b=>b.type==="mcp_tool_result"&&!b.is_error);
+    const textOut=blocks.filter(b=>b.type==="text").map(b=>b.text).join(" ").trim();
+    if(toolErr){status.className='save-status err';status.textContent='드라이브 저장 오류. 드라이브 커넥터 연결/쓰기 권한을 확인하세요.';}
+    else if(toolOk||textOut){status.className='save-status ok';status.textContent='✓ 드라이브 저장 완료. '+(textOut||`"${fname}"`);}
+    else{status.className='save-status err';status.textContent='응답을 확인할 수 없습니다. 드라이브를 직접 확인하세요.';}
+  }catch(err){status.className='save-status err';status.textContent='드라이브 저장 실패. 오류 상세를 확인하세요.';showErr(err.message);console.error(err);}
+  finally{btn.disabled=false;btn.innerHTML=`<span class="ic"></span>드라이브에 .md 저장`;}
+}
+function downloadMd(){const fname=el('title').value.replace(/[\/\\:*?"<>|]/g,' ').trim()+'.md';
+  const blob=new Blob([buildMarkdown()],{type:"text/markdown;charset=utf-8"});const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=fname;a.click();URL.revokeObjectURL(url);}
+
+el('recBtn').onclick=startRecording;
+el('pauseBtn').onclick=togglePause;
+el('stopBtn').onclick=stopAndAnalyze;
+el('sheetBtn').onclick=()=>appendToSheet(false);
+el('driveBtn').onclick=saveToDrive;
+el('dlBtn').onclick=downloadMd;
+</script>
+</body>
+</html>
