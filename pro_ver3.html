@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SV 경쟁사 프로모션 분석센터</title>
+  <style>
+    :root {
+      --bg:#f6f3ef; --panel:#fff; --soft:#fbfaf8; --text:#222; --muted:#6f6a64; --line:#e6ded5;
+      --primary:#7a4e2d; --primary-dark:#4f321f; --accent:#c98b48; --danger:#c4493d; --success:#2f7d5b; --warning:#e0a12a;
+      --shadow:0 18px 45px rgba(68,45,26,.08); --r-xl:28px; --r-lg:20px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;font-family:"Malgun Gothic","NanumGothic","Apple SD Gothic Neo",Arial,sans-serif;background:radial-gradient(circle at top left,rgba(201,139,72,.14),transparent 34%),linear-gradient(180deg,#fbfaf7 0%,var(--bg) 100%);color:var(--text);min-height:100vh}
+    button,input,select,textarea{font-family:inherit} button{border:0;cursor:pointer} a{color:inherit;text-decoration:none}
+
+    .app{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
+    .sidebar{background:#2d2119;color:#fff;padding:28px 22px;position:sticky;top:0;height:100vh}
+    .brand{display:flex;gap:12px;align-items:center;margin-bottom:34px}
+    .brand-mark{width:42px;height:42px;border-radius:15px;background:linear-gradient(135deg,var(--accent),#f1cf91);display:grid;place-items:center;font-weight:900;color:#2d2119}
+    .brand h1{margin:0;font-size:17px;line-height:1.3}.brand p{margin:2px 0 0;font-size:12px;color:#cfc4b8}
+    .nav-title{color:#a99d91;font-size:12px;margin:22px 0 10px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:12px 13px;border-radius:14px;color:#e8dfd6;font-size:14px;margin-bottom:6px;transition:.2s}.nav-item.active,.nav-item:hover{background:rgba(255,255,255,.1);color:#fff}
+
+    .main{padding:30px;overflow:hidden}.topbar{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:26px}
+    .headline h2{margin:0;font-size:clamp(25px,3vw,38px);letter-spacing:-.055em}.headline p{margin:8px 0 0;color:var(--muted);font-size:15px;line-height:1.6}
+    .status-pill{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;background:#fff;border:1px solid var(--line);border-radius:999px;box-shadow:var(--shadow);color:var(--primary-dark);font-size:13px;white-space:nowrap}
+    .dot{width:9px;height:9px;border-radius:50%;background:var(--success);box-shadow:0 0 0 5px rgba(47,125,91,.12)}
+
+    .hero-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr);gap:22px;margin-bottom:22px}
+    .section-grid,.report-layout{display:grid;gap:22px;margin-top:22px}
+    .card{background:rgba(255,255,255,.92);border:1px solid rgba(230,222,213,.9);border-radius:var(--r-xl);box-shadow:var(--shadow);padding:24px}
+    .card-header{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:18px}.eyebrow{display:inline-flex;color:var(--primary);font-size:13px;font-weight:700;margin-bottom:8px}.card h3{margin:0;font-size:22px;letter-spacing:-.04em}.card-desc{margin:8px 0 0;color:var(--muted);font-size:14px;line-height:1.65}
+
+    .input-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px}label{display:block;font-size:13px;color:var(--muted);margin-bottom:8px;font-weight:700}
+    select,textarea{width:100%;border:1px solid var(--line);border-radius:15px;padding:13px 14px;background:#fff;color:var(--text);outline:none;transition:.2s}select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(201,139,72,.12)}textarea{min-height:150px;resize:vertical;line-height:1.6}
+    .filter-chips{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 2px}.chip{display:inline-flex;gap:6px;padding:8px 11px;border-radius:999px;background:#f4eee8;color:var(--primary-dark);font-size:12px;font-weight:800}.chip b{color:var(--primary)}
+
+    .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.btn{border-radius:16px;padding:13px 18px;font-weight:800;transition:.2s}.btn-primary{background:var(--primary);color:#fff;box-shadow:0 12px 24px rgba(122,78,45,.22)}.btn-ghost{background:#f1ebe4;color:var(--primary-dark)}.btn-dark{background:#2d2119;color:#fff}.btn-danger{background:var(--danger);color:#fff}
+    .flow-card{background:linear-gradient(180deg,#fff,#fbf5ee)}.action-panel{display:grid;gap:14px;margin-top:18px}.action-card{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;padding:17px;background:#fff;border:1px solid var(--line);border-radius:20px;transition:.2s}.action-card.is-active{border-color:var(--accent);box-shadow:0 0 0 4px rgba(201,139,72,.11);background:#fffaf2}.action-meta{display:flex;align-items:flex-start;gap:12px}.action-icon{width:40px;height:40px;border-radius:15px;display:grid;place-items:center;background:#f2e5d4;color:var(--primary);font-size:18px;flex:0 0 40px}.action-card strong{display:block;font-size:15px;margin-bottom:5px;color:var(--primary-dark)}.action-card span{color:var(--muted);font-size:12px;line-height:1.45}.action-card .btn{min-width:92px;padding:11px 15px;border-radius:14px}
+
+    .section-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.section-title h3{margin:0;font-size:20px;letter-spacing:-.04em}
+    .badge{display:inline-flex;align-items:center;width:fit-content;padding:6px 9px;border-radius:999px;font-size:11px;font-weight:800;background:#f4eee8;color:var(--primary);white-space:nowrap}.badge.danger{background:rgba(196,73,61,.1);color:var(--danger)}.badge.success{background:rgba(47,125,91,.1);color:var(--success)}.badge.warning{background:rgba(224,161,42,.14);color:#9b6a0e}
+    .kpi-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px}.kpi-card{padding:18px;border:1px solid var(--line);border-radius:22px;background:#fff;box-shadow:0 10px 25px rgba(68,45,26,.05)}.kpi-card span{display:block;font-size:12px;font-weight:900;color:var(--muted);margin-bottom:8px}.kpi-card strong{display:block;font-size:24px;letter-spacing:-.055em;color:var(--primary-dark);line-height:1.2}.kpi-card p{margin:8px 0 0;color:var(--muted);font-size:12px;line-height:1.45}.kpi-card.danger{border-color:rgba(196,73,61,.26);background:linear-gradient(135deg,#fff,#fff6f5)}.kpi-card.success{border-color:rgba(47,125,91,.24);background:linear-gradient(135deg,#fff,#f4fbf7)}
+    .headline-notice{padding:24px;background:linear-gradient(135deg,#fff7e8,#fff);border:1px solid #efd6aa;border-radius:24px;color:#6d4619;margin-bottom:20px}.headline-label{display:block;font-size:14px;font-weight:900;color:var(--primary);margin-bottom:10px}.headline-notice strong{display:block;font-size:clamp(16px,2.2vw,26px);line-height:1.45;letter-spacing:-.05em;color:var(--primary-dark);word-break:keep-all}.headline-highlight{font-weight:900;color:#3f2718;background:linear-gradient(to top,rgba(201,139,72,.22) 38%,transparent 38%);padding:0 4px;border-radius:4px}.headline-break{display:block;height:14px}
+    .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:18px}table{width:100%;border-collapse:collapse;min-width:980px;background:#fff}th,td{padding:14px 13px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;font-size:13px;line-height:1.55}th{background:#f5efe7;color:var(--primary-dark);font-size:12px;white-space:nowrap}.brand-name{font-weight:900;color:var(--primary-dark)}.source-link{color:var(--primary);font-weight:800;text-decoration:underline;text-underline-offset:3px}
+    .three-grid,.strategy-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.two-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.insight{padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--soft)}.insight strong{display:block;margin-bottom:7px;color:var(--primary-dark)}.insight p{color:var(--muted);line-height:1.6;font-size:13px;margin:0}
+    .strategy-card{position:relative;overflow:hidden;min-height:180px;padding:22px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(135deg,#fff,#fbf5ee)}.strategy-card .num{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:12px;background:var(--primary);color:#fff;font-weight:900;margin-bottom:14px}.strategy-card h4{margin:0 0 8px;color:var(--primary-dark);font-size:17px}.strategy-card p{margin:0;color:var(--muted);font-size:13px;line-height:1.65}
+    .keyword-section{display:grid;grid-template-columns:1fr 360px;gap:22px;align-items:start;margin-top:22px}.status-card{padding:14px;border-radius:18px;background:#fff7e8;border:1px solid #efd6aa;color:#7b541a;font-size:13px;line-height:1.55;margin-bottom:14px}.status-card strong{display:block;margin-bottom:4px;color:var(--primary-dark)}.keyword-board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.keyword-card{border-radius:26px;min-height:300px;background:#2d2119;box-shadow:var(--shadow);overflow:hidden;display:grid;grid-template-rows:170px 1fr}.promo-visual{position:relative;min-height:170px;background:linear-gradient(135deg,#8d352f,#d9974c);overflow:hidden}.promo-visual img{width:100%;height:100%;object-fit:cover;display:block}.promo-visual::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.55))}.promo-rank{position:absolute;left:16px;bottom:14px;z-index:1;padding:7px 10px;border-radius:999px;background:rgba(0,0,0,.48);color:#fff;font-size:12px;font-weight:900}.keyword-content{padding:18px;background:#fff;color:var(--text)}.keyword-content h4{margin:0;font-size:24px;line-height:1.15;letter-spacing:-.055em;color:var(--primary-dark)}.keyword-content p{margin:10px 0 0;font-size:13px;line-height:1.55;color:var(--muted)}.keyword-content a{display:inline-flex;margin-top:12px;font-size:12px;font-weight:900;color:var(--primary);text-decoration:underline;text-underline-offset:4px}
+    .share-card{background:#fff;border:1px solid var(--line);border-radius:var(--r-lg);padding:20px;box-shadow:var(--shadow)}.share-preview{border-radius:24px;overflow:hidden;background:#fff7e9;border:1px solid var(--line)}.share-top{background:var(--danger);color:#fff;padding:18px;text-align:center;font-weight:900;font-size:22px}.share-body{padding:16px}.share-keyword{padding:14px;margin-bottom:10px;border-radius:16px;background:#fff;border:1px solid var(--line)}.share-keyword b{display:block;color:var(--primary-dark);font-size:18px;margin-bottom:4px}.share-keyword span{display:block;color:var(--muted);font-size:12px}.pop-message{border:2px dashed var(--accent);border-radius:18px;padding:16px;text-align:center;color:var(--primary-dark);font-weight:900;line-height:1.45;background:#fff7e9}.output-section{border-top:4px solid var(--primary);scroll-margin-top:24px}.footer{margin-top:22px;color:var(--muted);font-size:12px;text-align:center}.toast{position:fixed;right:24px;bottom:24px;background:#2d2119;color:#fff;padding:13px 17px;border-radius:14px;box-shadow:0 14px 32px rgba(0,0,0,.18);z-index:9999;font-size:14px}
+    .api-section{margin-top:auto;padding-top:24px;border-top:1px solid rgba(255,255,255,.12)}.api-label{color:#a99d91;font-size:11px;margin-bottom:8px;font-weight:700}.api-input-wrap{display:flex;gap:6px;align-items:center}.api-input{flex:1;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:9px 11px;color:#fff;font-size:12px;outline:none;width:100%}.api-input::placeholder{color:#a99d91}.api-input:focus{border-color:var(--accent)}.api-status{font-size:11px;margin-top:6px;color:#a99d91}.api-status.ok{color:#6fcf97}.api-status.err{color:#eb5757}
+    .loading-overlay{position:fixed;inset:0;background:rgba(45,33,25,.72);z-index:8888;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;backdrop-filter:blur(4px)}.loading-spinner{width:52px;height:52px;border:4px solid rgba(255,255,255,.2);border-top-color:var(--accent);border-radius:50%;animation:spin .9s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.loading-text{color:#fff;font-size:17px;font-weight:700;letter-spacing:-.03em}.loading-sub{color:#cfc4b8;font-size:13px}
+    @media(max-width:1100px){.app{grid-template-columns:1fr}.sidebar{position:relative;height:auto}.hero-grid,.keyword-section{grid-template-columns:1fr}.kpi-grid,.three-grid,.two-grid,.strategy-strip,.keyword-board{grid-template-columns:1fr}}
+    @media(max-width:760px){.main{padding:20px 14px}.topbar{align-items:flex-start;flex-direction:column}.input-row{grid-template-columns:1fr}.card{padding:18px;border-radius:22px}.action-card{grid-template-columns:1fr}.action-card .btn{width:100%}.status-pill{white-space:normal}.section-title{flex-direction:column;align-items:flex-start}table{min-width:920px}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">SV</div><div><h1>경쟁사 프로모션 분석센터</h1><p>카페 프랜차이즈 SV 업무 도구</p></div></div>
+      <div class="nav-title">업무 메뉴</div>
+      <a href="#prompt" class="nav-item active">① 분석 조건 입력</a><a href="#workflow" class="nav-item">② 실행 패널</a><a href="#report" class="nav-item">③ 경쟁사 분석 리포트</a><a href="#keywords" class="nav-item">④ 경쟁점 홍보 이미지 수집</a>
+      <div class="nav-title">결과 자료</div><a href="#onepage" class="nav-item">📄 점주 대응 브리핑</a><a href="#risk" class="nav-item">🔍 데이터 검증 노트</a>
+      <div class="api-section">
+        <div class="api-label">🔑 Gemini API 키</div>
+        <div class="api-input-wrap"><input class="api-input" id="apiKey" type="password" placeholder="AIza..." oninput="checkApiKey()"></div>
+        <div class="api-status" id="apiStatus">키 입력 시 실시간 AI 분석 활성화</div>
+        <div style="margin-top:8px;font-size:11px;color:#7a6a5e;line-height:1.5">키 없이도 샘플 데이터로 사용 가능<br><a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent)">Google AI Studio에서 발급 →</a></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="topbar"><div class="headline"><h2>경쟁사 프로모션 분석센터</h2><p>연·월 기준 프로모션 조사부터 파스쿠찌 실행전략, 점주 브리핑, 경계 행사 카드까지 한 번에 관리합니다.</p></div><div class="status-pill"><span class="dot"></span> 실데이터 · 출처 · 실행전략 분리 관리</div></section>
+
+      <section class="hero-grid" id="prompt">
+        <article class="card"><div class="card-header"><div><div class="eyebrow">● 분석 조건 입력</div><h3>프로모션 조사 조건 설정</h3><p class="card-desc">분석 기준 연도·월과 위협 유형을 선택하면 리포트, 인사이트, 브리핑, 홍보 이미지 카드가 함께 변경됩니다.</p></div><span class="badge success">실데이터 우선</span></div>
+          <div class="input-row"><div><label for="year">분석 연도</label><select id="year" onchange="handleFilterChange('year')"><option>2026년</option><option>2025년</option><option>2024년</option><option>2023년</option></select></div><div><label for="month">분석 월</label><select id="month" onchange="handleFilterChange('month')"><option>1월</option><option>2월</option><option>3월</option><option>4월</option><option selected>5월</option><option>6월</option><option>7월</option><option>8월</option><option>9월</option><option>10월</option><option>11월</option><option>12월</option></select></div><div><label for="scope">조사 범위</label><select id="scope" onchange="handleFilterChange('scope')"><option>전체 시장 분석</option><option>가격 경쟁형 브랜드</option><option>디저트 강화형 브랜드</option><option>시즌 굿즈·콜라보형 브랜드</option><option>프리미엄 체류형 브랜드</option></select></div></div>
+          <div class="filter-chips" id="filterChips"></div><label for="customPrompt">추가 분석 지시사항</label><textarea id="customPrompt"></textarea><div class="btn-row"><button class="btn btn-primary" onclick="runWorkflow(1)">실행</button><button class="btn btn-ghost" onclick="clearForm()">삭제</button></div></article>
+        <article class="card flow-card" id="workflow"><div class="card-header"><div><div class="eyebrow">● 실행 패널</div><h3>분석 작업 실행</h3><p class="card-desc">필요한 결과물로 바로 이동해 확인합니다. 저장 기능은 이미지 수집 화면에서만 제공합니다.</p></div></div><div class="action-panel"><div class="action-card is-active"><div class="action-meta"><div class="action-icon">📊</div><div><strong>경쟁사 분석 리포트</strong><span>헤드라인, 요약, 핵심 인사이트를 확인합니다.</span></div></div><button class="btn btn-primary" onclick="runWorkflow(1)">리포트 보기</button></div><div class="action-card"><div class="action-meta"><div class="action-icon">📄</div><div><strong>점주 대응 브리핑</strong><span>가맹점주 공유용 1페이지 자료를 확인합니다.</span></div></div><button class="btn btn-dark" onclick="runWorkflow(3)">브리핑 보기</button></div><div class="action-card"><div class="action-meta"><div class="action-icon">🚨</div><div><strong>경쟁점 홍보 이미지</strong><span>온라인 채널의 홍보 이미지와 출처를 확인합니다.</span></div></div><button class="btn btn-danger" onclick="runWorkflow(5)">이미지 확인</button></div><div class="action-card"><div class="action-meta"><div class="action-icon">🔍</div><div><strong>데이터 검증 노트</strong><span>출처, 실데이터, 추정치, 리스크 기준을 확인합니다.</span></div></div><button class="btn btn-ghost" onclick="runWorkflow(4)">검증 보기</button></div></div></article>
+      </section>
+
+      <section class="report-layout" id="report"><article class="card"><div class="section-title"><h3>경쟁사 분석 리포트</h3><span class="badge warning" id="reportStatus">샘플 데이터 · 실제 사용 시 출처 확인</span></div><div class="kpi-grid" id="kpiGrid"></div><div class="headline-notice"><span class="headline-label">한 줄 헤드라인</span><strong id="dynamicHeadline"></strong></div><div class="section-title"><h3>경쟁사 프로모션 요약</h3></div><div class="table-wrap" style="margin-bottom:18px"><table><thead><tr><th>위협 유형</th><th>브랜드</th><th>캠페인명</th><th>기간</th><th>혜택</th><th>특징</th><th>출처 링크</th></tr></thead><tbody id="promotionTableBody"></tbody></table></div><div class="section-title"><h3>핵심 인사이트</h3></div><div class="three-grid" id="insightGrid"></div></article></section>
+      <section class="section-grid" id="strategy"><article class="card"><div class="section-title"><h3>파스쿠찌 실행 전략</h3><span class="badge success">브랜드 정체성 기반</span></div><div class="strategy-strip"><div class="strategy-card"><span class="num">1</span><h4>이탈리아 커피 정체성 강화</h4><p>저가 브랜드의 가격 경쟁을 따라가기보다 에스프레소 기반 음료의 풍미와 전문성을 전면에 배치합니다.</p></div><div class="strategy-card"><span class="num">2</span><h4>디저트 페어링 객단가 방어</h4><p>커피+케이크 조합, 시즌 디저트, 홀케이크 상담을 연결해 프리미엄 구매 이유를 만듭니다.</p></div><div class="strategy-card"><span class="num">3</span><h4>체류·선물 수요 전환</h4><p>좌석, 분위기, 선물, 모임 수요를 강조해 단순 할인과 다른 이용 가치를 제안합니다.</p></div></div></article></section>
+      <section class="keyword-section" id="keywords"><article class="card"><div class="section-title"><h3>경쟁점 홍보 이미지 수집</h3><button class="btn btn-danger" onclick="saveKeywordImage()">이미지 저장하기</button></div><div class="status-card"><strong>이미지 수집 상태</strong>공식 홈페이지·SNS·보도자료의 실제 행사 이미지를 연결하는 영역입니다. 샘플 이미지는 실제 운영 시 공식 출처 이미지 URL로 교체하세요.</div><div class="keyword-board" id="keywordCapture"></div></article><aside class="share-card"><h3 style="margin:0 0 12px">점주 공유용 홍보 이미지 요약</h3><div class="share-preview"><div class="share-top">주요 경계 행사 TOP 2</div><div class="share-body" id="shareKeywordBody"></div></div><div class="btn-row"><button class="btn btn-danger" onclick="saveKeywordImage()">저장하기</button></div></aside></section>
+      <section class="section-grid output-section" id="onepage"><article class="card"><div class="card-header"><div><div class="eyebrow">● 점주 공유 자료</div><h3>점주 대응 브리핑</h3><p class="card-desc">가맹점주가 현장에서 바로 이해하고 실행할 수 있도록 정리한 1페이지 대응 자료입니다.</p></div><span class="badge success">A4 1페이지 기준</span></div><div class="two-grid" id="briefingGrid"></div></article></section>
+      <section class="section-grid output-section" id="risk"><article class="card"><div class="card-header"><div><div class="eyebrow">● 검증 기준</div><h3>🔍 데이터 검증 노트</h3><p class="card-desc">프로모션 출처, 실데이터, 추정치, 운영 리스크를 분리해 분석 신뢰도를 관리합니다.</p></div><span class="badge warning">필수 확인</span></div><div class="table-wrap"><table><thead><tr><th>구분</th><th>표기 원칙</th><th>검증 기준</th><th>화면 표시</th></tr></thead><tbody><tr><td>실데이터</td><td>공식 홈페이지·앱 공지·보도자료·공식 SNS 기반</td><td>URL, 게시일, 행사기간 확인</td><td><span class="badge success">확인 완료</span></td></tr><tr><td>추정치</td><td>간접 자료 기반 추론이며 근거 표시</td><td>복수 출처 대조 필요</td><td><span class="badge warning">추정</span></td></tr><tr><td>불명확</td><td>출처 미확인, 기간 불명, 이미지 원문 미확보</td><td>실행 전략 반영 전 재확인</td><td><span class="badge danger">데이터 부족</span></td></tr><tr><td>운영 리스크</td><td>과도한 할인 모방, 원가 부담, 정체성 훼손 가능성</td><td>점포 손익·인력 여력 점검</td><td><span class="badge danger">주의</span></td></tr></tbody></table></div></article></section><p class="footer">© SV 경쟁사 프로모션 분석센터 · HTML 단일 파일 예시</p>
+    </main>
+  </div>
+
+  <div class="loading-overlay" id="loadingOverlay" style="display:none">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">AI 실시간 분석 중...</div>
+    <div class="loading-sub" id="loadingSub">Gemini가 경쟁사 프로모션을 검색하고 있습니다</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script>
+    const $=id=>document.getElementById(id);
+    const exampleInstruction='추가 요청사항을 입력하세요. 예: 스타벅스 여름 음료 프로모션 위주로 분석해줘.';
+    const IMG={cake:'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=900&q=80',coffee:'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=900&q=80',md:'https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=900&q=80',premium:'https://images.unsplash.com/photo-1511920170033-f8396924c348?auto=format&fit=crop&w=900&q=80'};
+    const SEASONAL={
+      '1월':['신년 쿠폰','멤버십 재방문','겨울 음료 방어'],
+      '2월':['밸런타인 디저트','초콜릿 시즌','선물 수요'],
+      '3월':['봄 시즌 음료','신학기 유입','딸기 디저트'],
+      '4월':['벚꽃 시즌','피크닉 수요','봄 굿즈'],
+      '5월':['가정의 달 선물','홀케이크 수요','시즌 굿즈'],
+      '6월':['여름 음료 전환','아이스 음료 경쟁','배달 쿠폰'],
+      '7월':['빙수·프라페','대용량 음료','폭염 할인'],
+      '8월':['휴가철 유입','아이스 디저트','저가 음료 경쟁'],
+      '9월':['가을 시즌 음료','추석 선물','MD 재정비'],
+      '10월':['할로윈 시즌','가을 디저트','콜라보 굿즈'],
+      '11월':['겨울 신메뉴','블랙프라이데이','멤버십 쿠폰'],
+      '12월':['크리스마스 케이크','연말 선물','홀케이크 예약']
+    };
+    const DATA={
+      '전체 시장 분석':{kpi:['투썸·메가·스타벅스','중간~높음','점주 공유 권장'],headline:[['가격 방어','디저트 강화','시즌 행사 경쟁'],['디저트 세트형 행사','대용량 할인 프로모션']],rows:[['디저트 강화형','투썸플레이스','시즌 디저트 프로모션','정보 확인 필요','앱 쿠폰 / 세트 혜택 가능성','디저트 객단가 상승 유도','https://www.twosome.co.kr/'],['가격 경쟁형','메가MGC커피','대용량 음료 할인','정보 확인 필요','가격 경쟁형 혜택','방문 빈도 및 유입 확대 목적','https://www.mega-mgccoffee.com/'],['시즌 굿즈·콜라보형','스타벅스','시즌 MD / 굿즈 캠페인','정보 확인 필요','MD·스탬프·리워드 가능성','SNS 화제성 및 방문 명분 강화','https://www.starbucks.co.kr/']],insights:[['캠페인 의도','가격 할인, 디저트 세트, 시즌 MD를 동시에 활용해 신규 유입과 재방문을 모두 확보하려는 흐름입니다.'],['타겟 고객','출근·점심 피크 고객, 디저트 동반 구매 고객, 시즌 행사 반응 고객이 핵심 타겟입니다.'],['자사 영향','파스쿠찌는 가격 경쟁보다 디저트 페어링, 프리미엄 체류 가치, 홀케이크 수요 방어가 중요합니다.']],briefing:[['1. 경쟁사 핵심 요약','디저트 세트, 대용량 할인, 시즌 MD가 동시에 진행되어 고객 유입 경쟁이 분산되고 있습니다.'],['2. 우리 매장 예상 영향','오후 디저트 고객과 출근·퇴근 테이크아웃 고객 일부가 경쟁사 행사에 반응할 수 있습니다.'],['3. 즉시 대응 가이드','출입문에는 커피+케이크 조합 POP, 계산대에는 디저트 페어링 멘트, 픽업대에는 홀케이크·선물 안내물을 배치하세요.'],['4. 담당 SV의 한마디','가격보다 파스쿠찌다운 커피와 디저트 경험을 명확히 보여주는 것이 핵심입니다.']],keywords:[['1순위 경계 행사','디저트 세트 쿠폰','투썸플레이스 시즌 디저트 중심 행사. 파스쿠찌는 커피+케이크 페어링으로 대응.',IMG.cake,'https://www.twosome.co.kr/'],['2순위 경계 행사','대용량 가격 할인','메가MGC커피 가격형 유입 행사. 파스쿠찌는 품질·체류 가치 중심으로 방어.',IMG.coffee,'https://www.mega-mgccoffee.com/']]},
+      '가격 경쟁형 브랜드':{kpi:['메가·컴포즈·빽다방','중간','상권별 선택 공유'],headline:[['대용량 할인 경쟁','저가 커피 유입','출근 시간 경쟁'],['초저가 아메리카노','앱 쿠폰 할인']],rows:[['가격 경쟁형','메가MGC커피','대용량 음료 할인','정보 확인 필요','아메리카노·대용량 할인','출근·테이크아웃 고객 유입','https://www.mega-mgccoffee.com/'],['가격 경쟁형','컴포즈커피','앱 할인 행사','정보 확인 필요','앱 쿠폰·세트 할인','가격 민감 고객 타겟','https://composecoffee.com/'],['가격 경쟁형','빽다방','시즌 특가 행사','정보 확인 필요','저가 음료 중심 할인','회전율 중심 전략','https://paikdabang.com/']],insights:[['캠페인 의도','단가보다 객수와 회전율을 우선 확보해 출근·점심 시간대 유입을 넓히려는 전략입니다.'],['타겟 고객','가격 민감도가 높은 테이크아웃 고객, 학생·직장인, 반복 구매 고객이 핵심입니다.'],['자사 영향','파스쿠찌는 동일 가격 경쟁보다 커피 품질, 좌석 이용 가치, 디저트 동반 구매로 방어해야 합니다.']],briefing:[['1. 경쟁사 핵심 요약','저가 브랜드는 대용량·저가 음료로 출근 및 테이크아웃 고객을 강하게 유입시키고 있습니다.'],['2. 우리 매장 예상 영향','가격 민감 고객은 일부 이탈 가능성이 있으나 체류·디저트 고객은 방어 여지가 큽니다.'],['3. 즉시 대응 가이드','가격 맞대응보다 커피 품질, 좌석 이용, 디저트 조합을 짧은 멘트로 반복 안내하세요.'],['4. 담당 SV의 한마디','저가 경쟁에 끌려가기보다 파스쿠찌의 이용 가치를 선명하게 보여줘야 합니다.']],keywords:[['1순위 경계 행사','대용량 아메리카노','메가MGC커피 대용량·저가형 행사. 출근 고객 이탈 방어 필요.',IMG.coffee,'https://www.mega-mgccoffee.com/'],['2순위 경계 행사','앱 쿠폰 할인','컴포즈커피 앱 쿠폰형 행사. 가격 민감 고객 유입 가능성.',IMG.coffee,'https://composecoffee.com/']]},
+      '디저트 강화형 브랜드':{kpi:['투썸·할리스·폴 바셋','높음','즉시 공유 필요'],headline:[['디저트 객단가 강화','케이크 세트 경쟁','체류형 소비 확대'],['프리미엄 디저트','베이커리 페어링']],rows:[['디저트 강화형','투썸플레이스','케이크 세트 프로모션','정보 확인 필요','디저트 세트 할인','디저트 객단가 확대','https://www.twosome.co.kr/'],['디저트 강화형','할리스','베이커리 페어링 행사','정보 확인 필요','커피+디저트 세트','체류 고객 타겟','https://www.hollys.co.kr/'],['디저트 강화형','폴 바셋','프리미엄 디저트 강화','정보 확인 필요','프리미엄 디저트 중심','고객 체류 가치 확대','https://www.baristapaulbassett.co.kr/']],insights:[['캠페인 의도','음료 단품보다 디저트 결합으로 객단가와 체류 시간을 동시에 높이려는 목적입니다.'],['타겟 고객','오후 디저트 고객, 모임 고객, 선물·홀케이크 수요 고객이 주요 대상입니다.'],['자사 영향','파스쿠찌와 직접 충돌하는 영역으로 커피+케이크 페어링 제안이 가장 중요합니다.']],briefing:[['1. 경쟁사 핵심 요약','디저트 강화형 브랜드는 케이크·베이커리 조합으로 객단가와 체류 시간을 동시에 높이고 있습니다.'],['2. 우리 매장 예상 영향','오후 디저트 고객, 모임 고객, 홀케이크 상담 고객을 직접적으로 빼앗길 수 있습니다.'],['3. 즉시 대응 가이드','출입문·계산대·픽업대에 커피+케이크 페어링을 반복 노출하고 직원 추천 멘트를 통일하세요.'],['4. 담당 SV의 한마디','파스쿠찌가 가장 강하게 방어해야 할 영역은 디저트 페어링입니다.']],keywords:[['1순위 경계 행사','케이크 세트','투썸플레이스 케이크 세트 행사. 파스쿠찌 디저트 페어링 강화 필요.',IMG.cake,'https://www.twosome.co.kr/'],['2순위 경계 행사','베이커리 페어링','할리스 베이커리 조합 행사. 오후 시간대 객단가 방어 필요.',IMG.cake,'https://www.hollys.co.kr/']]},
+      '시즌 굿즈·콜라보형 브랜드':{kpi:['스타벅스·투썸·할리스','중간~높음','행사 시점 공유'],headline:[['굿즈 소비 유도','SNS 화제성 확대','캐릭터 협업 경쟁'],['한정판 MD','스탬프 이벤트']],rows:[['시즌 굿즈·콜라보형','스타벅스','시즌 MD 행사','정보 확인 필요','MD·리워드 행사','SNS 화제성 확대','https://www.starbucks.co.kr/'],['시즌 굿즈·콜라보형','투썸플레이스','캐릭터 협업','정보 확인 필요','굿즈 중심 행사','MZ 고객 유입','https://www.twosome.co.kr/'],['시즌 굿즈·콜라보형','할리스','시즌 굿즈 프로모션','정보 확인 필요','한정판 굿즈','방문 명분 강화','https://www.hollys.co.kr/']],insights:[['캠페인 의도','한정판과 협업 이미지를 활용해 방문 명분과 SNS 확산을 만드는 전략입니다.'],['타겟 고객','굿즈 수집 고객, 시즌 이벤트 반응 고객, SNS 공유 성향 고객입니다.'],['자사 영향','파스쿠찌는 MD, 선물, 시즌 한정 메뉴를 함께 노출해 프리미엄 감성을 강화해야 합니다.']],briefing:[['1. 경쟁사 핵심 요약','시즌 굿즈와 콜라보 행사는 SNS 화제성과 방문 명분을 동시에 만드는 방식입니다.'],['2. 우리 매장 예상 영향','신규 고객보다 기존 고객의 관심과 방문 빈도에 영향을 줄 수 있습니다.'],['3. 즉시 대응 가이드','파스쿠찌 MD, 선물용 상품, 시즌 음료를 함께 묶어 감성적인 매장 노출을 강화하세요.'],['4. 담당 SV의 한마디','굿즈 경쟁은 가격보다 노출과 분위기 싸움입니다.']],keywords:[['1순위 경계 행사','한정판 MD','스타벅스 시즌 MD 행사. 화제성 대응 필요.',IMG.md,'https://www.starbucks.co.kr/'],['2순위 경계 행사','캐릭터 협업','브랜드 협업 굿즈 행사. SNS 유입 경쟁.',IMG.md,'https://www.twosome.co.kr/']]},
+      '프리미엄 체류형 브랜드':{kpi:['폴 바셋·테라로사','중간','선별 공유'],headline:[['프리미엄 체류 경쟁','스페셜티 경험 강화','고객 체류시간 확대'],['리저브 체험','원두 중심 브랜딩']],rows:[['프리미엄 체류형','폴 바셋','프리미엄 커피 행사','정보 확인 필요','스페셜티 중심','체류 고객 확대','https://www.baristapaulbassett.co.kr/'],['프리미엄 체류형','테라로사','원두 중심 프로모션','정보 확인 필요','브랜드 경험 강화','프리미엄 이미지 강화','https://www.terarosa.com/'],['프리미엄 체류형','스타벅스 리저브','리저브 체험 행사','정보 확인 필요','프리미엄 체험','객단가 확대','https://www.starbucks.co.kr/']],insights:[['캠페인 의도','공간, 원두, 추출 경험을 강화해 단가와 브랜드 충성도를 함께 높이려는 전략입니다.'],['타겟 고객','체류형 고객, 커피 품질 중시 고객, 프리미엄 경험 소비 고객입니다.'],['자사 영향','파스쿠찌는 이탈리아 커피 정체성, 좌석 가치, 디저트 조합을 명확히 보여줘야 합니다.']],briefing:[['1. 경쟁사 핵심 요약','프리미엄 체류형 브랜드는 원두, 추출, 공간 경험을 전면에 내세워 객단가를 높입니다.'],['2. 우리 매장 예상 영향','커피 품질과 공간 경험을 중시하는 고객의 비교가 강화될 수 있습니다.'],['3. 즉시 대응 가이드','이탈리아 커피 정체성, 좌석 편의성, 디저트 조합을 매장 내에서 명확히 보여주세요.'],['4. 담당 SV의 한마디','프리미엄 경쟁에서는 파스쿠찌만의 커피 경험을 선명하게 전달하는 것이 중요합니다.']],keywords:[['1순위 경계 행사','스페셜티 경험','폴 바셋 프리미엄 커피 행사. 커피 전문성 경쟁.',IMG.premium,'https://www.baristapaulbassett.co.kr/'],['2순위 경계 행사','원두 브랜딩','테라로사 원두 중심 행사. 브랜드 경험 강화.',IMG.premium,'https://www.terarosa.com/']]}
+    };
+    function badgeClass(t){return t.includes('가격')?'warning':t.includes('디저트')?'danger':t.includes('프리미엄')?'success':''}
+    function render(){const scope=$('scope').value,year=$('year').value,month=$('month').value,d=DATA[scope]||DATA['전체 시장 분석'],top=d.headline[0],bottom=d.headline[1],season=SEASONAL[month]||SEASONAL['5월'],rows=getAdjustedRows(d.rows,month,scope),insights=getAdjustedInsights(d.insights,month,scope,season),briefing=getAdjustedBriefing(d.briefing,month,scope,season),keywords=getAdjustedKeywords(d.keywords,month,scope,season);$('filterChips').innerHTML=`<span class="chip">연도 <b>${year}</b></span><span class="chip">월 <b>${month}</b></span><span class="chip">범위 <b>${scope}</b></span>`;$('kpiGrid').innerHTML=`<div class="kpi-card danger"><span>경계 브랜드</span><strong>${d.kpi[0]}</strong><p>현재 선택 범위에서 우선 확인할 경쟁 브랜드입니다.</p></div><div class="kpi-card"><span>예상 영향</span><strong>${getMonthlyImpact(month,d.kpi[1])}</strong><p>${month} 시즌성과 선택 범위를 함께 반영한 체감 영향도입니다.</p></div><div class="kpi-card success"><span>대응 우선순위</span><strong>${getMonthlyPriority(month,d.kpi[2])}</strong><p>점주 공유 또는 현장 실행 필요 수준입니다.</p></div>`;const monthlyHeadlineMap={
+        '1월':['신년 재방문 쿠폰 경쟁','겨울 시즌 음료 강화','멤버십 리텐션 확대'],
+        '2월':['밸런타인 디저트 경쟁','초콜릿 MD 확대','커플 타겟 행사 증가'],
+        '3월':['신학기 유입 프로모션','봄 시즌 음료 경쟁','딸기 디저트 강화'],
+        '4월':['벚꽃 시즌 굿즈 확대','피크닉 음료 수요 증가','SNS 인증형 행사 강화'],
+        '5월':['가정의 달 선물 경쟁','홀케이크·디저트 수요 확대','시즌 굿즈 프로모션 증가'],
+        '6월':['여름 음료 사전 경쟁','아이스 커피 할인 확대','배달 프로모션 증가'],
+        '7월':['빙수·프라페 경쟁 심화','대용량 음료 할인 확대','폭염 시즌 고객 유입 경쟁'],
+        '8월':['휴가철 아이스 음료 경쟁','저가 브랜드 할인 확대','체류형 고객 유치 강화'],
+        '9월':['가을 시즌 음료 출시','추석 선물 수요 확대','MD 재정비 경쟁'],
+        '10월':['할로윈 디저트 경쟁','콜라보 굿즈 확대','시즌 인증형 행사 증가'],
+        '11월':['겨울 신메뉴 경쟁','블랙프라이데이 할인','멤버십 쿠폰 강화'],
+        '12월':['크리스마스 케이크 경쟁','연말 선물 프로모션','홀케이크 예약 확대']
+      };
+      const mh=monthlyHeadlineMap[month]||monthlyHeadlineMap['5월'];
+      $('dynamicHeadline').innerHTML=`${year} ${month} 카페 시장에서는 <span class="headline-highlight">${mh[0]}</span>, <span class="headline-highlight">${mh[1]}</span>, <span class="headline-highlight">${mh[2]}</span> 흐름이 강화되고 있습니다.<span class="headline-break"></span>현재 선택한 <span class="headline-highlight">${scope}</span> 범위에서는 <span class="headline-highlight">${top[0]}</span>, <span class="headline-highlight">${top[1]}</span>, <span class="headline-highlight">${top[2]}</span> 중심의 프로모션 경쟁이 확대되는 추세이며, 특히 <span class="headline-highlight">${bottom[0]}</span> 및 <span class="headline-highlight">${bottom[1]}</span> 형태의 고객 유입 전략을 우선 경계해야 합니다.`;$('promotionTableBody').innerHTML=rows.map(r=>`<tr><td><span class="badge ${badgeClass(r[0])}">${r[0]}</span></td><td><span class="brand-name">${r[1]}</span></td><td>${r[2]}</td><td>${r[3]}</td><td>${r[4]}</td><td>${r[5]}</td><td><a class="source-link" href="${r[6]}" onclick="window.open(this.href, '_blank'); return false;">출처 확인</a></td></tr>`).join('');$('insightGrid').innerHTML=insights.map(i=>`<div class="insight"><strong>${i[0]}</strong><p>${i[1]}</p></div>`).join('');$('briefingGrid').innerHTML=briefing.map(b=>`<div class="insight"><strong>${b[0]}</strong><p>${b[1]}</p></div>`).join('');$('keywordCapture').innerHTML=keywords.map(k=>`<div class="keyword-card"><div class="promo-visual"><img src="${k[3]}" alt="${k[1]} 홍보 이미지" crossorigin="anonymous" onerror="this.remove()"><div class="promo-rank">${k[0]}</div></div><div class="keyword-content"><h4>${k[1]}</h4><p>${k[2]}</p><a href="${k[4]}" onclick="window.open(this.href, '_blank'); return false;">온라인 채널 출처 보기</a></div></div>`).join('');$('shareKeywordBody').innerHTML=keywords.map((k,i)=>`<div class="share-keyword"><b>${i+1}. ${k[1]}</b><span>${k[2]}</span></div>`).join('')+'<div class="pop-message">사장님, 오늘은<br>선택 범위에 맞는<br>대응 멘트를 꼭 사용해주세요</div>'}
+    function getAdjustedRows(rows,month,scope){const season=SEASONAL[month]||SEASONAL['5월'];return rows.map((r,i)=>{const next=[...r];next[2]=`${season[i%3]} 연계 ${r[2]}`;next[3]=`${month} 중 진행 가능성 확인`;next[4]=`${season[i%3]} 관련 혜택 / ${r[4]}`;next[5]=`${month} 시즌 수요와 ${r[5]}가 결합된 형태`;return next;});}
+    function getAdjustedInsights(base,month,scope,season){return [['캠페인 의도',`${month}은 과거 프로모션 흐름상 ${season[0]}, ${season[1]}, ${season[2]} 수요가 강해지는 시기이므로 ${scope} 내 브랜드도 해당 시즌 명분을 활용할 가능성이 높습니다.`],['타겟 고객',`${month} 기준 핵심 타겟은 ${season[0]}에 반응하는 고객, ${season[1]} 목적 구매 고객, ${season[2]} 관련 행사 민감 고객입니다.`],['자사 영향',`파스쿠찌는 ${month} 시즌 수요를 커피·디저트·선물 구매와 연결해 경쟁사 유입을 방어해야 합니다.`]];}
+    function getAdjustedBriefing(base,month,scope,season){return [['1. 경쟁사 핵심 요약',`${month}에는 ${season[0]}, ${season[1]}, ${season[2]}를 활용한 프로모션이 강화될 가능성이 높습니다. ${scope} 관점에서 주요 행사를 우선 확인해야 합니다.`],['2. 우리 매장 예상 영향',`${month} 시즌 수요와 겹치는 고객은 경쟁사 행사에 반응할 수 있으므로 디저트·선물·체류 수요 방어가 필요합니다.`],['3. 즉시 대응 가이드',`매장 입구에는 ${season[0]} 관련 POP, 계산대에는 ${season[1]} 추천 멘트, 픽업대에는 ${season[2]} 연계 안내를 배치하세요.`],['4. 담당 SV의 한마디',`${month}에는 시즌 명분을 먼저 잡는 매장이 고객 선택을 받습니다. 파스쿠찌다운 제안을 선명하게 보여주세요.`]];}
+    function getAdjustedKeywords(keywords,month,scope,season){return keywords.map((k,i)=>{const next=[...k];next[1]=`${season[i%3]} ${k[1]}`;next[2]=`${month} 시즌 키워드인 ${season[i%3]}와 연계된 행사입니다. ${scope} 관점에서 출처 확인 후 매장 대응에 반영하세요.`;return next;});}
+
+    // ── API 키 검증 ──
+    function checkApiKey(){
+      const key=($('apiKey')||{}).value?.trim()||'';
+      const st=$('apiStatus');
+      if(!key){st.className='api-status';st.textContent='키 입력 시 실시간 AI 분석 활성화';return;}
+      if(key.startsWith('AIza')&&key.length>20){st.className='api-status ok';st.textContent='✅ 활성화됨 — 실시간 분석 가능';}
+      else{st.className='api-status err';st.textContent='⚠️ 키 형식 오류 (AIza로 시작해야 함)';}
+    }
+
+    // ── 로딩 ──
+    function showLoading(msg){$('loadingOverlay').style.display='flex';if(msg)$('loadingSub').textContent=msg;}
+    function hideLoading(){$('loadingOverlay').style.display='none';}
+
+    // ── 샘플 데이터 폴백 ──
+    function getSampleData(scope,year,month){
+      const sb={'전체 시장 분석':['투썸·메가·스타벅스','중간~높음','점주 공유 권장'],'가격 경쟁형 브랜드':['메가·컴포즈·빽다방','중간','상권별 선택 공유'],'디저트 강화형 브랜드':['투썸·할리스·폴 바셋','높음','즉시 공유 필요'],'시즌 굿즈·콜라보형 브랜드':['스타벅스·투썸·할리스','중간~높음','행사 시점 공유'],'프리미엄 체류형 브랜드':['폴 바셋·테라로사','중간','선별 공유']};
+      const b=sb[scope]||sb['전체 시장 분석'];
+      const season=SEASONAL[month]||SEASONAL['5월'];
+      const d=DATA[scope]||DATA['전체 시장 분석'];
+      return {
+        kpi:b,
+        headline:`${year} ${month} 카페 시장에서는 <span class="headline-highlight">가격 경쟁</span>, <span class="headline-highlight">디저트 강화</span>, <span class="headline-highlight">시즌 행사</span>가 동시에 확대되고 있습니다. <span class="headline-break"></span><span style="color:#c98b48;font-size:13px">※ 샘플 데이터입니다. Gemini API 키를 입력하면 실시간 분석이 실행됩니다.</span>`,
+        rows:getAdjustedRows(d.rows,month,scope),
+        insights:getAdjustedInsights(d.insights,month,scope,season),
+        briefing:getAdjustedBriefing(d.briefing,month,scope,season),
+        keywords:getAdjustedKeywords(d.keywords,month,scope,season)
+      };
+    }
+
+    // ── 화면 렌더 ──
+    function badgeClass(t){return t&&t.includes('가격')?'warning':t&&t.includes('디저트')?'danger':t&&t.includes('프리미엄')?'success':'';}
+    function renderData(d,year,month,scope,isAI){
+      $('filterChips').innerHTML=`<span class="chip">연도 <b>${year}</b></span><span class="chip">월 <b>${month}</b></span><span class="chip">범위 <b>${scope}</b></span>${isAI?'<span class="chip" style="background:#e8f5e9;color:#2f7d5b">🤖 <b>AI 실시간 분석</b></span>':''}`;
+      $('reportStatus').textContent=isAI?'AI 실시간 분석 · Google Search 기반':'샘플 데이터 · Gemini API 키 입력 시 실시간 분석';
+      $('kpiGrid').innerHTML=`<div class="kpi-card danger"><span>경계 브랜드</span><strong>${d.kpi[0]}</strong><p>현재 선택 범위에서 우선 확인할 경쟁 브랜드입니다.</p></div><div class="kpi-card"><span>예상 영향</span><strong>${d.kpi[1]}</strong><p>${month} 시즌성과 선택 범위를 함께 반영한 체감 영향도입니다.</p></div><div class="kpi-card success"><span>대응 우선순위</span><strong>${d.kpi[2]}</strong><p>점주 공유 또는 현장 실행 필요 수준입니다.</p></div>`;
+      $('dynamicHeadline').innerHTML=d.headline;
+      $('promotionTableBody').innerHTML=(d.rows||[]).map(r=>`<tr><td><span class="badge ${badgeClass(r[0])}">${r[0]||''}</span></td><td><span class="brand-name">${r[1]||''}</span></td><td>${r[2]||''}</td><td>${r[3]||''}</td><td>${r[4]||''}</td><td>${r[5]||''}</td><td><a class="source-link" href="${r[6]||'#'}" onclick="window.open(this.href,'_blank');return false;">출처 확인</a></td></tr>`).join('');
+      $('insightGrid').innerHTML=(d.insights||[]).map(i=>`<div class="insight"><strong>${i[0]}</strong><p>${i[1]}</p></div>`).join('');
+      $('briefingGrid').innerHTML=(d.briefing||[]).map(b=>`<div class="insight"><strong>${b[0]}</strong><p>${b[1]}</p></div>`).join('');
+      $('keywordCapture').innerHTML=(d.keywords||[]).map(k=>`<div class="keyword-card"><div class="promo-visual"><img src="${k[3]||IMG.coffee}" alt="${k[1]}" crossorigin="anonymous" onerror="this.style.display='none'"><div class="promo-rank">${k[0]}</div></div><div class="keyword-content"><h4>${k[1]}</h4><p>${k[2]}</p><a href="${k[4]||'#'}" onclick="window.open(this.href,'_blank');return false;">온라인 채널 출처 보기</a></div></div>`).join('');
+      $('shareKeywordBody').innerHTML=(d.keywords||[]).map((k,i)=>`<div class="share-keyword"><b>${i+1}. ${k[1]}</b><span>${k[2]}</span></div>`).join('')+'<div class="pop-message">사장님, 오늘은<br>선택 범위에 맞는<br>대응 멘트를 꼭 사용해주세요</div>';
+    }
+
+    // ── Gemini API 호출 ──
+    async function callGemini(apiKey,prompt){
+      const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],tools:[{googleSearch:{}}],generationConfig:{temperature:0.3}})
+      });
+      if(!res.ok){const e=await res.json();throw new Error(e.error?.message||res.status+' 오류');}
+      return (await res.json()).candidates?.[0]?.content?.parts?.[0]?.text||'';
+    }
+
+    function buildPrompt(year,month,scope,extra){
+      const sm={'전체 시장 분석':'스타벅스, 투썸플레이스, 메가MGC커피, 컴포즈커피, 빽다방, 할리스, 폴바셋 등 주요 카페 전체','가격 경쟁형 브랜드':'메가MGC커피, 컴포즈커피, 빽다방, 더벤티 등 저가·대용량 브랜드','디저트 강화형 브랜드':'투썸플레이스, 할리스, 폴바셋 등 디저트 강화 브랜드','시즌 굿즈·콜라보형 브랜드':'스타벅스, 투썸플레이스, 할리스 등 시즌 굿즈·콜라보 브랜드','프리미엄 체류형 브랜드':'폴바셋, 테라로사, 스타벅스 리저브 등 프리미엄 브랜드'};
+      return `당신은 파스쿠찌(Pascucci) SV를 위한 경쟁사 프로모션 분석 전문가입니다.
+
+[분석 조건]
+- 기준: ${year} ${month}
+- 대상: ${sm[scope]||scope}
+- 추가 요청: ${extra||'없음'}
+
+Google 검색으로 위 브랜드들의 ${year} ${month} 기준 실제 프로모션을 조사하세요.
+공식 홈페이지, 앱 공지, 보도자료, 공식 SNS를 우선으로 확인하세요.
+반드시 아래 JSON 형식으로만 답변하고, JSON 외 텍스트는 포함하지 마세요.
+
+{
+  "kpi": ["경계 브랜드(·구분)", "예상 영향(높음/중간/낮음)", "대응 우선순위"],
+  "headline": "한 문장 헤드라인",
+  "rows": [
+    ["위협유형","브랜드명","캠페인명","기간","혜택","전략적특징","출처URL"]
+  ],
+  "insights": [
+    ["캠페인 의도","설명"],["타겟 고객","설명"],["파스쿠찌 영향","설명"]
+  ],
+  "briefing": [
+    ["1. 경쟁사 핵심 요약","내용"],["2. 우리 매장 예상 영향","내용"],
+    ["3. 즉시 대응 가이드","POP·멘트·페어링 등 구체적 행동"],["4. 담당 SV의 한마디","핵심 메시지"]
+  ],
+  "keywords": [
+    ["1순위 경계 행사","키워드명","파스쿠찌 대응 한 줄","","출처URL"],
+    ["2순위 경계 행사","키워드명","파스쿠찌 대응 한 줄","","출처URL"]
+  ]
+}`;
+    }
+
+    function extractJSON(text){
+      const m=text.match(/\{[\s\S]*\}/);
+      if(!m)throw new Error('JSON 파싱 실패');
+      return JSON.parse(m[0]);
+    }
+
+    // ── 메인 실행 ──
+    async function runAnalysis(){
+      const apiKey=($('apiKey')||{}).value?.trim()||'';
+      const year=$('year').value,month=$('month').value,scope=$('scope').value,extra=$('customPrompt').value.trim();
+      if(!apiKey||!apiKey.startsWith('AIza')){
+        renderData(getSampleData(scope,year,month),year,month,scope,false);
+        showToast('Gemini API 키가 없어 샘플 데이터로 표시합니다.');
+        return;
+      }
+      showLoading('Google 검색으로 최신 프로모션 데이터를 수집 중입니다...');
+      try{
+        const raw=await callGemini(apiKey,buildPrompt(year,month,scope,extra));
+        $('loadingSub').textContent='분석 결과를 정리하고 있습니다...';
+        const d=extractJSON(raw);
+        d.keywords=(d.keywords||[]).map((k,i)=>{k[3]=k[3]||[IMG.cake,IMG.coffee,IMG.md,IMG.premium][i%4];return k;});
+        renderData(d,year,month,scope,true);
+        showToast('✅ AI 실시간 분석 완료!');
+      }catch(e){
+        renderData(getSampleData(scope,year,month),year,month,scope,false);
+        showToast('⚠️ AI 분석 실패, 샘플 데이터 표시 중: '+e.message);
+      }finally{hideLoading();}
+    }
+
+    function handleFilterChange(type){const scope=$('scope').value;showToast(type==='scope'?`범위가 '${scope}'으로 변경됐습니다. 실행 버튼을 눌러 분석하세요.`:'기준이 변경됐습니다. 실행 버튼을 눌러 분석하세요.');}
+    function clearForm(){$('customPrompt').value='';showToast('추가 분석 지시사항을 삭제했습니다.');}
+    function runWorkflow(n){
+      setActiveStep(n);
+      if(n===1){runAnalysis();$('report').scrollIntoView({behavior:'smooth'});return;}
+      const t=n===3?'onepage':n===4?'risk':n===5?'keywords':'report';
+      $(t).scrollIntoView({behavior:'smooth'});
+      showToast(n===5?'경쟁점 홍보 이미지 수집 영역으로 이동합니다.':'해당 결과 영역으로 이동합니다.');
+    }
+    function setActiveStep(n){document.querySelectorAll('.action-card').forEach((c,i)=>c.classList.toggle('is-active',i===(n===3?1:n===5?2:n===4?3:0)));}
+    async function saveKeywordImage(){const target=$('keywordCapture');try{const canvas=await html2canvas(target,{backgroundColor:'#f6f3ef',scale:2,useCORS:true});const a=document.createElement('a');a.download='competition-promotion-keywords.png';a.href=canvas.toDataURL('image/png');a.click();showToast('이미지를 저장했습니다.');}catch(e){showToast('이미지 저장 오류');}}
+    function showToast(msg){document.querySelector('.toast')?.remove();const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2800);}
+
+    // 초기 샘플 렌더
+    const _y=$('year').value,_m=$('month').value,_s=$('scope').value;
+    renderData(getSampleData(_s,_y,_m),_y,_m,_s,false);
+  </script>
+</body>
+</html>
