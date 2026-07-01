@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>빵돌이의 성장일기</title>
+  <style>
+    * { box-sizing: border-box; font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin: 0; min-height: 100vh; background: #eef2f7; color: #172033; padding: 14px; }
+    .app { width: 100%; max-width: 980px; margin: 0 auto; }
+    .hero { background: linear-gradient(135deg, #111827, #2563eb); color: #fff; border-radius: 26px; padding: 28px; margin-bottom: 16px; box-shadow: 0 18px 40px rgba(37,99,235,.22); }
+    h1 { margin: 0 0 8px; font-size: 32px; letter-spacing: -0.05em; }
+    .hero p { margin: 0; color: rgba(255,255,255,.82); line-height: 1.5; font-size: 15px; }
+    .layout { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; align-items: start; }
+    .panel { background: #fff; border-radius: 24px; padding: 22px; box-shadow: 0 14px 36px rgba(15,23,42,.08); border: 1px solid rgba(148,163,184,.22); }
+    .section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .section-title h2 { margin: 0; font-size: 18px; letter-spacing: -0.03em; }
+    .badge { padding: 6px 10px; border-radius: 999px; background: #eff6ff; color: #2563eb; font-size: 12px; font-weight: 800; white-space: nowrap; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field.full { grid-column: 1 / -1; }
+    label { display: block; margin-bottom: 7px; font-size: 13px; font-weight: 800; color: #374151; }
+    .input-wrap { position: relative; }
+    input, select { width: 100%; height: 50px; border: 1px solid #d7dce5; border-radius: 15px; padding: 0 48px 0 14px; font-size: 16px; outline: none; background: #fff; }
+    input:focus, select:focus { border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37,99,235,.12); }
+    .unit { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 13px; font-weight: 800; }
+    .hint { margin-top: 7px; color: #8792a2; font-size: 12px; line-height: 1.45; }
+    .buttons { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 10px; margin-top: 14px; }
+    button { height: 48px; border: 0; border-radius: 15px; font-size: 15px; font-weight: 900; cursor: pointer; }
+    button:active { transform: scale(.98); }
+    .primary { background: #2563eb; color: white; }
+    .secondary { background: #e5e7eb; color: #111827; }
+    .result-main { padding: 24px; border-radius: 22px; background: #f8fafc; border: 1px solid #e5e7eb; margin-bottom: 14px; }
+    .result-label { font-size: 13px; color: #64748b; font-weight: 800; margin-bottom: 7px; }
+    .profit { font-size: 38px; line-height: 1.05; font-weight: 950; letter-spacing: -0.06em; word-break: keep-all; }
+    .plus { color: #2563eb; } .minus { color: #dc2626; } .safe { color: #16a34a; } .warn { color: #f59e0b; }
+    .status { display: inline-flex; margin-top: 12px; padding: 8px 12px; border-radius: 999px; font-size: 13px; font-weight: 900; background: #eef2ff; color: #3730a3; }
+    .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 18px; padding: 16px; min-height: 92px; }
+    .value { font-size: 22px; font-weight: 950; letter-spacing: -0.04em; }
+    .wide-card { grid-column: 1 / -1; background: #111827; color: #fff; border: none; }
+    .wide-card .result-label { color: rgba(255,255,255,.68); }
+    .summary-list { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+    .summary-list li { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid #eef2f7; font-size: 13px; color: #64748b; }
+    .summary-list strong { color: #111827; font-size: 14px; }
+    .formula { margin-top: 14px; padding: 14px; border-radius: 16px; background: #f8fafc; border: 1px dashed #cbd5e1; color: #64748b; font-size: 12px; line-height: 1.55; }
+    @media (max-width: 820px) { .layout { grid-template-columns: 1fr; } h1 { font-size: 26px; } .panel { padding: 20px; } }
+    @media (max-width: 520px) { .form-grid, .result-grid, .buttons { grid-template-columns: 1fr; } input, select { height: 48px; font-size: 15px; } .profit { font-size: 32px; } .hero { padding: 24px; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="hero">
+      <h1>빵돌이의 성장일기</h1>
+      <p>손익계산서 흐름에 맞춰 매출액, 매출원가, 판매관리비를 반영하고 영업이익과 영업이익률을 계산합니다.</p>
+    </section>
+
+    <div class="layout">
+      <section class="panel">
+        <div class="section-title"><h2>손익 입력</h2><span class="badge">재무제표 기준</span></div>
+        <div class="form-grid">
+          <div class="field"><label for="sales">매출액</label><div class="input-wrap"><input id="sales" type="text" inputmode="numeric" placeholder="30,000"><span class="unit">원</span></div></div>
+          <div class="field"><label for="salesDeduction">매출 차감액</label><div class="input-wrap"><input id="salesDeduction" type="text" inputmode="numeric" placeholder="쿠폰/할인"><span class="unit">원</span></div><div class="hint">할인, 쿠폰, 반품 등 매출에서 차감되는 금액입니다.</div></div>
+          <div class="field"><label for="cogs">매출원가</label><div class="input-wrap"><input id="cogs" type="text" inputmode="numeric" placeholder="15,000"><span class="unit">원</span></div></div>
+          <div class="field"><label for="logistics">물류비</label><div class="input-wrap"><input id="logistics" type="text" inputmode="numeric" placeholder="3,000"><span class="unit">원</span></div></div>
+          <div class="field"><label for="commissionRate">지급수수료율</label><div class="input-wrap"><input id="commissionRate" type="text" inputmode="decimal" placeholder="5"><span class="unit">%</span></div></div>
+          <div class="field"><label for="paymentRate">결제대행 수수료율</label><div class="input-wrap"><input id="paymentRate" type="text" inputmode="decimal" placeholder="3"><span class="unit">%</span></div></div>
+          <div class="field"><label for="packing">포장/부자재비</label><div class="input-wrap"><input id="packing" type="text" inputmode="numeric" placeholder="500"><span class="unit">원</span></div></div>
+          <div class="field"><label for="adCost">광고선전비</label><div class="input-wrap"><input id="adCost" type="text" inputmode="numeric" placeholder="1,000"><span class="unit">원</span></div></div>
+          <div class="field"><label for="etcSga">기타 판매관리비</label><div class="input-wrap"><input id="etcSga" type="text" inputmode="numeric" placeholder="0"><span class="unit">원</span></div></div>
+          <div class="field"><label for="targetRate">목표 영업이익률</label><div class="input-wrap"><input id="targetRate" type="text" inputmode="decimal" placeholder="20"><span class="unit">%</span></div></div>
+          <div class="field full"><label for="vatType">부가세 설정</label><select id="vatType"><option value="none">부가세 계산 안 함</option><option value="included">매출액에 부가세 포함, 공급가 기준 계산</option></select></div>
+        </div>
+        <div class="buttons"><button class="primary" type="button" onclick="calculate()">계산하기</button><button class="secondary" type="button" onclick="copyResult()">결과 복사</button><button class="secondary" type="button" onclick="resetCalculator()">초기화</button></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-title"><h2>손익계산 결과</h2><span id="gradeBadge" class="badge">대기중</span></div>
+        <div class="result-main"><div class="result-label">영업이익</div><div id="operatingProfit" class="profit plus">0원</div><div id="status" class="status">값을 입력해주세요</div></div>
+        <div class="result-grid">
+          <div class="card"><div class="result-label">영업이익률</div><div id="operatingMargin" class="value">0%</div></div>
+          <div class="card"><div class="result-label">매출총이익률</div><div id="grossMargin" class="value">0%</div></div>
+          <div class="card wide-card"><div class="result-label">목표 영업이익률 달성 매출액</div><div id="targetSales" class="value">0원</div></div>
+        </div>
+        <ul class="summary-list">
+          <li><span>순매출액</span><strong id="netSales">0원</strong></li>
+          <li><span>매출총이익</span><strong id="grossProfit">0원</strong></li>
+          <li><span>판매관리비</span><strong id="sga">0원</strong></li>
+          <li><span>수수료 합계</span><strong id="feeTotal">0원</strong></li>
+          <li><span>부가세 제외 매출액</span><strong id="supplySales">-</strong></li>
+        </ul>
+        <div class="formula">순매출액 = 매출액 - 매출 차감액<br>매출총이익 = 순매출액 - 매출원가<br>영업이익 = 매출총이익 - 판매관리비<br>영업이익률 = 영업이익 ÷ 순매출액 × 100</div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const ids = ["sales", "salesDeduction", "cogs", "logistics", "commissionRate", "paymentRate", "packing", "adCost", "etcSga", "targetRate", "vatType"];
+    const el = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
+    const out = {
+      operatingProfit: document.getElementById("operatingProfit"), operatingMargin: document.getElementById("operatingMargin"), grossMargin: document.getElementById("grossMargin"),
+      targetSales: document.getElementById("targetSales"), netSales: document.getElementById("netSales"), grossProfit: document.getElementById("grossProfit"),
+      sga: document.getElementById("sga"), feeTotal: document.getElementById("feeTotal"), supplySales: document.getElementById("supplySales"),
+      status: document.getElementById("status"), gradeBadge: document.getElementById("gradeBadge")
+    };
+    function money(v) { return Number(String(v).replace(/[^0-9]/g, "")) || 0; }
+    function num(v) { return Number(String(v).replace(/[^0-9.]/g, "")) || 0; }
+    function won(v) { const s = v < 0 ? "-" : ""; return s + Math.round(Math.abs(v)).toLocaleString("ko-KR") + "원"; }
+    function pct(v) { return isFinite(v) ? v.toFixed(1).replace(".0", "") + "%" : "0%"; }
+    function formatInput(e) { const v = money(e.target.value); e.target.value = v ? v.toLocaleString("ko-KR") : ""; }
+    function calculate() {
+      const salesRaw = money(el.sales.value) - money(el.salesDeduction.value);
+      const netSales = el.vatType.value === "included" ? salesRaw / 1.1 : salesRaw;
+      const cogs = money(el.cogs.value);
+      const grossProfit = netSales - cogs;
+      const feeRate = (num(el.commissionRate.value) + num(el.paymentRate.value)) / 100;
+      const feeTotal = netSales * feeRate;
+      const sga = money(el.logistics.value) + money(el.packing.value) + money(el.adCost.value) + money(el.etcSga.value) + feeTotal;
+      const operatingProfit = grossProfit - sga;
+      const operatingMargin = netSales > 0 ? operatingProfit / netSales * 100 : 0;
+      const grossMargin = netSales > 0 ? grossProfit / netSales * 100 : 0;
+      const targetRate = num(el.targetRate.value) / 100;
+      const fixedCost = cogs + money(el.logistics.value) + money(el.packing.value) + money(el.adCost.value) + money(el.etcSga.value) + money(el.salesDeduction.value);
+      const denominator = 1 - feeRate - targetRate;
+      const targetSales = denominator > 0 ? fixedCost / denominator : 0;
+      out.operatingProfit.textContent = won(operatingProfit);
+      out.operatingMargin.textContent = pct(operatingMargin);
+      out.grossMargin.textContent = pct(grossMargin);
+      out.targetSales.textContent = targetSales ? won(targetSales) : "계산 불가";
+      out.netSales.textContent = won(netSales);
+      out.grossProfit.textContent = won(grossProfit);
+      out.sga.textContent = won(sga);
+      out.feeTotal.textContent = won(feeTotal);
+      out.supplySales.textContent = el.vatType.value === "included" ? won(netSales) : "-";
+      out.operatingProfit.classList.toggle("plus", operatingProfit >= 0);
+      out.operatingProfit.classList.toggle("minus", operatingProfit < 0);
+      setGrade(operatingMargin, netSales);
+    }
+    function setGrade(rate, netSales) {
+      let text = "값을 입력해주세요", badge = "대기중", cls = "status";
+      if (netSales > 0) {
+        if (rate >= 20) { text = "매우 양호: 영업이익률이 안정적인 구간입니다"; badge = "매우 양호"; cls = "status safe"; }
+        else if (rate >= 10) { text = "보통: 관리 가능한 수익 구조입니다"; badge = "보통"; }
+        else if (rate >= 0) { text = "주의: 판관비 증가 시 수익성이 낮아질 수 있습니다"; badge = "주의"; cls = "status warn"; }
+        else { text = "손실: 영업손실 구간입니다"; badge = "손실"; cls = "status minus"; }
+      }
+      out.status.textContent = text; out.status.className = cls; out.gradeBadge.textContent = badge;
+    }
+    function copyResult() {
+      const text = `[손익계산 결과]\n영업이익: ${out.operatingProfit.textContent}\n영업이익률: ${out.operatingMargin.textContent}\n매출총이익률: ${out.grossMargin.textContent}\n순매출액: ${out.netSales.textContent}\n판매관리비: ${out.sga.textContent}`;
+      navigator.clipboard.writeText(text).then(() => alert("계산 결과를 복사했습니다.")).catch(() => alert(text));
+    }
+    function resetCalculator() { ids.forEach(id => el[id].tagName === "SELECT" ? el[id].selectedIndex = 0 : el[id].value = ""); calculate(); el.sales.focus(); }
+    ["sales", "salesDeduction", "cogs", "logistics", "packing", "adCost", "etcSga"].forEach(id => el[id].addEventListener("input", formatInput));
+    ["commissionRate", "paymentRate", "targetRate"].forEach(id => el[id].addEventListener("input", calculate));
+    el.vatType.addEventListener("change", calculate);
+    calculate();
+  </script>
+</body>
+</html>

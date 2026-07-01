@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>점포 ROI 분석기 (F&B)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    background: #f5f6f8;
+    color: #1a1a1a;
+    padding: 24px;
+    line-height: 1.5;
+  }
+  .container { max-width: 1280px; margin: 0 auto; }
+  h1 { font-size: 24px; margin-bottom: 4px; font-weight: 700; }
+  .subtitle { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 980px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .card h2::before {
+    content: "";
+    display: inline-block;
+    width: 3px;
+    height: 14px;
+    background: #2563eb;
+    border-radius: 2px;
+  }
+
+  .field { margin-bottom: 12px; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: #4b5563;
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+  .field-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .field input[type="number"] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    text-align: right;
+  }
+  .field input[type="number"]:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+  }
+  .unit {
+    font-size: 12px;
+    color: #6b7280;
+    min-width: 32px;
+  }
+  .hint {
+    font-size: 11px;
+    color: #9ca3af;
+    margin-top: 2px;
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 700px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  .kpi {
+    background: linear-gradient(135deg, #f8fafc, #ffffff);
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .kpi-label {
+    font-size: 11px;
+    color: #6b7280;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .kpi-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #111827;
+  }
+  .kpi-sub {
+    font-size: 11px;
+    color: #9ca3af;
+    margin-top: 2px;
+  }
+  .kpi.good .kpi-value { color: #059669; }
+  .kpi.warn .kpi-value { color: #d97706; }
+  .kpi.bad .kpi-value { color: #dc2626; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th, td {
+    text-align: right;
+    padding: 8px 10px;
+    border-bottom: 1px solid #f3f4f6;
+  }
+  th:first-child, td:first-child { text-align: left; }
+  th {
+    background: #f9fafb;
+    color: #6b7280;
+    font-weight: 500;
+    font-size: 12px;
+  }
+  td.label { color: #4b5563; }
+  td.value { font-weight: 600; color: #111827; }
+  tr.total td {
+    border-top: 2px solid #e5e7eb;
+    font-weight: 700;
+    background: #fafbfc;
+  }
+
+  .scenario-table th { text-align: center; }
+  .scenario-table td:not(:first-child) { text-align: center; }
+  .scenario-pess { color: #dc2626; }
+  .scenario-base { color: #2563eb; }
+  .scenario-opt { color: #059669; }
+
+  .bar {
+    height: 8px;
+    background: #f3f4f6;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #2563eb);
+    border-radius: 4px;
+    transition: width 0.3s;
+  }
+
+  .preset-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .preset {
+    padding: 4px 10px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    border-radius: 999px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #4b5563;
+  }
+  .preset:hover { background: #f3f4f6; border-color: #9ca3af; }
+
+  .footer-note {
+    margin-top: 20px;
+    padding: 14px;
+    background: #fef9c3;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #713f12;
+    line-height: 1.6;
+  }
+
+  .verdict {
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-top: 8px;
+    font-weight: 500;
+  }
+  .verdict.good { background: #d1fae5; color: #065f46; }
+  .verdict.warn { background: #fef3c7; color: #92400e; }
+  .verdict.bad { background: #fee2e2; color: #991b1b; }
+
+  .sens-table td.cell-good { background: #d1fae5; color: #065f46; font-weight: 600; }
+  .sens-table td.cell-mid { background: #fef3c7; color: #92400e; font-weight: 600; }
+  .sens-table td.cell-bad { background: #fee2e2; color: #991b1b; font-weight: 600; }
+
+  .invest-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 12px;
+  }
+  .invest-grid .field { margin-bottom: 8px; }
+  .invest-grid .field label {
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .invest-grid .field input[type="number"] {
+    padding: 6px 8px;
+    font-size: 13px;
+  }
+  .tag-return {
+    display: inline-block;
+    font-size: 9px;
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 3px;
+    font-weight: 500;
+    vertical-align: middle;
+  }
+  .invest-total {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 2px solid #e5e7eb;
+  }
+  .invest-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+  }
+  .invest-total-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #111827;
+  }
+  .invest-total-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #2563eb;
+  }
+  .invest-sub-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #6b7280;
+    padding: 2px 0;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>점포 ROI 분석기</h1>
+  <p class="subtitle">F&B 점포개발용 · 매출/비용 입력 → ROI · 회수기간 · 손익분기점 · 시나리오 분석</p>
+
+  <div class="grid">
+    <!-- 입력 영역 -->
+    <div>
+      <div class="card">
+        <h2>초기 투자금 (1회성)</h2>
+        <div class="preset-row">
+          <span style="font-size:11px;color:#6b7280;align-self:center;">프리셋:</span>
+          <button class="preset" onclick="loadPreset('cafe')">소형 카페</button>
+          <button class="preset" onclick="loadPreset('restaurant')">중형 식당</button>
+          <button class="preset" onclick="loadPreset('franchise')">프랜차이즈</button>
+          <button class="preset" onclick="loadPreset('reset')">초기화</button>
+        </div>
+        <div class="invest-grid">
+          <div class="field">
+            <label>① 점포보증금 <span class="tag-return">환급</span></label>
+            <div class="field-row">
+              <input type="number" id="storeDeposit" value="3000" oninput="calc()">
+              <span class="unit">만원</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>② 점포권리금</label>
+            <div class="field-row">
+              <input type="number" id="keymoney" value="5000" oninput="calc()">
+              <span class="unit">만원</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>③ 본사보증금 <span class="tag-return">환급</span></label>
+            <div class="field-row">
+              <input type="number" id="hqDeposit" value="0" oninput="calc()">
+              <span class="unit">만원</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>④ 개점비</label>
+            <div class="field-row">
+              <input type="number" id="hqOpening" value="0" oninput="calc()">
+              <span class="unit">만원</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>⑤ 디자인 설계·매뉴얼비</label>
+            <div class="field-row">
+              <input type="number" id="designFee" value="0" oninput="calc()">
+              <span class="unit">만원</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>⑥ 교육비</label>
+            <div class="field-row">
+              <input type="number" id="training" value="0" oninput="calc()">
+              <span class="unit">만원</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>⑦ 오픈비</label>
+            <div class="field-row">
+              <input type="number" id="openingCost" value="500" oninput="calc()">
+              <span class="unit">만원</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>⑧ 인테리어</label>
+            <div class="field-row">
+              <input type="number" id="interior" value="4000" oninput="calc()">
+              <span class="unit">만원</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>⑨ 가구</label>
+            <div class="field-row">
+              <input type="number" id="furniture" value="800" oninput="calc()">
+              <span class="unit">만원</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>⑩ 장비</label>
+            <div class="field-row">
+              <input type="number" id="equipment" value="1500" oninput="calc()">
+              <span class="unit">만원</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>⑪ 간판</label>
+            <div class="field-row">
+              <input type="number" id="signage" value="400" oninput="calc()">
+              <span class="unit">만원</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>⑫ 기타비용</label>
+            <div class="field-row">
+              <input type="number" id="etcInvest" value="300" oninput="calc()">
+              <span class="unit">만원</span>
+            </div>
+          </div>
+        </div>
+        <div class="invest-total">
+          <div class="invest-total-row">
+            <span class="invest-total-label">합계 (총 투자금)</span>
+            <span class="invest-total-value" id="invest-total">-</span>
+          </div>
+          <div class="invest-sub-row">
+            <span>· 환급 가능 (보증금)</span>
+            <span id="invest-return">-</span>
+          </div>
+          <div class="invest-sub-row">
+            <span>· 실투자금 (ROI 기준)</span>
+            <span id="invest-sunk">-</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>월 매출 / 비용</h2>
+        <div class="field">
+          <label>월 매출 (예상)</label>
+          <div class="field-row">
+            <input type="number" id="revenue" value="3500" oninput="calc()">
+            <span class="unit">만원</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>식자재 원가율</label>
+          <div class="field-row">
+            <input type="number" id="cogsRate" value="35" step="1" oninput="calc()">
+            <span class="unit">%</span>
+          </div>
+          <div class="hint">F&B 일반: 카페 25~35%, 식당 30~40%</div>
+        </div>
+        <div class="field">
+          <label>월 임대료</label>
+          <div class="field-row">
+            <input type="number" id="rent" value="350" oninput="calc()">
+            <span class="unit">만원</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>월 인건비 (본인 인건비 포함)</label>
+          <div class="field-row">
+            <input type="number" id="labor" value="700" oninput="calc()">
+            <span class="unit">만원</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>월 관리비 / 공과금</label>
+          <div class="field-row">
+            <input type="number" id="utility" value="80" oninput="calc()">
+            <span class="unit">만원</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>월 기타 운영비 (카드수수료, 소모품 등)</label>
+          <div class="field-row">
+            <input type="number" id="etc" value="150" oninput="calc()">
+            <span class="unit">만원</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>분석 설정</h2>
+        <div class="field">
+          <label>감가상각 기간 (인테리어/시설)</label>
+          <div class="field-row">
+            <input type="number" id="depYears" value="5" oninput="calc()">
+            <span class="unit">년</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>시나리오 매출 변동폭</label>
+          <div class="field-row">
+            <input type="number" id="scenarioPct" value="20" step="5" oninput="calc()">
+            <span class="unit">±%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 결과 영역 -->
+    <div>
+      <div class="card">
+        <h2>핵심 지표 (기본 시나리오)</h2>
+        <div class="kpi-grid">
+          <div class="kpi" id="kpi-roi">
+            <div class="kpi-label">연 ROI</div>
+            <div class="kpi-value" id="roi-val">-</div>
+            <div class="kpi-sub">연 순이익 / 초기 투자금</div>
+          </div>
+          <div class="kpi" id="kpi-payback">
+            <div class="kpi-label">투자 회수기간</div>
+            <div class="kpi-value" id="payback-val">-</div>
+            <div class="kpi-sub">Payback Period</div>
+          </div>
+          <div class="kpi" id="kpi-margin">
+            <div class="kpi-label">영업이익률</div>
+            <div class="kpi-value" id="margin-val">-</div>
+            <div class="kpi-sub">월 순이익 / 월 매출</div>
+          </div>
+          <div class="kpi" id="kpi-bep">
+            <div class="kpi-label">손익분기 매출 (월)</div>
+            <div class="kpi-value" id="bep-val">-</div>
+            <div class="kpi-sub">BEP Revenue</div>
+          </div>
+        </div>
+        <div id="verdict" class="verdict"></div>
+      </div>
+
+      <div class="card">
+        <h2>월 손익계산</h2>
+        <table>
+          <tr><td class="label">매출</td><td class="value" id="t-revenue">-</td><td style="width:80px;text-align:right;color:#9ca3af;font-size:11px;" id="t-revenue-pct">100%</td></tr>
+          <tr><td class="label">(-) 식자재 원가</td><td class="value" id="t-cogs">-</td><td style="text-align:right;color:#9ca3af;font-size:11px;" id="t-cogs-pct">-</td></tr>
+          <tr><td class="label">(-) 임대료</td><td class="value" id="t-rent">-</td><td style="text-align:right;color:#9ca3af;font-size:11px;" id="t-rent-pct">-</td></tr>
+          <tr><td class="label">(-) 인건비</td><td class="value" id="t-labor">-</td><td style="text-align:right;color:#9ca3af;font-size:11px;" id="t-labor-pct">-</td></tr>
+          <tr><td class="label">(-) 관리비/공과금</td><td class="value" id="t-utility">-</td><td style="text-align:right;color:#9ca3af;font-size:11px;" id="t-utility-pct">-</td></tr>
+          <tr><td class="label">(-) 기타 운영비</td><td class="value" id="t-etc">-</td><td style="text-align:right;color:#9ca3af;font-size:11px;" id="t-etc-pct">-</td></tr>
+          <tr class="total"><td class="label">월 영업이익</td><td class="value" id="t-profit">-</td><td style="text-align:right;font-size:11px;" id="t-profit-pct">-</td></tr>
+          <tr><td class="label" style="color:#9ca3af;">(-) 월 감가상각 (참고)</td><td class="value" style="color:#9ca3af;" id="t-dep">-</td><td></td></tr>
+          <tr><td class="label" style="color:#9ca3af;">월 순이익 (감가상각 후)</td><td class="value" style="color:#9ca3af;" id="t-netprofit">-</td><td></td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>시나리오 분석</h2>
+        <table class="scenario-table">
+          <thead>
+            <tr>
+              <th>구분</th>
+              <th class="scenario-pess">비관 (-<span id="sc-pct1">20</span>%)</th>
+              <th class="scenario-base">기본</th>
+              <th class="scenario-opt">낙관 (+<span id="sc-pct2">20</span>%)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>월 매출</td>
+              <td class="scenario-pess" id="sc-rev-p">-</td>
+              <td class="scenario-base" id="sc-rev-b">-</td>
+              <td class="scenario-opt" id="sc-rev-o">-</td>
+            </tr>
+            <tr><td>월 영업이익</td>
+              <td class="scenario-pess" id="sc-profit-p">-</td>
+              <td class="scenario-base" id="sc-profit-b">-</td>
+              <td class="scenario-opt" id="sc-profit-o">-</td>
+            </tr>
+            <tr><td>영업이익률</td>
+              <td class="scenario-pess" id="sc-margin-p">-</td>
+              <td class="scenario-base" id="sc-margin-b">-</td>
+              <td class="scenario-opt" id="sc-margin-o">-</td>
+            </tr>
+            <tr><td>연 ROI</td>
+              <td class="scenario-pess" id="sc-roi-p">-</td>
+              <td class="scenario-base" id="sc-roi-b">-</td>
+              <td class="scenario-opt" id="sc-roi-o">-</td>
+            </tr>
+            <tr><td>회수기간</td>
+              <td class="scenario-pess" id="sc-pb-p">-</td>
+              <td class="scenario-base" id="sc-pb-b">-</td>
+              <td class="scenario-opt" id="sc-pb-o">-</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>매출 민감도 분석 (월 매출 → 연 ROI)</h2>
+        <table class="sens-table" id="sens-table">
+          <thead><tr><th>월 매출</th><th>월 영업이익</th><th>영업이익률</th><th>연 ROI</th><th>회수기간</th></tr></thead>
+          <tbody id="sens-body"></tbody>
+        </table>
+        <div class="hint" style="margin-top:8px;">색상: 녹색(ROI≥25%) · 황색(10~25%) · 적색(<10% 또는 적자)</div>
+      </div>
+
+      <div class="footer-note">
+        <strong>참고사항</strong><br>
+        · 보증금은 계약 종료 시 환급되므로 ROI 계산에서 제외 (단, 자금조달 비용은 별도 고려 필요)<br>
+        · 본인 인건비는 기회비용 관점에서 포함 권장 (월 250~400만원 수준)<br>
+        · ROI 25% 이상 = 4년 내 회수 → 양호 / 15~25% = 보통 / 15% 미만 = 신중 검토<br>
+        · 외식업 평균 영업이익률: 10~15% (15% 초과 시 우수)<br>
+        · 실제 의사결정 시 입지 권리(임차권 보호), 상권 트렌드, 경쟁점 등 정성요소 반드시 병행
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const fmt = (n) => {
+  if (!isFinite(n)) return '-';
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(Math.round(n));
+  if (abs >= 10000) {
+    const eok = abs / 10000;
+    return sign + eok.toFixed(2) + '억';
+  }
+  return sign + abs.toLocaleString() + '만';
+};
+const fmtPct = (n) => isFinite(n) ? n.toFixed(1) + '%' : '-';
+const fmtMonths = (n) => {
+  if (!isFinite(n) || n <= 0) return '-';
+  if (n > 240) return '20년+';
+  const y = Math.floor(n / 12);
+  const m = Math.round(n % 12);
+  if (y === 0) return m + '개월';
+  return y + '년 ' + m + '개월';
+};
+const v = (id) => parseFloat(document.getElementById(id).value) || 0;
+
+function getInvestment() {
+  const returnable = v('storeDeposit') + v('hqDeposit');
+  const sunk = v('keymoney') + v('hqOpening') + v('designFee') + v('training')
+             + v('openingCost') + v('interior') + v('furniture') + v('equipment')
+             + v('signage') + v('etcInvest');
+  return { returnable, sunk, total: returnable + sunk };
+}
+
+function compute(revenue) {
+  const cogsRate = v('cogsRate') / 100;
+  const cogs = revenue * cogsRate;
+  const rent = v('rent');
+  const labor = v('labor');
+  const utility = v('utility');
+  const etc = v('etc');
+  const fixed = rent + labor + utility + etc;
+  const profit = revenue - cogs - fixed;
+  const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+  const inv = getInvestment();
+  const initialInvest = inv.sunk;
+  const annualProfit = profit * 12;
+  const roi = initialInvest > 0 ? (annualProfit / initialInvest) * 100 : 0;
+  const payback = profit > 0 ? initialInvest / profit : Infinity;
+  const contributionMargin = 1 - cogsRate;
+  const bep = contributionMargin > 0 ? fixed / contributionMargin : Infinity;
+  return { revenue, cogs, rent, labor, utility, etc, fixed, profit, margin, initialInvest, annualProfit, roi, payback, bep };
+}
+
+function setKpiClass(elId, value, goodAt, midAt) {
+  const el = document.getElementById(elId);
+  el.classList.remove('good', 'warn', 'bad');
+  if (value >= goodAt) el.classList.add('good');
+  else if (value >= midAt) el.classList.add('warn');
+  else el.classList.add('bad');
+}
+
+function calc() {
+  const baseRev = v('revenue');
+  const base = compute(baseRev);
+  const scenarioPct = v('scenarioPct');
+  document.getElementById('sc-pct1').textContent = scenarioPct;
+  document.getElementById('sc-pct2').textContent = scenarioPct;
+
+  // KPI
+  document.getElementById('roi-val').textContent = fmtPct(base.roi);
+  document.getElementById('payback-val').textContent = fmtMonths(base.payback);
+  document.getElementById('margin-val').textContent = fmtPct(base.margin);
+  document.getElementById('bep-val').textContent = fmt(base.bep);
+  setKpiClass('kpi-roi', base.roi, 25, 10);
+  setKpiClass('kpi-payback', base.payback > 0 && isFinite(base.payback) ? -base.payback : -999, -48, -84);
+  setKpiClass('kpi-margin', base.margin, 15, 5);
+  setKpiClass('kpi-bep', baseRev > 0 ? (baseRev - base.bep) / baseRev * 100 : -100, 30, 10);
+
+  // 손익계산
+  const pct = (x) => baseRev > 0 ? (x / baseRev * 100).toFixed(1) + '%' : '-';
+  document.getElementById('t-revenue').textContent = fmt(base.revenue);
+  document.getElementById('t-cogs').textContent = fmt(base.cogs);
+  document.getElementById('t-cogs-pct').textContent = pct(base.cogs);
+  document.getElementById('t-rent').textContent = fmt(base.rent);
+  document.getElementById('t-rent-pct').textContent = pct(base.rent);
+  document.getElementById('t-labor').textContent = fmt(base.labor);
+  document.getElementById('t-labor-pct').textContent = pct(base.labor);
+  document.getElementById('t-utility').textContent = fmt(base.utility);
+  document.getElementById('t-utility-pct').textContent = pct(base.utility);
+  document.getElementById('t-etc').textContent = fmt(base.etc);
+  document.getElementById('t-etc-pct').textContent = pct(base.etc);
+  document.getElementById('t-profit').textContent = fmt(base.profit);
+  document.getElementById('t-profit-pct').textContent = pct(base.profit);
+  const inv = getInvestment();
+  document.getElementById('invest-total').textContent = fmt(inv.total);
+  document.getElementById('invest-return').textContent = fmt(inv.returnable);
+  document.getElementById('invest-sunk').textContent = fmt(inv.sunk);
+  const monthlyDep = inv.sunk / (v('depYears') * 12);
+  document.getElementById('t-dep').textContent = fmt(monthlyDep);
+  document.getElementById('t-netprofit').textContent = fmt(base.profit - monthlyDep);
+
+  // Verdict
+  const verdictEl = document.getElementById('verdict');
+  if (base.profit <= 0) {
+    verdictEl.className = 'verdict bad';
+    verdictEl.textContent = '⚠ 적자 구조입니다. 매출 증대 또는 고정비 절감 없이는 진행이 어렵습니다. 손익분기 매출 ' + fmt(base.bep) + ' 이상 확보 가능성을 재검토하세요.';
+  } else if (base.roi >= 25 && base.payback <= 48) {
+    verdictEl.className = 'verdict good';
+    verdictEl.textContent = '✓ 매력적인 투자입니다. 회수기간 ' + fmtMonths(base.payback) + ', 연 ROI ' + fmtPct(base.roi) + '. 단, 시나리오 분석의 비관 케이스도 함께 확인하세요.';
+  } else if (base.roi >= 10) {
+    verdictEl.className = 'verdict warn';
+    verdictEl.textContent = '◯ 보통 수준입니다. 입지의 안정성, 임차권 보호 기간(최소 5년)을 함께 고려하여 결정하세요.';
+  } else {
+    verdictEl.className = 'verdict bad';
+    verdictEl.textContent = '✗ 투자 매력도가 낮습니다. 권리금/인테리어 협상 또는 매출 가정 재점검이 필요합니다.';
+  }
+
+  // 시나리오
+  const sp = scenarioPct / 100;
+  const pess = compute(baseRev * (1 - sp));
+  const opt = compute(baseRev * (1 + sp));
+  document.getElementById('sc-rev-p').textContent = fmt(pess.revenue);
+  document.getElementById('sc-rev-b').textContent = fmt(base.revenue);
+  document.getElementById('sc-rev-o').textContent = fmt(opt.revenue);
+  document.getElementById('sc-profit-p').textContent = fmt(pess.profit);
+  document.getElementById('sc-profit-b').textContent = fmt(base.profit);
+  document.getElementById('sc-profit-o').textContent = fmt(opt.profit);
+  document.getElementById('sc-margin-p').textContent = fmtPct(pess.margin);
+  document.getElementById('sc-margin-b').textContent = fmtPct(base.margin);
+  document.getElementById('sc-margin-o').textContent = fmtPct(opt.margin);
+  document.getElementById('sc-roi-p').textContent = fmtPct(pess.roi);
+  document.getElementById('sc-roi-b').textContent = fmtPct(base.roi);
+  document.getElementById('sc-roi-o').textContent = fmtPct(opt.roi);
+  document.getElementById('sc-pb-p').textContent = fmtMonths(pess.payback);
+  document.getElementById('sc-pb-b').textContent = fmtMonths(base.payback);
+  document.getElementById('sc-pb-o').textContent = fmtMonths(opt.payback);
+
+  // 민감도
+  const sensBody = document.getElementById('sens-body');
+  sensBody.innerHTML = '';
+  const steps = [-30, -20, -10, 0, 10, 20, 30];
+  steps.forEach(step => {
+    const r = compute(baseRev * (1 + step / 100));
+    const cellClass = r.roi >= 25 ? 'cell-good' : r.roi >= 10 ? 'cell-mid' : 'cell-bad';
+    const label = (step === 0 ? '<b>' : '') + (step > 0 ? '+' : '') + step + '% ' + fmt(r.revenue) + (step === 0 ? ' (기본)</b>' : '');
+    sensBody.innerHTML += `<tr>
+      <td style="text-align:left;">${label}</td>
+      <td>${fmt(r.profit)}</td>
+      <td>${fmtPct(r.margin)}</td>
+      <td class="${cellClass}">${fmtPct(r.roi)}</td>
+      <td>${fmtMonths(r.payback)}</td>
+    </tr>`;
+  });
+}
+
+const presets = {
+  cafe: {
+    storeDeposit: 2000, keymoney: 3000, hqDeposit: 0, hqOpening: 0,
+    designFee: 0, training: 0, openingCost: 300,
+    interior: 3000, furniture: 500, equipment: 800, signage: 300, etcInvest: 200,
+    revenue: 2000, cogsRate: 30, rent: 200, labor: 400, utility: 50, etc: 80
+  },
+  restaurant: {
+    storeDeposit: 5000, keymoney: 7000, hqDeposit: 0, hqOpening: 0,
+    designFee: 200, training: 0, openingCost: 800,
+    interior: 6000, furniture: 1200, equipment: 2000, signage: 500, etcInvest: 500,
+    revenue: 5000, cogsRate: 38, rent: 500, labor: 1000, utility: 120, etc: 200
+  },
+  franchise: {
+    storeDeposit: 3000, keymoney: 5000, hqDeposit: 1000, hqOpening: 1000,
+    designFee: 500, training: 500, openingCost: 1500,
+    interior: 6000, furniture: 1000, equipment: 2000, signage: 800, etcInvest: 500,
+    revenue: 4500, cogsRate: 40, rent: 400, labor: 800, utility: 100, etc: 250
+  },
+  reset: {
+    storeDeposit: 0, keymoney: 0, hqDeposit: 0, hqOpening: 0,
+    designFee: 0, training: 0, openingCost: 0,
+    interior: 0, furniture: 0, equipment: 0, signage: 0, etcInvest: 0,
+    revenue: 0, cogsRate: 35, rent: 0, labor: 0, utility: 0, etc: 0
+  }
+};
+function loadPreset(name) {
+  const p = presets[name];
+  Object.keys(p).forEach(k => document.getElementById(k).value = p[k]);
+  calc();
+}
+
+calc();
+</script>
+</body>
+</html>

@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>가구 발주서 생성기</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Noto Sans KR',-apple-system,sans-serif; background:#f8fafc; color:#1e293b; min-height:100vh; }
+
+  /* Header */
+  .header { background:#1e293b; padding:20px 24px; display:flex; align-items:center; justify-content:space-between; }
+  .logo { display:flex; align-items:center; gap:10px; }
+  .logo-icon { width:32px; height:32px; background:#f59e0b; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .logo-text { color:#fff; font-size:17px; font-weight:700; letter-spacing:-0.3px; }
+  .logo-sub { color:#94a3b8; font-size:11px; font-weight:400; }
+  .header-btn { padding:8px 16px; border-radius:6px; border:1px solid rgba(255,255,255,0.2); background:transparent; color:#fff; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit; display:none; }
+  .header-btn:hover { background:rgba(255,255,255,0.1); }
+
+  /* Main */
+  .main { max-width:900px; margin:0 auto; padding:24px 16px 60px; }
+
+  /* Upload */
+  .dropzone { border:2px dashed #cbd5e1; border-radius:12px; padding:48px 24px; text-align:center; cursor:pointer; background:#fff; transition:all 0.2s; margin-bottom:20px; }
+  .dropzone:hover, .dropzone.hover { border-color:#f59e0b; background:#fffbeb; }
+  .drop-icon { font-size:48px; margin-bottom:12px; }
+  .drop-title { font-size:16px; font-weight:600; color:#334155; margin-bottom:6px; }
+  .drop-sub { font-size:13px; color:#94a3b8; }
+
+  .previews { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+  .preview-card { position:relative; width:140px; height:140px; border-radius:8px; overflow:hidden; border:1px solid #e2e8f0; background:#fff; }
+  .preview-card img { width:100%; height:100%; object-fit:cover; }
+  .remove-btn { position:absolute; top:4px; right:4px; width:24px; height:24px; border-radius:50%; background:rgba(0,0,0,0.6); color:#fff; border:none; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; }
+  .remove-btn:hover { background:rgba(0,0,0,0.8); }
+
+  .analyze-btn { width:100%; padding:14px; background:#1e293b; color:#fff; border:none; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-family:inherit; transition:opacity 0.2s; }
+  .analyze-btn:disabled { opacity:0.5; cursor:not-allowed; }
+  .analyze-btn:not(:disabled):hover { background:#334155; }
+
+  .error-msg { color:#ef4444; text-align:center; margin-top:12px; font-size:14px; }
+
+  /* API Key */
+  .api-section { background:#fff; border-radius:8px; padding:16px 20px; margin-bottom:20px; border:1px solid #e2e8f0; }
+  .api-section label { font-size:13px; font-weight:600; color:#334155; display:block; margin-bottom:6px; }
+  .api-section .desc { font-size:11px; color:#94a3b8; margin-bottom:8px; }
+  .api-input { width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:6px; font-size:13px; font-family:inherit; outline:none; }
+  .api-input:focus { border-color:#f59e0b; }
+
+  /* Result */
+  .toolbar { display:flex; gap:8px; margin-bottom:20px; justify-content:flex-end; }
+  .print-btn { padding:8px 16px; border-radius:6px; border:none; background:#1e293b; color:#fff; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; font-family:inherit; }
+  .print-btn:hover { background:#334155; }
+
+  .paper { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); padding:36px 32px; margin-bottom:24px; }
+  .doc-title { text-align:center; font-size:26px; font-weight:700; color:#1e293b; letter-spacing:6px; margin-bottom:4px; }
+  .doc-subtitle { text-align:center; font-size:12px; color:#94a3b8; margin-bottom:28px; }
+
+  .section-title { font-size:14px; font-weight:700; color:#1e293b; margin-top:20px; margin-bottom:8px; border-left:3px solid #1e293b; padding-left:8px; }
+
+  table { width:100%; border-collapse:collapse; margin-bottom:12px; font-size:13px; }
+  th { background:#1e293b; color:#fff; padding:8px 12px; font-weight:600; text-align:left; border:1px solid #334155; font-size:12px; }
+  td { padding:8px 12px; border:1px solid #e2e8f0; color:#334155; }
+  td.label { background:#f1f5f9; font-weight:600; width:22%; font-size:12px; }
+  td.note-num { background:#f1f5f9; text-align:center; width:36px; font-weight:600; font-size:12px; }
+
+  td input, td textarea {
+    width:100%; border:none; background:transparent; font-family:inherit;
+    font-size:13px; color:#334155; outline:none; padding:2px 0; resize:vertical;
+  }
+  td input::placeholder, td textarea::placeholder { color:#94a3b8; }
+
+  .img-section { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; margin:12px 0; }
+  .img-section img { max-width:220px; max-height:220px; object-fit:contain; border:1px solid #e2e8f0; border-radius:4px; }
+
+  .sig-divider { border-top:2px solid #1e293b; padding-top:12px; margin-top:28px; text-align:center; font-size:14px; font-weight:600; color:#1e293b; }
+  .sig-row { display:flex; justify-content:space-around; margin-top:36px; }
+  .sig-box { width:40%; text-align:center; }
+  .sig-label { font-size:14px; font-weight:600; color:#334155; }
+  .sig-line { border-bottom:1px solid #94a3b8; margin:36px auto 4px; width:80%; }
+  .sig-sub { font-size:11px; color:#94a3b8; }
+
+  /* Loading */
+  .loading-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.7); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:999; }
+  .spinner { width:48px; height:48px; border:3px solid rgba(255,255,255,0.2); border-top:3px solid #f59e0b; border-radius:50%; animation:spin 1s linear infinite; margin-bottom:16px; }
+  .loading-text { color:#fff; font-size:16px; font-weight:600; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  .hidden { display:none !important; }
+
+  /* Print */
+  @media print {
+    .header, .toolbar, .api-section, .no-print { display:none !important; }
+    .main { padding:0; max-width:100%; }
+    .paper { box-shadow:none; padding:20px; }
+    body { background:#fff; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">🪑</div>
+    <div>
+      <div class="logo-text">가구 발주서 생성기</div>
+      <div class="logo-sub">AI 이미지 분석 기반 자동 작성</div>
+    </div>
+  </div>
+  <button class="header-btn" id="resetBtn" onclick="resetAll()">← 새로 만들기</button>
+</div>
+
+<div class="main">
+
+  <!-- Upload Step -->
+  <div id="uploadStep">
+    <div class="api-section">
+      <label>Anthropic API Key</label>
+      <div class="desc">Claude API 키를 입력하세요. 키는 브라우저에만 저장되며 외부로 전송되지 않습니다.</div>
+      <input type="password" class="api-input" id="apiKeyInput" placeholder="sk-ant-..." />
+    </div>
+
+    <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+      <div class="drop-icon">📸</div>
+      <div class="drop-title">가구 이미지를 업로드하세요</div>
+      <div class="drop-sub">클릭하거나 드래그하여 이미지 추가 (최대 5장, 자동 압축됨)</div>
+      <input type="file" id="fileInput" accept="image/*" multiple style="display:none" />
+    </div>
+
+    <div class="previews" id="previews"></div>
+
+    <button class="analyze-btn" id="analyzeBtn" disabled onclick="analyze()">
+      🔍 AI 분석 후 발주서 작성
+    </button>
+    <div class="error-msg hidden" id="errorMsg"></div>
+  </div>
+
+  <!-- Result Step -->
+  <div id="resultStep" class="hidden">
+    <div class="toolbar no-print">
+      <button class="print-btn" onclick="window.print()">🖨️ 인쇄 / PDF 저장</button>
+    </div>
+
+    <div class="paper" id="paper">
+      <div class="doc-title">발 주 서</div>
+      <div class="doc-subtitle">PURCHASE ORDER</div>
+
+      <!-- 1. 발주 기본 정보 -->
+      <div class="section-title">1. 발주 기본 정보</div>
+      <table>
+        <tr>
+          <td class="label">발주번호</td>
+          <td><input id="f_orderNumber" /></td>
+          <td class="label">발주일자</td>
+          <td><input id="f_orderDate" /></td>
+        </tr>
+        <tr>
+          <td class="label">발주자</td>
+          <td><input id="f_orderer" placeholder="이름 입력" /></td>
+          <td class="label">납품희망일</td>
+          <td><input id="f_deliveryDate" /></td>
+        </tr>
+        <tr>
+          <td class="label">연락처</td>
+          <td><input id="f_ordererContact" placeholder="연락처 입력" /></td>
+          <td class="label">발주 수량</td>
+          <td><input id="f_quantity" placeholder="수량 입력" /></td>
+        </tr>
+      </table>
+
+      <!-- 2. 제작사 정보 -->
+      <div class="section-title">2. 제작사 정보</div>
+      <table>
+        <tr>
+          <td class="label">업체명</td>
+          <td><input id="f_manufacturer" placeholder="업체명 입력" /></td>
+          <td class="label">담당자</td>
+          <td><input id="f_manContact" placeholder="담당자명 입력" /></td>
+        </tr>
+        <tr>
+          <td class="label">연락처</td>
+          <td><input id="f_manPhone" placeholder="연락처 입력" /></td>
+          <td class="label">이메일</td>
+          <td><input id="f_manEmail" placeholder="이메일 입력" /></td>
+        </tr>
+      </table>
+
+      <!-- 3. 제품 상세 사양 -->
+      <div class="section-title">3. 제품 상세 사양</div>
+      <table>
+        <thead><tr><th>항목</th><th>상세 사양</th></tr></thead>
+        <tbody>
+          <tr><td class="label">품목명</td><td><input id="f_productName" /></td></tr>
+          <tr><td class="label">제품 유형</td><td><input id="f_productType" /></td></tr>
+          <tr><td class="label">전체 치수 (추정)</td><td><input id="f_dimensions" /></td></tr>
+          <tr><td class="label">좌면 높이 (추정)</td><td><input id="f_seatHeight" /></td></tr>
+          <tr><td class="label">팔걸이 높이 (추정)</td><td><input id="f_armHeight" /></td></tr>
+        </tbody>
+      </table>
+
+      <!-- 4. 프레임 사양 -->
+      <div class="section-title">4. 프레임 (목재) 사양</div>
+      <table>
+        <thead><tr><th>항목</th><th>상세 사양</th></tr></thead>
+        <tbody>
+          <tr><td class="label">목재 종류</td><td><input id="f_frameMaterial" /></td></tr>
+          <tr><td class="label">목재 마감</td><td><input id="f_frameFinish" /></td></tr>
+          <tr><td class="label">프레임 구조</td><td><input id="f_frameStructure" /></td></tr>
+          <tr><td class="label">다리 구조</td><td><input id="f_legStructure" /></td></tr>
+          <tr><td class="label">마감 처리</td><td><input id="f_finishDetail" /></td></tr>
+        </tbody>
+      </table>
+
+      <!-- 5. 시트 및 원단 사양 -->
+      <div class="section-title">5. 시트 및 원단 사양</div>
+      <table>
+        <thead><tr><th>항목</th><th>상세 사양</th></tr></thead>
+        <tbody>
+          <tr><td class="label">원단 종류</td><td><input id="f_fabricType" /></td></tr>
+          <tr><td class="label">원단 색상</td><td><input id="f_fabricColor" /></td></tr>
+          <tr><td class="label">적용 부위</td><td><input id="f_fabricArea" /></td></tr>
+          <tr><td class="label">쿠션 내장재</td><td><input id="f_cushionType" /></td></tr>
+          <tr><td class="label">쿠션 두께</td><td><input id="f_cushionThickness" /></td></tr>
+          <tr><td class="label">부착 방법</td><td><input id="f_attachMethod" /></td></tr>
+        </tbody>
+      </table>
+
+      <!-- 6. 참고 이미지 -->
+      <div class="section-title">6. 참고 이미지</div>
+      <div class="img-section" id="refImages"></div>
+
+      <!-- 7. 특이사항 -->
+      <div class="section-title">7. 특이사항 및 요청사항</div>
+      <table>
+        <tbody>
+          <tr><td class="note-num">1</td><td><input id="f_note0" placeholder="요청사항 입력" /></td></tr>
+          <tr><td class="note-num">2</td><td><input id="f_note1" placeholder="요청사항 입력" /></td></tr>
+          <tr><td class="note-num">3</td><td><input id="f_note2" placeholder="요청사항 입력" /></td></tr>
+          <tr><td class="note-num">4</td><td><input id="f_note3" placeholder="요청사항 입력" /></td></tr>
+          <tr><td class="note-num">5</td><td><input id="f_note4" placeholder="요청사항 입력" /></td></tr>
+        </tbody>
+      </table>
+
+      <!-- 8. 가격 -->
+      <div class="section-title">8. 가격 및 결제 조건</div>
+      <table>
+        <thead><tr><th>항목</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr><td class="label">단가</td><td><input id="f_unitPrice" placeholder="원 / VAT 별도" /></td></tr>
+          <tr><td class="label">총 금액</td><td><input id="f_totalPrice" placeholder="원" /></td></tr>
+          <tr><td class="label">결제 조건</td><td><input id="f_paymentTerms" /></td></tr>
+        </tbody>
+      </table>
+
+      <!-- 서명 -->
+      <div class="sig-divider">위 내용으로 제작을 발주합니다.</div>
+      <div class="sig-row">
+        <div class="sig-box">
+          <div class="sig-label">발주자</div>
+          <div class="sig-line"></div>
+          <div class="sig-sub">(서명 / 날짜)</div>
+        </div>
+        <div class="sig-box">
+          <div class="sig-label">제작사</div>
+          <div class="sig-line"></div>
+          <div class="sig-sub">(서명 / 날짜)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading -->
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">이미지 분석 중...</div>
+</div>
+
+<script>
+const SYSTEM_PROMPT = `당신은 가구 제작 전문가입니다. 업로드된 가구 이미지를 분석하여 제작 발주서에 필요한 상세 사양을 JSON으로 반환하세요.
+
+반드시 아래 JSON 형식만 반환하세요. 다른 텍스트는 포함하지 마세요.
+{
+  "productName": "제품명 (한글 + 영문)",
+  "productType": "제품 유형",
+  "dimensions": "추정 전체 치수 (W x D x H mm)",
+  "seatHeight": "좌면 높이 추정",
+  "armHeight": "팔걸이 높이 추정 (없으면 '해당없음')",
+  "frameMaterial": "프레임 목재 종류 추정",
+  "frameFinish": "마감 방법",
+  "frameStructure": "프레임 구조 설명",
+  "legStructure": "다리 구조 설명",
+  "finishDetail": "마감 처리 상세",
+  "fabricType": "원단 종류",
+  "fabricColor": "원단 색상",
+  "fabricArea": "원단 적용 부위",
+  "cushionType": "쿠션 내장재",
+  "cushionThickness": "쿠션 두께 추정",
+  "attachMethod": "부착 방법 추정",
+  "notes": ["특이사항1", "특이사항2", "특이사항3", "특이사항4", "특이사항5"]
+}`;
+
+const loadingMessages = [
+  "이미지 분석 중...",
+  "가구 구조를 파악하고 있어요...",
+  "소재와 마감을 확인하고 있어요...",
+  "발주서를 작성하고 있어요..."
+];
+
+let imageDataList = []; // { b64, mediaType, dataUrl, originalDataUrl }
+let loadingInterval = null;
+
+const MAX_IMG_SIZE = 1024; // 최대 가로/세로 px
+const JPEG_QUALITY = 0.7;  // JPEG 압축 품질
+
+// --- Helpers ---
+function generateOrderNumber() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  const r = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+  return `PO-${y}-${m}${d}-${r}`;
+}
+
+function todayStr() {
+  const now = new Date();
+  return `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, "0")}.${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function $(id) { return document.getElementById(id); }
+
+// --- 이미지 압축 ---
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const originalDataUrl = e.target.result;
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width;
+        let h = img.height;
+        // 최대 크기 제한
+        if (w > MAX_IMG_SIZE || h > MAX_IMG_SIZE) {
+          if (w > h) { h = Math.round(h * MAX_IMG_SIZE / w); w = MAX_IMG_SIZE; }
+          else { w = Math.round(w * MAX_IMG_SIZE / h); h = MAX_IMG_SIZE; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+        const b64 = compressedDataUrl.split(",")[1];
+        const sizeMB = (b64.length * 0.75 / 1024 / 1024).toFixed(2);
+        console.log(`이미지 압축 완료: ${img.width}x${img.height} → ${w}x${h}, ${sizeMB}MB`);
+        resolve({
+          b64,
+          mediaType: "image/jpeg",
+          dataUrl: compressedDataUrl,
+          originalDataUrl
+        });
+      };
+      img.onerror = () => reject(new Error("이미지를 불러올 수 없습니다."));
+      img.src = originalDataUrl;
+    };
+    reader.onerror = () => reject(new Error("파일을 읽을 수 없습니다."));
+    reader.readAsDataURL(file);
+  });
+}
+
+// --- Dropzone ---
+const dropzone = $("dropzone");
+const fileInput = $("fileInput");
+
+dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("hover"); });
+dropzone.addEventListener("dragleave", () => { dropzone.classList.remove("hover"); });
+dropzone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dropzone.classList.remove("hover");
+  handleFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener("change", (e) => handleFiles(e.target.files));
+
+async function handleFiles(files) {
+  const valid = Array.from(files).filter(f => f.type.startsWith("image/")).slice(0, 5 - imageDataList.length);
+  if (!valid.length) return;
+
+  for (const file of valid) {
+    try {
+      const compressed = await compressImage(file);
+      imageDataList.push(compressed);
+    } catch (err) {
+      console.error("이미지 처리 실패:", err);
+    }
+  }
+  renderPreviews();
+  $("analyzeBtn").disabled = imageDataList.length === 0;
+}
+
+function renderPreviews() {
+  const container = $("previews");
+  container.innerHTML = "";
+  imageDataList.forEach((img, i) => {
+    const card = document.createElement("div");
+    card.className = "preview-card";
+    card.innerHTML = `
+      <img src="${img.originalDataUrl || img.dataUrl}" alt="preview" />
+      <button class="remove-btn" onclick="removeImage(${i})">×</button>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function removeImage(idx) {
+  imageDataList.splice(idx, 1);
+  renderPreviews();
+  $("analyzeBtn").disabled = imageDataList.length === 0;
+}
+
+// --- API Key persistence ---
+const savedKey = localStorage.getItem("anthropic_api_key");
+if (savedKey) $("apiKeyInput").value = savedKey;
+$("apiKeyInput").addEventListener("input", (e) => {
+  localStorage.setItem("anthropic_api_key", e.target.value);
+});
+
+// --- Analyze ---
+async function analyze() {
+  const apiKey = $("apiKeyInput").value.trim();
+  if (!apiKey) {
+    showError("API Key를 입력해주세요.");
+    return;
+  }
+  if (imageDataList.length === 0) return;
+
+  showLoading(true);
+  hideError();
+
+  const models = ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"];
+
+  for (const model of models) {
+    try {
+      console.log(`모델 시도: ${model}`);
+
+      const imageContents = imageDataList.map(img => ({
+        type: "image",
+        source: { type: "base64", media_type: img.mediaType, data: img.b64 }
+      }));
+
+      const requestBody = {
+        model,
+        max_tokens: 1500,
+        system: SYSTEM_PROMPT,
+        messages: [{
+          role: "user",
+          content: [
+            ...imageContents,
+            { type: "text", text: "이 가구 이미지를 분석하여 제작 발주서 사양을 JSON으로 작성해주세요." }
+          ]
+        }]
+      };
+
+      console.log("요청 크기:", Math.round(JSON.stringify(requestBody).length / 1024) + "KB");
+
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true"
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        const errMsg = data?.error?.message || "";
+        console.error(`모델 ${model} 실패 (${res.status}):`, errMsg);
+
+        if (res.status === 401) {
+          throw new Error("API Key가 유효하지 않습니다. 키를 확인해주세요.");
+        }
+        if (res.status === 429) {
+          throw new Error("API 요청 한도 초과입니다. 잠시 후 다시 시도해주세요.");
+        }
+        if (res.status === 400 && errMsg.includes("Could not process image")) {
+          throw new Error("이미지를 처리할 수 없습니다. 다른 이미지로 시도해주세요.");
+        }
+        // 500 에러는 다음 모델로 재시도
+        if (res.status >= 500) {
+          console.log(`서버 오류, 다음 모델로 재시도...`);
+          continue;
+        }
+        throw new Error(errMsg || `API 오류 (${res.status})`);
+      }
+
+      if (!data || !data.content) {
+        throw new Error("응답 데이터가 비어있습니다.");
+      }
+
+      const text = data.content.map(c => c.text || "").join("");
+      const clean = text.replace(/```json|```/g, "").trim();
+
+      let spec;
+      try {
+        spec = JSON.parse(clean);
+      } catch (parseErr) {
+        console.error("JSON 파싱 실패:", clean);
+        throw new Error("AI 응답을 파싱할 수 없습니다. 다시 시도해주세요.");
+      }
+
+      fillForm(spec);
+      showResult();
+      showLoading(false);
+      return; // 성공 시 종료
+
+    } catch (err) {
+      console.error(`모델 ${model} 에러:`, err);
+      // 마지막 모델이면 에러 표시
+      if (model === models[models.length - 1]) {
+        showError(err.message);
+        showLoading(false);
+        return;
+      }
+      // 인증/한도 에러는 재시도 불필요
+      if (err.message.includes("API Key") || err.message.includes("한도")) {
+        showError(err.message);
+        showLoading(false);
+        return;
+      }
+    }
+  }
+
+  showLoading(false);
+}
+
+function fillForm(spec) {
+  // Order defaults
+  $("f_orderNumber").value = generateOrderNumber();
+  $("f_orderDate").value = todayStr();
+  $("f_deliveryDate").value = "협의 후 결정";
+  $("f_paymentTerms").value = "계약금 50% / 잔금 50% (납품 시)";
+
+  // Spec fields
+  const fields = [
+    "productName","productType","dimensions","seatHeight","armHeight",
+    "frameMaterial","frameFinish","frameStructure","legStructure","finishDetail",
+    "fabricType","fabricColor","fabricArea","cushionType","cushionThickness","attachMethod"
+  ];
+  fields.forEach(key => {
+    const el = $("f_" + key);
+    if (el && spec[key]) el.value = spec[key];
+  });
+
+  // Notes
+  if (Array.isArray(spec.notes)) {
+    spec.notes.forEach((note, i) => {
+      const el = $("f_note" + i);
+      if (el) el.value = note;
+    });
+  }
+
+  // Reference images
+  const imgContainer = $("refImages");
+  imgContainer.innerHTML = "";
+  imageDataList.forEach(img => {
+    const imgEl = document.createElement("img");
+    imgEl.src = img.originalDataUrl || img.dataUrl;
+    imgEl.alt = "참고 이미지";
+    imgContainer.appendChild(imgEl);
+  });
+}
+
+function showResult() {
+  $("uploadStep").classList.add("hidden");
+  $("resultStep").classList.remove("hidden");
+  $("resetBtn").style.display = "block";
+}
+
+function resetAll() {
+  imageDataList = [];
+  $("previews").innerHTML = "";
+  $("analyzeBtn").disabled = true;
+  $("uploadStep").classList.remove("hidden");
+  $("resultStep").classList.add("hidden");
+  $("resetBtn").style.display = "none";
+  hideError();
+
+  // Clear form inputs
+  document.querySelectorAll("#resultStep input").forEach(inp => {
+    inp.value = "";
+  });
+  $("refImages").innerHTML = "";
+}
+
+// --- Loading ---
+function showLoading(show) {
+  if (show) {
+    $("loadingOverlay").classList.remove("hidden");
+    let idx = 0;
+    $("loadingText").textContent = loadingMessages[0];
+    loadingInterval = setInterval(() => {
+      idx = Math.min(idx + 1, loadingMessages.length - 1);
+      $("loadingText").textContent = loadingMessages[idx];
+    }, 3000);
+  } else {
+    $("loadingOverlay").classList.add("hidden");
+    if (loadingInterval) { clearInterval(loadingInterval); loadingInterval = null; }
+  }
+}
+
+function showError(msg) { $("errorMsg").textContent = msg; $("errorMsg").classList.remove("hidden"); }
+function hideError() { $("errorMsg").classList.add("hidden"); }
+</script>
+</body>
+</html>

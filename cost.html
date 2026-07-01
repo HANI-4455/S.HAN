@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>점포 인건비 계산툴</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --blue: #2563eb;
+      --blue-soft: #eff6ff;
+      --red: #ef4444;
+      --green: #16a34a;
+      --yellow: #f59e0b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    .wrap {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 32px 20px 60px;
+    }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 30px;
+      letter-spacing: -0.04em;
+    }
+
+    .desc {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--blue-soft);
+      color: var(--blue);
+      border: 1px solid #bfdbfe;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(130px, 1fr));
+      gap: 12px;
+      align-items: end;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+
+    input, select {
+      width: 100%;
+      height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 0 10px;
+      font-size: 14px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    input:focus, select:focus {
+      outline: 2px solid #bfdbfe;
+      border-color: #93c5fd;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      height: 40px;
+      padding: 0 14px;
+      font-weight: 800;
+      cursor: pointer;
+      color: #fff;
+      background: var(--blue);
+      transition: 0.15s ease;
+      white-space: nowrap;
+    }
+
+    button:hover { transform: translateY(-1px); opacity: 0.95; }
+    button.secondary { background: #111827; }
+    button.ghost { background: #f3f4f6; color: #374151; border: 1px solid var(--line); }
+    button.danger { background: var(--red); }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+    }
+
+    .stat {
+      padding: 16px;
+      border-radius: 18px;
+      background: #f9fafb;
+      border: 1px solid var(--line);
+    }
+
+    .stat .k {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .stat .v {
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+    }
+
+    table {
+      width: 100%;
+      min-width: 1280px;
+      border-collapse: collapse;
+      background: #fff;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 8px;
+      text-align: center;
+      font-size: 13px;
+      vertical-align: middle;
+    }
+
+    th {
+      background: #f9fafb;
+      color: #374151;
+      font-size: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    td input, td select { height: 34px; font-size: 13px; border-radius: 9px; }
+    .name { min-width: 110px; }
+    .tiny { width: 74px; }
+    .money { min-width: 108px; }
+    .readonly { font-weight: 800; background: #fbfdff; }
+    .warn { color: var(--red); font-weight: 800; }
+    .ok { color: var(--green); font-weight: 800; }
+    .note { color: var(--muted); font-size: 12px; line-height: 1.6; }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .law-box {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .law-item {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fcfcfd;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .law-item b { display: block; margin-bottom: 4px; }
+
+    @media (max-width: 980px) {
+      .hero, .controls { grid-template-columns: 1fr; display: grid; }
+      .summary, .law-box { grid-template-columns: 1fr; }
+      h1 { font-size: 24px; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .actions, .no-print { display: none !important; }
+      .panel { box-shadow: none; border-color: #ccc; }
+      .wrap { max-width: none; padding: 0; }
+      table { min-width: 0; font-size: 10px; }
+      th, td { padding: 5px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <h1>점포 인건비 계산툴</h1>
+        <p class="desc">직원별 근무패턴을 넣으면 월 근로시간, 주휴시간, 주휴수당, 예상 인건비를 한 번에 계산합니다. 2026년 최저임금 10,320원을 기본값으로 넣어두었습니다.</p>
+      </div>
+      <div class="badge">2026 최저시급 기본값 10,320원</div>
+    </div>
+
+    <section class="panel">
+      <div class="controls">
+        <div>
+          <label>계산 연도</label>
+          <input id="year" type="number" value="2026" min="2020" max="2100" />
+        </div>
+        <div>
+          <label>계산 월</label>
+          <select id="month"></select>
+        </div>
+        <div>
+          <label>기본 시급</label>
+          <input id="defaultWage" type="number" value="10320" min="0" step="10" />
+        </div>
+        <div>
+          <label>사업주 부담률</label>
+          <input id="burdenRate" type="number" value="0" min="0" step="0.1" />
+        </div>
+        <div>
+          <label>원단위 처리</label>
+          <select id="roundMode">
+            <option value="round">반올림</option>
+            <option value="floor">버림</option>
+            <option value="ceil">올림</option>
+          </select>
+        </div>
+        <div>
+          <button onclick="calculateAll()">계산하기</button>
+        </div>
+      </div>
+      <p class="note">사업주 부담률은 4대보험 등 추가 부담분을 별도로 보고 싶을 때 넣는 선택값입니다. 예: 10 입력 시 총 인건비에 10%가 추가됩니다.</p>
+    </section>
+
+    <section class="panel">
+      <div class="summary">
+        <div class="stat"><div class="k">총 직원 수</div><div class="v" id="sumPeople">0명</div></div>
+        <div class="stat"><div class="k">총 월 근로시간</div><div class="v" id="sumWorkHours">0h</div></div>
+        <div class="stat"><div class="k">총 주휴시간</div><div class="v" id="sumWeeklyHours">0h</div></div>
+        <div class="stat"><div class="k">총 주휴수당</div><div class="v" id="sumWeeklyPay">0원</div></div>
+        <div class="stat"><div class="k">예상 총 인건비</div><div class="v" id="sumTotalPay">0원</div></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="table-wrap">
+        <table id="staffTable">
+          <thead>
+            <tr>
+              <th>이름</th>
+              <th>구분</th>
+              <th>시급</th>
+              <th>월</th>
+              <th>화</th>
+              <th>수</th>
+              <th>목</th>
+              <th>금</th>
+              <th>토</th>
+              <th>일</th>
+              <th>주 소정시간</th>
+              <th>주휴 대상</th>
+              <th>월 근로시간</th>
+              <th>월 주휴시간</th>
+              <th>기본급</th>
+              <th>주휴수당</th>
+              <th>예상 지급액</th>
+              <th>부담 포함</th>
+              <th class="no-print">삭제</th>
+            </tr>
+          </thead>
+          <tbody id="staffBody"></tbody>
+        </table>
+      </div>
+      <div class="actions no-print">
+        <button onclick="addRow()">직원 추가</button>
+        <button class="secondary" onclick="addSampleRows()">샘플 넣기</button>
+        <button class="ghost" onclick="downloadCSV()">CSV 다운로드</button>
+        <button class="ghost" onclick="window.print()">인쇄 / PDF 저장</button>
+        <button class="danger" onclick="clearRows()">전체 삭제</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 style="margin:0 0 8px;font-size:18px;">계산 기준 메모</h2>
+      <div class="law-box">
+        <div class="law-item"><b>주휴수당 대상</b>4주 평균 1주 소정근로시간이 15시간 이상이고, 1주간 소정근로일을 개근한 근로자를 대상으로 계산합니다.</div>
+        <div class="law-item"><b>주휴시간 계산식</b>주 40시간 이상은 최대 8시간, 주 40시간 미만은 주 소정근로시간 ÷ 40 × 8시간으로 계산했습니다.</div>
+        <div class="law-item"><b>월 환산 방식</b>월 근로시간은 해당 월의 실제 요일 수를 반영합니다. 월 주휴시간은 주휴시간 × 월 주차 환산값 4.345주로 계산합니다.</div>
+      </div>
+      <p class="note">주의: 지각, 결근, 연장·야간·휴일근로, 4대보험 개인공제, 세금, 수습 감액, 포괄임금, 월급제 포함 여부 등은 점포 상황에 따라 달라질 수 있습니다. 이 툴은 1차 견적용입니다.</p>
+    </section>
+  </div>
+
+  <script>
+    const weekdays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+    const weekdayLabels = ["월", "화", "수", "목", "금", "토", "일"];
+
+    function money(n) {
+      return Number(n || 0).toLocaleString("ko-KR") + "원";
+    }
+
+    function hour(n) {
+      return (Math.round((Number(n || 0)) * 10) / 10).toLocaleString("ko-KR") + "h";
+    }
+
+    function roundWon(value) {
+      const mode = document.getElementById("roundMode").value;
+      if (mode === "floor") return Math.floor(value);
+      if (mode === "ceil") return Math.ceil(value);
+      return Math.round(value);
+    }
+
+    function initMonth() {
+      const monthEl = document.getElementById("month");
+      const now = new Date();
+      for (let i = 1; i <= 12; i++) {
+        const opt = document.createElement("option");
+        opt.value = i;
+        opt.textContent = i + "월";
+        if (i === now.getMonth() + 1) opt.selected = true;
+        monthEl.appendChild(opt);
+      }
+    }
+
+    function daysInMonth(year, month) {
+      return new Date(year, month, 0).getDate();
+    }
+
+    function weekdayCounts(year, month) {
+      const counts = { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0 };
+      const days = daysInMonth(year, month);
+      for (let d = 1; d <= days; d++) {
+        const day = new Date(year, month - 1, d).getDay();
+        const key = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][day];
+        counts[key]++;
+      }
+      return counts;
+    }
+
+    function addRow(data = {}) {
+      const tbody = document.getElementById("staffBody");
+      const tr = document.createElement("tr");
+      const wage = data.wage || document.getElementById("defaultWage").value || 10320;
+      tr.innerHTML = `
+        <td><input class="name" data-field="name" value="${data.name || ""}" placeholder="이름" /></td>
+        <td>
+          <select data-field="type">
+            <option ${data.type === "알바" ? "selected" : ""}>알바</option>
+            <option ${data.type === "직원" ? "selected" : ""}>직원</option>
+            <option ${data.type === "매니저" ? "selected" : ""}>매니저</option>
+          </select>
+        </td>
+        <td><input class="money" data-field="wage" type="number" min="0" step="10" value="${wage}" /></td>
+        ${weekdays.map((day, idx) => `<td><input class="tiny" data-field="${day}" type="number" min="0" max="24" step="0.5" value="${data[day] || 0}" title="${weekdayLabels[idx]}요일 근무시간" /></td>`).join("")}
+        <td class="readonly" data-result="weeklyContract">0h</td>
+        <td class="readonly" data-result="eligible">-</td>
+        <td class="readonly" data-result="monthlyWork">0h</td>
+        <td class="readonly" data-result="monthlyWeekly">0h</td>
+        <td class="readonly" data-result="basePay">0원</td>
+        <td class="readonly" data-result="weeklyPay">0원</td>
+        <td class="readonly" data-result="totalPay">0원</td>
+        <td class="readonly" data-result="withBurden">0원</td>
+        <td class="no-print"><button class="danger" onclick="this.closest('tr').remove(); calculateAll();">삭제</button></td>
+      `;
+      tbody.appendChild(tr);
+      tr.querySelectorAll("input, select").forEach(el => el.addEventListener("input", calculateAll));
+      calculateAll();
+    }
+
+    function calculateRow(tr, counts) {
+      const get = field => tr.querySelector(`[data-field="${field}"]`);
+      const wage = Number(get("wage").value || 0);
+      const burdenRate = Number(document.getElementById("burdenRate").value || 0) / 100;
+
+      const daily = {};
+      weekdays.forEach(day => daily[day] = Number(get(day).value || 0));
+
+      const weeklyContract = weekdays.reduce((sum, day) => sum + daily[day], 0);
+      const eligible = weeklyContract >= 15;
+      const weeklyHolidayHours = eligible ? Math.min(8, weeklyContract / 40 * 8) : 0;
+      const monthlyWeeklyHours = weeklyHolidayHours * 4.345;
+      const monthlyWorkHours = weekdays.reduce((sum, day) => sum + daily[day] * counts[day], 0);
+      const basePay = roundWon(monthlyWorkHours * wage);
+      const weeklyPay = roundWon(monthlyWeeklyHours * wage);
+      const totalPay = basePay + weeklyPay;
+      const withBurden = roundWon(totalPay * (1 + burdenRate));
+
+      tr.querySelector('[data-result="weeklyContract"]').textContent = hour(weeklyContract);
+      const eligibleCell = tr.querySelector('[data-result="eligible"]');
+      eligibleCell.textContent = eligible ? "대상" : "비대상";
+      eligibleCell.className = eligible ? "readonly ok" : "readonly warn";
+      tr.querySelector('[data-result="monthlyWork"]').textContent = hour(monthlyWorkHours);
+      tr.querySelector('[data-result="monthlyWeekly"]').textContent = hour(monthlyWeeklyHours);
+      tr.querySelector('[data-result="basePay"]').textContent = money(basePay);
+      tr.querySelector('[data-result="weeklyPay"]').textContent = money(weeklyPay);
+      tr.querySelector('[data-result="totalPay"]').textContent = money(totalPay);
+      tr.querySelector('[data-result="withBurden"]').textContent = money(withBurden);
+
+      return { monthlyWorkHours, monthlyWeeklyHours, weeklyPay, totalPay, withBurden };
+    }
+
+    function calculateAll() {
+      const year = Number(document.getElementById("year").value || 2026);
+      const month = Number(document.getElementById("month").value || 1);
+      const counts = weekdayCounts(year, month);
+      const rows = [...document.querySelectorAll("#staffBody tr")];
+
+      let sumWork = 0, sumWeeklyHours = 0, sumWeeklyPay = 0, sumTotal = 0, sumBurden = 0;
+      rows.forEach(tr => {
+        const r = calculateRow(tr, counts);
+        sumWork += r.monthlyWorkHours;
+        sumWeeklyHours += r.monthlyWeeklyHours;
+        sumWeeklyPay += r.weeklyPay;
+        sumTotal += r.totalPay;
+        sumBurden += r.withBurden;
+      });
+
+      document.getElementById("sumPeople").textContent = rows.length + "명";
+      document.getElementById("sumWorkHours").textContent = hour(sumWork);
+      document.getElementById("sumWeeklyHours").textContent = hour(sumWeeklyHours);
+      document.getElementById("sumWeeklyPay").textContent = money(sumWeeklyPay);
+      document.getElementById("sumTotalPay").textContent = money(sumBurden || sumTotal);
+    }
+
+    function addSampleRows() {
+      clearRows(false);
+      addRow({ name: "김알바", type: "알바", wage: 10320, mon: 5, tue: 5, wed: 0, thu: 5, fri: 5, sat: 0, sun: 0 });
+      addRow({ name: "이직원", type: "직원", wage: 12000, mon: 8, tue: 8, wed: 8, thu: 8, fri: 8, sat: 0, sun: 0 });
+      addRow({ name: "박주말", type: "알바", wage: 11000, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 7, sun: 7 });
+    }
+
+    function clearRows(confirmNeeded = true) {
+      if (confirmNeeded && !confirm("전체 직원을 삭제할까요?")) return;
+      document.getElementById("staffBody").innerHTML = "";
+      calculateAll();
+    }
+
+    function downloadCSV() {
+      calculateAll();
+      const headers = ["이름", "구분", "시급", "월", "화", "수", "목", "금", "토", "일", "주 소정시간", "주휴대상", "월근로시간", "월주휴시간", "기본급", "주휴수당", "예상지급액", "부담포함"];
+      const rows = [...document.querySelectorAll("#staffBody tr")].map(tr => {
+        const fields = ["name", "type", "wage", ...weekdays].map(f => tr.querySelector(`[data-field="${f}"]`).value);
+        const results = ["weeklyContract", "eligible", "monthlyWork", "monthlyWeekly", "basePay", "weeklyPay", "totalPay", "withBurden"].map(r => tr.querySelector(`[data-result="${r}"]`).textContent);
+        return [...fields, ...results];
+      });
+      const csv = [headers, ...rows].map(row => row.map(v => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\n");
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "점포_인건비계산.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    ["year", "month", "defaultWage", "burdenRate", "roundMode"].forEach(id => {
+      document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById(id).addEventListener("input", calculateAll);
+      });
+    });
+
+    document.addEventListener("DOMContentLoaded", () => {
+      initMonth();
+      addRow({ name: "", type: "알바", wage: 10320, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0 });
+    });
+  </script>
+</body>
+</html>
