@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PAS사업부 조직도</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #15237A;
+    --accent: #F26300;
+    --text: #272727;
+    --bg: #F8F8F8;
+    --card: #FFFFFF;
+    --muted: #6B7280;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .panel {
+    background: var(--card);
+    border: 1px solid #E0E4EE;
+    border-radius: 10px;
+    padding: 48px 56px;
+    text-align: center;
+    max-width: 420px;
+    box-shadow: 0 4px 16px rgba(21,35,122,0.06);
+  }
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: -0.3px;
+    margin-bottom: 10px;
+  }
+  p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 28px;
+  }
+  .open-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--primary);
+    color: #fff;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px 24px;
+    border-radius: 6px;
+    transition: background 0.15s ease;
+  }
+  .open-btn:hover { background: #0F1A5C; }
+</style>
+</head>
+<body>
+  <div class="panel">
+    <div class="eyebrow">Org Chart</div>
+    <h1>PAS사업부 조직도</h1>
+    <p>최신 조직도는 구글시트에서 관리되며,<br>아래 버튼을 누르면 실제 시트가 새 탭에서 열립니다.</p>
+    <a class="open-btn" href="https://docs.google.com/spreadsheets/d/1Xytjpt_WgEeFWrcJMawfTfNlW3I9Zj2kNiwZBJWy8AY/edit?gid=1318878712#gid=1318878712" target="_blank" rel="noopener">
+      구글시트에서 열기 →
+    </a>
+  </div>
+</body>
+</html>
