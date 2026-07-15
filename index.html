@@ -662,15 +662,18 @@ const DEFAULT_CARDS = [
   { id:4,  path:"cost.html",                                           title:"원가 계산",               desc:"원가 분석 및 계산 도구",                                      emoji:"💰", tag:"매출" },
   { id:5,  path:"profit-calculator.html",                              title:"수익 계산기",             desc:"수익률 및 손익 계산",                                         emoji:"📈", tag:"매출" },
   { id:6,  path:"roi-calculator.html",                                 title:"ROI 계산기",              desc:"투자 수익률 계산 도구",                                       emoji:"📊", tag:"매출" },
-  { id:7,  path:"orderbudget.html",                                    title:"발주 예산",               desc:"발주 예산 관리 도구",                                         emoji:"🛒", tag:"발주" },
-  { id:8,  path:"ordercreator.html",                                   title:"발주서 생성",             desc:"발주서 자동 생성 도구",                                       emoji:"📋", tag:"발주" },
   { id:9,  path:"pro_ver3.html",                                       title:"프로 도구 v3",            desc:"업무 지원 통합 도구",                                         emoji:"⚙️", tag:"도구" },
-  { id:10, path:"research.html",                                       title:"리서치",                  desc:"시장 조사 및 리서치 도구",                                    emoji:"🔍", tag:"도구" },
   { id:11, path:"image-converter.html",                                title:"이미지 변환기",           desc:"이미지 포맷 변환 도구",                                       emoji:"🖼️", tag:"도구" },
   { id:12, path:"review_keyword_analyzer_positive_added.html",         title:"리뷰 키워드 분석",        desc:"긍정 키워드 포함 리뷰 분석 도구",                             emoji:"💬", tag:"도구" },
   { id:13, path:"event_detail_page_format_builder_link.html",          title:"이벤트 상세 페이지",      desc:"이벤트 상세 페이지 포맷 빌더",                                emoji:"🎉", tag:"마케팅" },
-  { id:14, path:"app_push_ai_generator_careet_trend (1).html",         title:"앱 푸시 AI 생성기",       desc:"커리어 트렌드 기반 앱 푸시 문구 자동 생성",                   emoji:"📱", tag:"마케팅" }
+  { id:14, path:"app_push_ai_generator_careet_trend (1).html",         title:"앱 푸시 AI 생성기",       desc:"커리어 트렌드 기반 앱 푸시 문구 자동 생성",                   emoji:"📱", tag:"마케팅" },
+  { id:15, path:"조직도.html",                                         title:"조직도",                  desc:"PAS사업부",                                                   emoji:"📄", tag:"기타" }
 ];
+
+/* 기본 카드 구성을 코드에서 바꿀 때 버전을 올리면,
+   이미 접속했던 브라우저에서도 아래 삭제 목록의 카드가 정리된다 */
+const DEFAULTS_VERSION = 2;
+const REMOVED_DEFAULT_PATHS = ["orderbudget.html","ordercreator.html","research.html"];
 
 const PRESET_TAGS = ["업무","보고서","대시보드","게임","도구","양식","디자인","여행"];
 
@@ -682,6 +685,10 @@ function getDefaultCards() {
 function loadCards() {
   const saved = localStorage.getItem("sbt_cards");
   let cards = saved ? JSON.parse(saved) : getDefaultCards();
+  if (localStorage.getItem("sbt_defaults_version") !== String(DEFAULTS_VERSION)) {
+    cards = cards.filter(c => !REMOVED_DEFAULT_PATHS.includes(c.path));
+    localStorage.setItem("sbt_defaults_version", String(DEFAULTS_VERSION));
+  }
   getDefaultCards().forEach(def => {
     if (!cards.find(c => c.path === def.path)) cards.push(def);
   });
