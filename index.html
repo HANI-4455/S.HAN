@@ -671,9 +671,9 @@ const DEFAULT_CARDS = [
   { id:16, path:"https://docs.google.com/spreadsheets/d/1nAuSSnqUnOvkDkxRJa1U3mzJr5ZM75r0U92fN0hlyAs/edit?gid=1043220538#gid=1043220538", title:"코칭매니저 스케줄", desc:"사업지원팀 코칭매니저 월별 근무 일정 (구글 시트, 25년 8월~)", emoji:"📅", tag:"업무" }
 ];
 
-/* 기본 카드 구성을 코드에서 바꿀 때 버전을 올리면,
-   이미 접속했던 브라우저에서도 아래 삭제 목록의 카드가 정리된다 */
-const DEFAULTS_VERSION = 2;
+/* 기본 카드 구성을 코드에서 바꿀 때 버전을 올리면, 이미 접속했던 브라우저에서도
+   아래 삭제 목록의 카드가 정리되고 브라우저별 기본카드 덮어쓰기가 초기화된다 */
+const DEFAULTS_VERSION = 3;
 const REMOVED_DEFAULT_PATHS = ["orderbudget.html","ordercreator.html","research.html"];
 
 const PRESET_TAGS = ["업무","보고서","대시보드","게임","도구","양식","디자인","여행"];
@@ -688,6 +688,7 @@ function loadCards() {
   let cards = saved ? JSON.parse(saved) : getDefaultCards();
   if (localStorage.getItem("sbt_defaults_version") !== String(DEFAULTS_VERSION)) {
     cards = cards.filter(c => !REMOVED_DEFAULT_PATHS.includes(c.path));
+    localStorage.removeItem("sbt_default_cards"); /* 코드의 DEFAULT_CARDS가 우선하도록 브라우저별 덮어쓰기 제거 */
     localStorage.setItem("sbt_defaults_version", String(DEFAULTS_VERSION));
   }
   getDefaultCards().forEach(def => {
