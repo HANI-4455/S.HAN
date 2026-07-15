@@ -321,6 +321,27 @@ body {
 .btn-send:hover { opacity: .88; }
 .btn-send:disabled { opacity: .45; cursor: not-allowed; }
 
+/* ── 자동 발송 배너 ── */
+.auto-banner {
+  position: fixed; top: 0; left: 0; right: 0;
+  background: var(--accent); color: #fff;
+  padding: 10px 40px; font-size: 13px; font-weight: 700;
+  z-index: 300; display: none; align-items: center; gap: 10px;
+}
+.auto-banner.show { display: flex; }
+.auto-banner .spin2 {
+  width: 14px; height: 14px; flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff;
+  border-radius: 50%; animation: spin .7s linear infinite;
+}
+
+/* ── 키워드 태그 ── */
+.kw-tag {
+  display: inline-block; padding: 1px 7px; margin-right: 4px;
+  background: var(--light); color: var(--secondary);
+  border-radius: 3px; font-size: 10px; font-weight: 700; vertical-align: 1px;
+}
+
 @media(max-width:600px) {
   .site-header, .hero, .search-section, .result-bar, .action-bar { padding-left: 16px; padding-right: 16px; }
   .grid { padding: 16px 16px 120px; }
@@ -328,6 +349,12 @@ body {
 </style>
 </head>
 <body>
+
+<!-- 자동 발송 상태 배너 -->
+<div class="auto-banner" id="autoBanner">
+  <div class="spin2" id="autoSpin"></div>
+  <span id="autoMsg"></span>
+</div>
 
 <!-- 헤더 -->
 <header class="site-header">
@@ -392,7 +419,7 @@ body {
 
 <!-- 하단 액션바 -->
 <div class="action-bar" id="actionBar">
-  <div class="action-info"><b id="selNum">0</b>개 선택됨</div>
+  <div class="action-info"><b id="selNum">0</b>개 선택됨 <span id="selKws" style="font-weight:400;font-size:12px;color:rgba(255,255,255,0.55)"></span></div>
   <button class="btn-clear" onclick="clearSel()">선택 해제</button>
   <button class="btn-email" onclick="openEmailModal()">✉ 이메일 발송</button>
 </div>
@@ -430,8 +457,11 @@ body {
 <script>
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxzuvrTumy3nGRi3m7qTd6pLW2iez6jiLH070jf4IUIQs85fP_dlMPFNZdLJhP9Lmnl/exec';
 const PROXIES = ['https://corsproxy.io/?','https://api.allorigins.win/get?url='];
-let allNews = [], selected = new Set(), period = '', sortMode = 'date';
+let allNews = [], period = '', sortMode = 'date';
+// 선택 장바구니: 링크를 키로 기사 전체를 보관 → 다른 키워드로 재검색해도 선택 유지
+let basket = new Map();
 let emails = JSON.parse(localStorage.getItem('news_emails') || '[]');
+const AUTO_PARAMS = new URLSearchParams(location.search);
 
 function setPeriod(btn, val) {
   period = val;
@@ -450,12 +480,11 @@ async function search() {
   const kw = document.getElementById('keyword').value.trim();
   if (!kw) { alert('검색어를 입력하세요.'); return; }
   const src = document.getElementById('source').value;
-  selected.clear(); updateActionBar();
   document.getElementById('grid').innerHTML = '<div class="loading"><div class="spin"></div><p>뉴스를 불러오는 중...</p></div>';
   document.getElementById('resultCount').textContent = '';
   try {
     const raw = src === 'google' ? await fetchGoogle(kw) : await fetchNaver(kw);
-    allNews = raw.map((item, i) => ({ ...item, id: i }));
+    allNews = raw.map((item, i) => ({ ...item, id: i, kw }));
     renderCards(allNews);
   } catch(e) {
     document.getElementById('grid').innerHTML =
@@ -549,8 +578,8 @@ function renderCards(items) {
     return;
   }
   document.getElementById('grid').innerHTML = list.map(n => `
-    <div class="card ${selected.has(n.id)?'selected':''}" id="card-${n.id}" onclick="toggleCard(${n.id})">
-      <div class="card-check ${selected.has(n.id)?'on':''}"></div>
+    <div class="card ${basket.has(n.link)?'selected':''}" id="card-${n.id}" onclick="toggleCard(${n.id})">
+      <div class="card-check ${basket.has(n.link)?'on':''}"></div>
       <div class="card-source">${n.source}</div>
       <div class="card-title"><a href="${n.link}" target="_blank" onclick="event.stopPropagation()">${n.title}</a></div>
       <div class="card-desc">${n.desc}</div>
@@ -560,26 +589,41 @@ function renderCards(items) {
 }
 
 function toggleCard(id) {
-  if (selected.has(id)) selected.delete(id); else selected.add(id);
+  const n = allNews.find(a => a.id === id);
+  if (!n) return;
+  if (basket.has(n.link)) basket.delete(n.link); else basket.set(n.link, n);
   const card = document.getElementById('card-'+id);
   if (card) {
-    card.classList.toggle('selected', selected.has(id));
-    card.querySelector('.card-check').classList.toggle('on', selected.has(id));
+    card.classList.toggle('selected', basket.has(n.link));
+    card.querySelector('.card-check').classList.toggle('on', basket.has(n.link));
   }
   updateActionBar(); updateSelCount();
 }
-function selectAll() { filterByPeriod(allNews).forEach(n=>selected.add(n.id)); renderCards(allNews); updateActionBar(); }
-function clearSel()  { selected.clear(); renderCards(allNews); updateActionBar(); }
+function selectAll() { filterByPeriod(allNews).forEach(n=>{ if(!basket.has(n.link)) basket.set(n.link, n); }); renderCards(allNews); updateActionBar(); }
+function clearSel()  { basket.clear(); renderCards(allNews); updateActionBar(); }
+
+// 장바구니를 키워드별로 묶어서 반환 (키워드 내에서는 최신순)
+function groupedBasket() {
+  const groups = new Map();
+  basket.forEach(n => { const k = n.kw || '기타'; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(n); });
+  groups.forEach(list => list.sort((a,b) => b.date - a.date));
+  return groups;
+}
+function orderedBasket() { return [].concat(...[...groupedBasket().values()]); }
+
 function updateActionBar() {
-  document.getElementById('actionBar').classList.toggle('show', selected.size>0);
-  document.getElementById('selNum').textContent = selected.size;
+  document.getElementById('actionBar').classList.toggle('show', basket.size>0);
+  document.getElementById('selNum').textContent = basket.size;
+  const parts = [];
+  groupedBasket().forEach((list, k) => parts.push(`${k} ${list.length}건`));
+  document.getElementById('selKws').textContent = parts.length ? '· ' + parts.join(' · ') : '';
 }
 function updateSelCount() {
-  document.getElementById('selCount').textContent = selected.size>0 ? `· ${selected.size}개 선택됨` : '';
+  document.getElementById('selCount').textContent = basket.size>0 ? `· ${basket.size}개 선택됨` : '';
 }
 
 function openEmailModal() {
-  if (!selected.size) { alert('뉴스를 먼저 선택하세요.'); return; }
+  if (!basket.size) { alert('뉴스를 먼저 선택하세요.'); return; }
   renderEmailList(); renderPreview();
   document.getElementById('overlay').classList.add('open');
 }
@@ -610,49 +654,83 @@ function renderEmailList() {
 }
 
 function renderPreview() {
-  const sel = allNews.filter(n=>selected.has(n.id));
+  const sel = orderedBasket();
   document.getElementById('previewCount').textContent = sel.length;
   document.getElementById('previewBox').innerHTML = sel.map((n,i)=>
     `<div style="margin-bottom:8px">
       <span style="color:var(--accent);font-weight:700;font-size:11px">${i+1}</span>
+      <span class="kw-tag">${n.kw||''}</span>
       <a href="${n.link}" target="_blank" style="color:var(--primary);text-decoration:none;font-weight:600;font-size:12px"> ${n.title}</a><br>
       <span style="color:#B0B8C8;font-size:11px">${n.source} · ${formatDate(n.date)}</span>
     </div>`
   ).join('');
 }
 
-async function sendEmail() {
-  const to = emails.filter(e=>e.checked).map(e=>e.addr);
-  if (!to.length) { alert('수신자를 선택하세요.'); return; }
-  const sel = allNews.filter(n=>selected.has(n.id));
-  const kw  = document.getElementById('keyword').value.trim();
-  const btn = document.querySelector('.btn-send');
-  btn.disabled=true; btn.textContent='AI 요약 중…';
+// 공통 발송 로직 — 모달 발송과 자동 발송이 함께 사용
+// 키워드가 여러 개면 이메일 본문을 키워드별 섹션으로 묶어서 발송
+async function performSend(to, sel, onStatus) {
+  const status = onStatus || (()=>{});
+  const keywords = [...new Set(sel.map(n=>n.kw).filter(Boolean))];
+  const kwLabel = keywords.join(', ');
 
+  status('AI 요약 중…');
   let summary = '';
   try {
     const sRes = await fetch(SCRIPT_URL, {
       method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({ action:'summarize_news', keyword:kw,
+      body: JSON.stringify({ action:'summarize_news', keyword:kwLabel,
         articles: sel.map(n=>({title:n.title, source:n.source})) })
     });
     const sJson = await sRes.json();
     if (sJson.ok) summary = sJson.summary;
   } catch(_) {}
 
-  btn.textContent='발송 중…';
-  const subject = `[뉴스 클리핑] ${kw} — ${new Date().toLocaleDateString('ko-KR')}`;
+  status('발송 중…');
+  const subject = `[뉴스 클리핑] ${kwLabel} — ${new Date().toLocaleDateString('ko-KR')}`;
+
+  const groups = new Map();
+  sel.forEach(n => { const k = n.kw || '기타'; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(n); });
+  const multi = groups.size > 1;
+
+  let num = 0;
+  const bodySections = [];
+  groups.forEach((list, k) => {
+    const lines = list.map(n => { num++; return `${num}. ${n.title}\n   출처: ${n.source}\n   링크: ${n.link}`; });
+    bodySections.push((multi ? `■ 「${k}」 ${list.length}건\n\n` : '') + lines.join('\n\n'));
+  });
   const body = `안녕하세요, 사업지원팀입니다.\n\n`
     + (summary ? `[ AI 요약 ]\n${summary}\n\n` : '')
-    + `「${kw}」 관련 주요 뉴스 ${sel.length}건을 공유드립니다.\n\n`
-    + sel.map((n,i)=>`${i+1}. ${n.title}\n   출처: ${n.source}\n   링크: ${n.link}`).join('\n\n')
+    + `「${kwLabel}」 관련 주요 뉴스 ${sel.length}건을 공유드립니다.\n\n`
+    + bodySections.join('\n\n')
     + `\n\n감사합니다.`;
+
+  num = 0;
+  let rowsHtml = '';
+  groups.forEach((list, k) => {
+    if (multi) rowsHtml += `
+      <tr><td colspan="2" style="padding:18px 8px 6px">
+        <span style="display:inline-block;width:8px;height:8px;background:#F26300;border-radius:2px;margin-right:8px"></span>
+        <span style="font-size:14px;font-weight:700;color:#15237A">「${k}」</span>
+        <span style="font-size:11px;color:#6B7280"> ${list.length}건</span>
+      </td></tr>`;
+    list.forEach(n => { num++; rowsHtml += `
+      <tr>
+        <td style="padding:12px 8px;border-bottom:1px solid #F0F2F8;vertical-align:top;width:24px">
+          <span style="color:#F26300;font-weight:700;font-size:13px">${num}</span>
+        </td>
+        <td style="padding:12px 8px;border-bottom:1px solid #F0F2F8">
+          <a href="${n.link}" style="font-weight:700;color:#15237A;text-decoration:none;font-size:14px;line-height:1.4">${n.title}</a><br>
+          <span style="font-size:11px;color:#B0B8C8">${n.source} · ${formatDate(n.date)}</span>
+          ${n.desc?`<p style="font-size:12px;color:#6B7280;margin:4px 0 0;line-height:1.5;font-weight:300">${n.desc.slice(0,120)}…</p>`:''}
+        </td>
+      </tr>`; });
+  });
 
   const htmlBody = `
 <div style="font-family:'Noto Sans KR',sans-serif;max-width:680px;margin:0 auto;color:#272727">
   <div style="background:#15237A;padding:20px 28px;border-radius:6px 6px 0 0">
     <p style="color:rgba(255,255,255,0.5);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin:0 0 6px">NEWS CLIPPING</p>
-    <p style="color:#fff;font-size:18px;font-weight:700;margin:0">「${kw}」 뉴스 클리핑</p>
+    <p style="color:#fff;font-size:18px;font-weight:700;margin:0">「${kwLabel}」 뉴스 클리핑</p>
     <p style="color:rgba(255,255,255,0.5);font-size:12px;margin:4px 0 0">${new Date().toLocaleDateString('ko-KR')} · ${sel.length}건</p>
   </div>
   <div style="background:#fff;border:1px solid #D1D8E8;border-top:none;border-radius:0 0 6px 6px;padding:24px 28px">
@@ -663,17 +741,7 @@ async function sendEmail() {
     </div>` : ''}
     <p style="font-size:13px;color:#6B7280;margin:0 0 16px">총 <b style="color:#15237A">${sel.length}건</b>의 뉴스를 정리했습니다.</p>
     <table style="border-collapse:collapse;width:100%">
-      ${sel.map((n,i)=>`
-      <tr>
-        <td style="padding:12px 8px;border-bottom:1px solid #F0F2F8;vertical-align:top;width:24px">
-          <span style="color:#F26300;font-weight:700;font-size:13px">${i+1}</span>
-        </td>
-        <td style="padding:12px 8px;border-bottom:1px solid #F0F2F8">
-          <a href="${n.link}" style="font-weight:700;color:#15237A;text-decoration:none;font-size:14px;line-height:1.4">${n.title}</a><br>
-          <span style="font-size:11px;color:#B0B8C8">${n.source} · ${formatDate(n.date)}</span>
-          ${n.desc?`<p style="font-size:12px;color:#6B7280;margin:4px 0 0;line-height:1.5;font-weight:300">${n.desc.slice(0,120)}…</p>`:''}
-        </td>
-      </tr>`).join('')}
+      ${rowsHtml}
     </table>
     <p style="margin-top:24px;font-size:13px;color:#6B7280;border-top:1px solid #F0F2F8;padding-top:16px">
       감사합니다.<br><b style="color:#15237A">파리크라상 사업지원팀</b>
@@ -686,12 +754,78 @@ async function sendEmail() {
       method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({ action:'send_email', to, subject, body, htmlBody })
     });
-    const json = await res.json();
-    if (json.ok) { closeModal(); alert(`✅ ${to.length}명에게 발송 완료!`); }
-    else alert('발송 실패: '+(json.error||'알 수 없는 오류'));
-  } catch(e) { alert('발송 실패: '+e.message); }
-  finally { btn.disabled=false; btn.textContent='발송하기'; }
+    return await res.json();
+  } catch(e) { return { ok:false, error:e.message }; }
 }
+
+async function sendEmail() {
+  const to = emails.filter(e=>e.checked).map(e=>e.addr);
+  if (!to.length) { alert('수신자를 선택하세요.'); return; }
+  const sel = orderedBasket();
+  if (!sel.length) { alert('뉴스를 먼저 선택하세요.'); return; }
+  const btn = document.querySelector('.btn-send');
+  btn.disabled = true;
+  const json = await performSend(to, sel, s => btn.textContent = s);
+  btn.disabled = false; btn.textContent = '발송하기';
+  if (json.ok) { closeModal(); basket.clear(); renderCards(allNews); updateActionBar(); alert(`✅ ${to.length}명에게 발송 완료!`); }
+  else alert('발송 실패: '+(json.error||'알 수 없는 오류'));
+}
+
+/* ── 자동 발송 모드 ──
+   news_hub.html?auto=1 로 열면:
+   네이버 뉴스에서 키워드(기본 '파스쿠찌', ?kw=A,B 로 변경 가능)를
+   '오늘' 기간으로 검색 → 전체 선택 → 저장된 수신자에게 자동 발송.
+   하루 1회만 발송 (같은 날 재실행 시 건너뜀, ?force=1 로 강제 재발송) */
+function autoStatus(msg, done) {
+  const b = document.getElementById('autoBanner');
+  b.classList.add('show');
+  document.getElementById('autoSpin').style.display = done ? 'none' : '';
+  document.getElementById('autoMsg').textContent = msg;
+}
+
+async function runAutoMode() {
+  const kws = (AUTO_PARAMS.get('kw') || '파스쿠찌').split(',').map(s=>s.trim()).filter(Boolean);
+  const today = new Date().toDateString();
+
+  if (localStorage.getItem('auto_sent_date') === today && AUTO_PARAMS.get('force') !== '1') {
+    autoStatus('오늘은 이미 자동 발송을 완료했습니다. (재발송하려면 URL에 &force=1 추가)', true);
+    return;
+  }
+  const to = emails.filter(e=>e.checked).map(e=>e.addr);
+  if (!to.length) {
+    autoStatus('⚠️ 저장된 수신자가 없어 자동 발송할 수 없습니다. 뉴스 선택 → 이메일 발송 창에서 수신자를 먼저 등록해 두세요.', true);
+    return;
+  }
+
+  document.getElementById('source').value = 'naver';
+  const todayChip = document.querySelector('[data-period="1d"]');
+  if (todayChip) setPeriod(todayChip, '1d');
+
+  for (const kw of kws) {
+    autoStatus(`「${kw}」 뉴스 검색 중…`);
+    document.getElementById('keyword').value = kw;
+    await search();
+    selectAll();
+  }
+
+  const sel = orderedBasket();
+  if (!sel.length) {
+    autoStatus('오늘 날짜의 기사가 없어 발송하지 않았습니다.', true);
+    localStorage.setItem('auto_sent_date', today);
+    return;
+  }
+
+  const json = await performSend(to, sel, s => autoStatus(`${sel.length}건 ${s}`));
+  if (json.ok) {
+    localStorage.setItem('auto_sent_date', today);
+    autoStatus(`✅ 자동 발송 완료 — 뉴스 ${sel.length}건을 ${to.length}명에게 보냈습니다. 이 창은 닫으셔도 됩니다.`, true);
+    setTimeout(()=>window.close(), 15000);
+  } else {
+    autoStatus('❌ 자동 발송 실패: ' + (json.error||'알 수 없는 오류'), true);
+  }
+}
+
+if (AUTO_PARAMS.get('auto') === '1') window.addEventListener('DOMContentLoaded', runAutoMode);
 </script>
 </body>
 </html>
