@@ -617,7 +617,7 @@ async function analyzeTranscript(){
   body.innerHTML=`<div class="loading"><span class="spinner"></span> 회의 내용을 분석하고 있습니다…</div>`;
   const key=el('apiKey').value.trim();
   if(!key){
-    body.innerHTML=`<div class="a-block"><p style="color:var(--signal)">Gemini API 키가 없습니다.<br><button onclick="el('settings').open=true;el('apiKey').focus();el('apiKey').scrollIntoView({behavior:'smooth',block:'center'})" style="margin-top:10px;padding:8px 16px;background:var(--primary);color:#fff;border:none;border-radius:4px;font-size:13px;font-family:inherit;cursor:pointer">▶ API 키 입력하기</button></p></div>`;
+    body.innerHTML=`<div class="a-block"><p style="color:var(--signal)">Gemini API 키가 없습니다.<br><button onclick="el('settings').open=true;el('apiKey').focus();el('apiKey').scrollIntoView({behavior:'smooth',block:'center'})" style="margin-top:10px;padding:8px 16px;background:var(--primary);color:#fff;border:none;border-radius:4px;font-size:13px;font-family:inherit;cursor:pointer">▶ API 키 입력하기</button> <button onclick="analyzeTranscript()" style="margin-top:10px;padding:8px 16px;background:#fff;color:var(--primary);border:1px solid var(--primary);border-radius:4px;font-size:13px;font-family:inherit;cursor:pointer">🔄 키 입력 후 다시 분석</button></p></div>`;
     statusLabel.textContent='대기 중'; return;
   }
   try{
@@ -628,7 +628,7 @@ async function analyzeTranscript(){
     el('saveStatus').className='save-status ok';
     el('saveStatus').textContent='✓ 분석 완료';
   }catch(err){
-    body.innerHTML=`<div class="a-block"><p style="color:var(--signal)">분석 실패 — 아래 오류 상세를 확인하세요.</p></div>`;
+    body.innerHTML=`<div class="a-block"><p style="color:var(--signal)">분석 실패 — 아래 오류 상세를 확인하세요.</p><button onclick="analyzeTranscript()" style="margin-top:10px;padding:8px 16px;background:var(--primary);color:#fff;border:none;border-radius:4px;font-size:13px;font-family:inherit;cursor:pointer">🔄 다시 분석하기</button></div>`;
     showErr(err.message); statusLabel.textContent='대기 중'; return;
   }
   const su=el('sheetUrl').value.trim();
