@@ -587,7 +587,7 @@ async function callGemini(prompt){
   const url=`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
   let res;
   try{ res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},
-    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{response_mime_type:"application/json",temperature:0.3,maxOutputTokens:2048}})}); }
+    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{response_mime_type:"application/json",temperature:0.3,maxOutputTokens:8192,thinkingConfig:{thinkingBudget:0}}})}); }
   catch(e){ throw new Error(`네트워크 오류(${e.message}).`); }
   const raw=await res.text();
   if(!res.ok){
@@ -605,7 +605,8 @@ function parseAnalysisJSON(text){
   let t=text.replace(/```json|```/g,'').trim();
   const i=t.indexOf('{'),j=t.lastIndexOf('}');
   if(i>=0&&j>i)t=t.slice(i,j+1);
-  return JSON.parse(t);
+  try{ return JSON.parse(t); }
+  catch(e){ throw new Error(`AI 응답 JSON 해석 실패 — 응답이 중간에 잘렸을 수 있습니다. 다시 시도해보세요.\n(${e.message})\n응답 앞부분: ${t.slice(0,200)}`); }
 }
 function showErr(msg){el('errBox').innerHTML=`<div class="err-box"><b>오류 상세</b><br>${escapeHtml(msg)}</div>`;}
 function clearErr(){el('errBox').innerHTML='';}
@@ -627,7 +628,7 @@ async function analyzeTranscript(){
     el('saveStatus').className='save-status ok';
     el('saveStatus').textContent='✓ 분석 완료';
   }catch(err){
-    body.innerHTML=`<div class="a-block"><p style="color:var(--signal)">분석 실패 — API 키를 확인하세요.</p></div>`;
+    body.innerHTML=`<div class="a-block"><p style="color:var(--signal)">분석 실패 — 아래 오류 상세를 확인하세요.</p></div>`;
     showErr(err.message); statusLabel.textContent='대기 중'; return;
   }
   const su=el('sheetUrl').value.trim();
