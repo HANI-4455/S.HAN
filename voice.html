@@ -387,6 +387,15 @@ textarea#memo::placeholder { color: #B0B8C8; }
         <input id="sheetOpenUrl" type="text" placeholder="https://docs.google.com/spreadsheets/d/.../edit" />
         <div class="hint">시트 주소를 넣으면 아래 "시트 열기" 버튼으로 바로 열 수 있습니다.</div>
       </div>
+      <div>
+        <label for="pptEmailInput">PPT 받을 이메일 (여러 명 가능)</label>
+        <div id="pptEmailChips" style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0"></div>
+        <div style="display:flex;gap:6px">
+          <input id="pptEmailInput" type="email" placeholder="name@example.com 입력 후 추가" style="flex:1" />
+          <button type="button" id="pptEmailAddBtn" style="padding:8px 16px;background:var(--primary);color:#fff;border:none;border-radius:4px;font-size:13px;font-family:inherit;cursor:pointer;white-space:nowrap">+ 추가</button>
+        </div>
+        <div class="hint">"PPT 메일 발송" 버튼을 누르면 목록의 모든 주소로 분석 PPT가 첨부되어 발송됩니다. (Apps Script 경유)</div>
+      </div>
     </div>
   </details>
 
@@ -427,7 +436,7 @@ textarea#memo::placeholder { color: #B0B8C8; }
     <div class="save-bar">
       <button class="btn-sheet" id="sheetBtn"><span class="ic"></span>시트에 추가</button>
       <button class="btn-dl" id="dlBtn"><span class="ic"></span>.md 내려받기</button>
-      <button class="btn-dl" id="pptBtn"><span class="ic"></span>PPT 내려받기</button>
+      <button class="btn-dl" id="pptBtn"><span class="ic"></span>PPT 메일 발송</button>
       <button class="btn-drive" id="sheetOpenBtn" onclick="openSheet()"><span class="ic"></span>시트 열기 ↗</button>
     </div>
     <div class="save-status" id="saveStatus"></div>
@@ -776,16 +785,63 @@ function buildPptx(){
     border:{type:'solid',pt:0.5,color:C.line},valign:'middle',rowH:0.42,margin:0.08});
   return pptx;
 }
-async function downloadPpt(){
+/* ─── PPT 메일 수신자 관리 ─── */
+const DEFAULT_PPT_EMAILS=['love1004kis@gmail.com'];
+function getPptEmails(){
+  try{const v=JSON.parse(localStorage.getItem('mr_ppt_emails')||'null');return Array.isArray(v)&&v.length?v:DEFAULT_PPT_EMAILS.slice();}
+  catch(_){return DEFAULT_PPT_EMAILS.slice();}
+}
+function savePptEmails(list){try{localStorage.setItem('mr_ppt_emails',JSON.stringify(list));}catch(_){}}
+function renderPptEmails(){
+  const list=getPptEmails();
+  el('pptEmailChips').innerHTML=list.map((em,i)=>
+    `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:#EEF1F9;border:1px solid #C8D1E8;border-radius:20px;font-size:12px;color:var(--secondary)">${em}
+       <button type="button" onclick="removePptEmail(${i})" style="background:none;border:none;color:#EF4444;font-size:13px;cursor:pointer;padding:0;line-height:1">✕</button>
+     </span>`).join('');
+}
+function removePptEmail(i){
+  const list=getPptEmails(); list.splice(i,1); savePptEmails(list); renderPptEmails();
+}
+function addPptEmail(){
+  const inp=el('pptEmailInput'); const em=inp.value.trim();
+  if(!em)return;
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){alert('이메일 형식이 올바르지 않습니다: '+em);return;}
+  const list=getPptEmails();
+  if(list.includes(em)){alert('이미 목록에 있는 주소입니다.');inp.value='';return;}
+  list.push(em); savePptEmails(list); renderPptEmails(); inp.value=''; inp.focus();
+}
+
+/* ─── PPT 생성 후 Apps Script로 메일 발송 ─── */
+async function sendPptMail(){
   if(!analysis){alert('먼저 "종료 · AI 분석"으로 분석을 완료하세요.\n(.md 불러와서 재분석으로도 가능합니다)');return;}
+  const su=el('sheetUrl').value.trim();
+  if(!su){alert('연동 설정의 Apps Script 웹앱 URL이 비어 있습니다.\n메일 발송은 Apps Script를 통해 이뤄집니다.');el('settings').open=true;return;}
+  const to=getPptEmails();
+  if(!to.length){alert('받을 이메일이 없습니다. 연동 설정에서 수신자를 추가하세요.');el('settings').open=true;return;}
+  if(!confirm(`다음 ${to.length}명에게 분석 PPT를 발송할까요?\n\n${to.join('\n')}`))return;
   const btn=el('pptBtn'); btn.disabled=true; const orig=btn.innerHTML;
-  btn.innerHTML='<span class="spinner"></span>PPT 생성 중…';
+  const status=el('saveStatus');
+  btn.innerHTML='<span class="spinner"></span>PPT 생성·발송 중…';
   try{
     await loadPptxLib();
     const fname=el('title').value.replace(/[\/\\:*?"<>|]/g,' ').trim()+'.pptx';
-    await buildPptx().writeFile({fileName:fname});
-  }catch(e){alert('PPT 생성 실패: '+e.message);}
-  finally{btn.disabled=false;btn.innerHTML=orig;}
+    const b64=await buildPptx().write('base64');
+    const payload=JSON.stringify({action:'sendPpt',to:to.join(','),filename:fname,base64:b64});
+    let ok=false,msg='';
+    try{
+      const res=await fetch(su,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:payload});
+      const txt=await res.text();
+      try{const j=JSON.parse(txt);ok=!!j.ok;msg=j.error||'';}
+      catch(_){ok=false;msg='Apps Script 응답을 해석할 수 없습니다 — 스크립트에 sendPpt 처리가 추가됐는지 확인하세요.';}
+    }catch(_){
+      await fetch(su,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:payload});
+      ok=true;msg='(전송됨 — 수신함에서 확인하세요)';
+    }
+    status.className='save-status '+(ok?'ok':'err');
+    status.textContent=ok?`✓ ${to.length}명에게 PPT를 발송했습니다. ${msg}`:`⚠ 발송 실패: ${msg||'Apps Script에 sendPpt 처리가 추가돼 있는지 확인하세요.'}`;
+  }catch(e){
+    status.className='save-status err'; status.textContent='PPT 발송 실패: '+e.message;
+  }finally{btn.disabled=false;btn.innerHTML=orig;}
 }
 
 /* .md 불러오기: 내려받았던 회의록에서 전사·메모를 복원해 재분석 */
@@ -827,7 +883,10 @@ el('pauseBtn').onclick = togglePause;
 el('stopBtn').onclick = stopAndAnalyze;
 el('sheetBtn').onclick = () => appendToSheet();
 el('dlBtn').onclick = downloadMd;
-el('pptBtn').onclick = downloadPpt;
+el('pptBtn').onclick = sendPptMail;
+el('pptEmailAddBtn').onclick = addPptEmail;
+el('pptEmailInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addPptEmail();}});
+renderPptEmails();
 </script>
 </body>
 </html>
