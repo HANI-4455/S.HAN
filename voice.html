@@ -427,6 +427,7 @@ textarea#memo::placeholder { color: #B0B8C8; }
     <div class="save-bar">
       <button class="btn-sheet" id="sheetBtn"><span class="ic"></span>시트에 추가</button>
       <button class="btn-dl" id="dlBtn"><span class="ic"></span>.md 내려받기</button>
+      <button class="btn-dl" id="pptBtn"><span class="ic"></span>PPT 내려받기</button>
       <button class="btn-drive" id="sheetOpenBtn" onclick="openSheet()"><span class="ic"></span>시트 열기 ↗</button>
     </div>
     <div class="save-status" id="saveStatus"></div>
@@ -717,6 +718,76 @@ function downloadMd(){
   a.href=url; a.download=fname; a.click(); URL.revokeObjectURL(url);
 }
 
+/* ─── PPT 추출 (파리크라상 브랜드 가이드 적용) ─── */
+function loadPptxLib(){
+  if(window.PptxGenJS)return Promise.resolve();
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';
+    s.onload=res; s.onerror=()=>rej(new Error('PPT 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.'));
+    document.head.appendChild(s);
+  });
+}
+function buildPptx(){
+  const C={primary:'15237A',secondary:'2F497D',accent:'F26300',text:'272727',muted:'6B7280',line:'D1D8E8'};
+  const F='Pretendard';
+  const a=analysis||{};
+  const pptx=new PptxGenJS(); pptx.layout='LAYOUT_16x9';
+  const brand=s=>s.addText('Paris Croissant · 사업지원팀',{x:6.6,y:0.22,w:3.1,h:0.3,fontSize:9,color:C.muted,align:'right',fontFace:F});
+  const header=(s,num,title)=>{
+    s.background={color:'FFFFFF'}; brand(s);
+    s.addText(num,{x:0.5,y:0.3,w:0.75,h:0.55,fontSize:26,bold:true,color:C.accent,fontFace:F});
+    s.addText(title,{x:1.15,y:0.36,w:6,h:0.5,fontSize:20,bold:true,color:C.primary,fontFace:F});
+    s.addShape('rect',{x:0.55,y:1.0,w:0.4,h:0.035,fill:{color:C.accent}});
+    s.addShape('rect',{x:0.95,y:1.01,w:2.4,h:0.018,fill:{color:C.line}});
+  };
+  const bullets=(s,arr,empt,y,h)=>{
+    const items=(arr&&arr.length)?arr:null;
+    s.addText(items?items.map(t=>({text:String(t),options:{bullet:{code:'2022'},color:C.text,breakLine:true}})):[{text:empt,options:{color:C.muted}}],
+      {x:0.6,y:y,w:8.8,h:h,fontSize:13,fontFace:F,valign:'top',lineSpacingMultiple:1.25});
+  };
+  /* 표지 */
+  let s=pptx.addSlide(); s.background={color:'FFFFFF'}; brand(s);
+  s.addShape('rect',{x:0,y:0,w:10,h:0.1,fill:{color:C.primary}});
+  s.addText('MEETING REPORT',{x:0.7,y:1.7,w:5,h:0.35,fontSize:12,bold:true,color:C.accent,charSpacing:3,fontFace:F});
+  s.addText(el('title').value||'회의록',{x:0.68,y:2.05,w:8.6,h:0.85,fontSize:30,bold:true,color:C.primary,fontFace:F});
+  s.addShape('rect',{x:0.72,y:3.0,w:0.5,h:0.04,fill:{color:C.accent}});
+  s.addShape('rect',{x:1.22,y:3.01,w:3.0,h:0.02,fill:{color:C.line}});
+  s.addText(`일시  ${dateStr} (${dow}) ${timeStr}     길이  ${el('clock').textContent}     전사  ${segments.length}구간`,
+    {x:0.7,y:3.25,w:8.6,h:0.35,fontSize:12,color:C.muted,fontFace:F});
+  /* 01 요약 */
+  s=pptx.addSlide(); header(s,'01','회의 요약');
+  s.addText(a.summary||'(분석 요약 없음)',{x:0.6,y:1.35,w:8.8,h:1.6,fontSize:14,color:C.text,fontFace:F,valign:'top',lineSpacingMultiple:1.35});
+  s.addText('논의 주제',{x:0.6,y:3.1,w:4,h:0.35,fontSize:15,bold:true,color:C.primary,fontFace:F});
+  bullets(s,a.topics,'기록 없음',3.5,1.7);
+  /* 02 결정 사항 · 후속 확인 */
+  s=pptx.addSlide(); header(s,'02','결정 사항 · 후속 확인');
+  s.addText('결정 사항',{x:0.6,y:1.3,w:4,h:0.35,fontSize:15,bold:true,color:C.primary,fontFace:F});
+  bullets(s,a.decisions,'명시적 결정 없음',1.7,1.5);
+  s.addText('후속 확인',{x:0.6,y:3.3,w:4,h:0.35,fontSize:15,bold:true,color:C.primary,fontFace:F});
+  bullets(s,a.followups,'없음',3.7,1.5);
+  /* 03 액션 아이템 */
+  s=pptx.addSlide(); header(s,'03','액션 아이템');
+  const rows=[['할 일','담당','기한'].map(t=>({text:t,options:{bold:true,color:'FFFFFF',fill:{color:C.secondary},fontSize:12}}))];
+  if(a.actionItems&&a.actionItems.length)
+    a.actionItems.forEach(it=>rows.push([{text:it.task||''},{text:it.owner||'미정'},{text:it.due||'미정'}]));
+  else rows.push([{text:'기록된 액션 아이템이 없습니다.',options:{color:C.muted}},{text:'-'},{text:'-'}]);
+  s.addTable(rows,{x:0.6,y:1.35,w:8.8,colW:[5.4,1.7,1.7],fontFace:F,fontSize:12,color:C.text,
+    border:{type:'solid',pt:0.5,color:C.line},valign:'middle',rowH:0.42,margin:0.08});
+  return pptx;
+}
+async function downloadPpt(){
+  if(!analysis){alert('먼저 "종료 · AI 분석"으로 분석을 완료하세요.\n(.md 불러와서 재분석으로도 가능합니다)');return;}
+  const btn=el('pptBtn'); btn.disabled=true; const orig=btn.innerHTML;
+  btn.innerHTML='<span class="spinner"></span>PPT 생성 중…';
+  try{
+    await loadPptxLib();
+    const fname=el('title').value.replace(/[\/\\:*?"<>|]/g,' ').trim()+'.pptx';
+    await buildPptx().writeFile({fileName:fname});
+  }catch(e){alert('PPT 생성 실패: '+e.message);}
+  finally{btn.disabled=false;btn.innerHTML=orig;}
+}
+
 /* .md 불러오기: 내려받았던 회의록에서 전사·메모를 복원해 재분석 */
 function importMd(file){
   const reader=new FileReader();
@@ -756,6 +827,7 @@ el('pauseBtn').onclick = togglePause;
 el('stopBtn').onclick = stopAndAnalyze;
 el('sheetBtn').onclick = () => appendToSheet();
 el('dlBtn').onclick = downloadMd;
+el('pptBtn').onclick = downloadPpt;
 </script>
 </body>
 </html>
