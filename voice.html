@@ -805,7 +805,7 @@ function removePptEmail(i){
 function addPptEmail(){
   const inp=el('pptEmailInput'); const em=inp.value.trim();
   if(!em)return;
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){alert('이메일 형식이 올바르지 않습니다: '+em);return;}
+  if(!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(em)){alert('이메일 형식이 올바르지 않습니다: '+em+'\n(콤마·세미콜론·공백은 넣을 수 없습니다. .kr 을 ,kr 로 잘못 쓰지 않았는지 확인하세요.)');return;}
   const list=getPptEmails();
   if(list.includes(em)){alert('이미 목록에 있는 주소입니다.');inp.value='';return;}
   list.push(em); savePptEmails(list); renderPptEmails(); inp.value=''; inp.focus();
@@ -816,8 +816,13 @@ async function sendPptMail(){
   if(!analysis){alert('먼저 "종료 · AI 분석"으로 분석을 완료하세요.\n(.md 불러와서 재분석으로도 가능합니다)');return;}
   const su=el('sheetUrl').value.trim();
   if(!su){alert('연동 설정의 Apps Script 웹앱 URL이 비어 있습니다.\n메일 발송은 Apps Script를 통해 이뤄집니다.');el('settings').open=true;return;}
-  const to=getPptEmails();
-  if(!to.length){alert('받을 이메일이 없습니다. 연동 설정에서 수신자를 추가하세요.');el('settings').open=true;return;}
+  const rawList=getPptEmails();
+  if(!rawList.length){alert('받을 이메일이 없습니다. 연동 설정에서 수신자를 추가하세요.');el('settings').open=true;return;}
+  /* 콤마·세미콜론이 섞인 항목을 분해하고 형식을 검증 — "잘못된 이메일: kr" 서버 오류 방지 */
+  const EMAIL_RE=/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
+  const to=rawList.flatMap(e=>String(e).split(/[,;]+/)).map(s=>s.trim()).filter(Boolean);
+  const bad=to.filter(e=>!EMAIL_RE.test(e));
+  if(bad.length){alert('수신자 목록에 잘못된 이메일이 있습니다:\n\n'+bad.join('\n')+'\n\n연동 설정에서 해당 주소를 수정/삭제하세요.\n(예: .kr 을 ,kr 로 잘못 입력한 경우)');el('settings').open=true;return;}
   if(!confirm(`다음 ${to.length}명에게 분석 PPT를 발송할까요?\n\n${to.join('\n')}`))return;
   const btn=el('pptBtn'); btn.disabled=true; const orig=btn.innerHTML;
   const status=el('saveStatus');
