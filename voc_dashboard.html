@@ -606,14 +606,34 @@ function aggregate(month, rows){
         act:'사실관계 확인 및 대응 방안 수립 (자동 추출 — 원문 확인 후 수정 필요)'});
     }
   });
+  /* 반복 발생 요약: 해당 건들의 유형 구성 + 날짜별 내역을 자동 정리 */
+  const summarize = (items, opt) => {
+    opt = opt || {};
+    const tys = topN(cnt(items,'유형(소)'),99).map(([k,v])=>v>1?`${k} ${v}건`:k).join(', ');
+    const lines = items.slice().sort((a,b)=>a._d-b._d).slice(0,6)
+      .map(r=>{
+        const store = opt.noStore ? '' : ' '+stripStore(String(r['매장명']||''));
+        const prod = (opt.noProd || !r['제품명']) ? '' : '·'+r['제품명'];
+        return `${md(r._d)}${store}${prod} ${String(r['VOC제목']||r['유형(소)']||'').replace(/\n.*/s,'').slice(0,40)}`;
+      }).join(' / ');
+    return {tys, lines, more: items.length>6 ? ` 외 ${items.length-6}건` : ''};
+  };
   topN(cnt(rows.filter(r=>r['제품명']),'제품명'),3).filter(x=>x[1]>=3).forEach(x=>{
+    const items = rows.filter(r=>r['제품명']===x[0]);
+    const s = summarize(items, {noProd:true});
+    const span = `${md(items.reduce((a,b)=>a._d<b._d?a:b)._d)} ~ ${md(items.reduce((a,b)=>a._d>b._d?a:b)._d)}`;
     issues.push({tag:'repeat', label:TAGS.repeat, title:`${x[0]} VOC ${x[1]}건 — 동일 제품 반복`,
-      meta:`${label} · 제품 반복 발생`, body:'동일 제품에서 당월 3건 이상 VOC 발생. 원문 확인 후 발생 유형·원인을 요약해 주세요.',
+      meta:`${span} · ${new Set(items.map(r=>stripStore(String(r['매장명']||'')))).size}개 매장`,
+      body:`발생 유형: ${s.tys}. 내역: ${s.lines}${s.more}`,
       act:'원재료·생산라인 점검 및 담당 PM 원인 회신 관리'});
   });
   topN(cnt(rows.map(r=>({s:stripStore(String(r['매장명']||''))})),'s'),3).filter(x=>x[1]>=3).forEach(x=>{
+    const items = rows.filter(r=>stripStore(String(r['매장명']||''))===x[0]);
+    const s = summarize(items, {noStore:true});
+    const span = `${md(items.reduce((a,b)=>a._d<b._d?a:b)._d)} ~ ${md(items.reduce((a,b)=>a._d>b._d?a:b)._d)}`;
     issues.push({tag:'repeat', label:TAGS.repeat, title:`${x[0]}점 VOC ${x[1]}건 — 단일 매장 다발`,
-      meta:`${label} · 매장 반복 발생`, body:'단일 매장에서 당월 3건 이상 VOC 발생. 원문 확인 후 공통 원인 여부를 요약해 주세요.',
+      meta:`${span} · 매장 반복 발생`,
+      body:`발생 유형: ${s.tys}. 내역: ${s.lines}${s.more}`,
       act:'담당 SV 현장 점검 및 개선 조치 회신'});
   });
   return { key:month, label, total:rows.length,
