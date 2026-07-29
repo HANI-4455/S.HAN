@@ -704,60 +704,60 @@
   },
   "thr": {
     "매출달성율": {
-      "dir": "off",
+      "dir": "high",
       "green": 0,
       "yellow": 0
     },
     "점당매출신장": {
-      "dir": "off",
+      "dir": "high",
       "green": 0,
       "yellow": 0
     },
     "푸드매출점유비": {
-      "dir": "off",
+      "dir": "high",
       "green": 0,
       "yellow": 0
     },
     "신제품취급율": {
-      "dir": "off",
+      "dir": "high",
       "green": 0,
       "yellow": 0
     },
     "위생법규적발": {
-      "dir": "off",
+      "dir": "low",
       "green": 0,
       "yellow": 0
     },
     "위생등급제취득율": {
-      "dir": "off",
+      "dir": "high",
       "green": 0,
       "yellow": 0
     },
     "품질점검": {
-      "dir": "off",
+      "dir": "high",
       "green": 0,
       "yellow": 0
     },
     "체크리스트등록율": {
-      "dir": "off",
+      "dir": "high",
       "green": 0,
       "yellow": 0
     },
     "고객소통지수(A)": {
-      "dir": "off",
+      "dir": "high",
       "green": 0,
       "yellow": 0
     },
     "점포회전율": {
-      "dir": "off",
+      "dir": "high",
       "green": 0,
       "yellow": 0
     },
     "컨설팅조회율": {
-      "dir": "off",
+      "dir": "high",
       "green": 0,
       "yellow": 0
     }
   },
-  "exportedAt": "2026-07-28T23:28:34.610Z"
+  "exportedAt": "2026-07-29T23:09:48.739Z"
 }
