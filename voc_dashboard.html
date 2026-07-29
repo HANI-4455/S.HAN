@@ -272,9 +272,24 @@ td.c, th.c{text-align:center}
           <div id="issEditor"></div>
           <button class="btn line" id="issAdd" style="margin-top:6px">+ 이슈 카드 추가</button>
         </div></div>
-        <div class="step"><div class="sn">5</div><div>
-          <button class="btn" id="upPublish">voc_data.json 생성 · 다운로드</button>
-          <div class="hint" id="pubHint" style="margin-top:8px"></div>
+        <div class="step"><div class="sn">5</div><div style="flex:1">
+          <label class="fld">원클릭 배포 — GitHub에 자동 반영 (1~2분 후 대시보드 갱신)</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+            <input type="password" id="ghToken" placeholder="GitHub 토큰 (최초 1회 입력)" style="font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:5px;padding:7px 10px;width:280px">
+            <button class="btn line" id="ghSave">토큰 저장</button>
+            <span id="ghState" class="hint"></span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn" id="upDeploy">원클릭 배포 (집계 + 원본 엑셀 업로드)</button>
+            <button class="btn line" id="upPublish">voc_data.json만 다운로드 (수동 배포용)</button>
+          </div>
+          <div id="deployLog" class="hint" style="margin-top:8px"></div>
+          <div class="hint" style="margin-top:10px">
+            <b>토큰 만들기(최초 1회, 5분)</b> — GitHub 로그인 → <code>Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token</code>
+            → Repository access: <code>Only select repositories → HANI-4455/S.HAN</code> → Permissions: <code>Contents → Read and write</code> → 생성된 <code>github_pat_…</code> 값을 위에 붙여넣고 저장.
+            토큰은 이 브라우저에만 저장되며(localStorage), 절대 다른 사람과 공유하지 마세요.
+          </div>
+          <div class="hint" id="pubHint" style="margin-top:6px"></div>
         </div></div>
       </div>
     </div>
@@ -520,7 +535,7 @@ g('pptBtn').onclick = ()=>{
 };
 
 /* ---------- 월별 업데이트(관리자) ---------- */
-let upBlock = null;
+let upBlock = null, upFilesMeta = [];
 g('upRun').onclick = async ()=>{
   const st = g('upStatus'); st.className=''; st.textContent='';
   const month = g('upMonth').value;
@@ -528,11 +543,15 @@ g('upRun').onclick = async ()=>{
   if(!month){ st.className='err'; st.textContent='대상 월을 선택하세요.'; return; }
   if(!files.length){ st.className='err'; st.textContent='엑셀 파일을 선택하세요.'; return; }
   try{
-    let rows = [];
+    let rows = []; upFilesMeta = [];
     for(const f of files){
       const wb = XLSX.read(await f.arrayBuffer(), {cellDates:true});
       const ws = wb.Sheets[wb.SheetNames[0]];
-      rows = rows.concat(XLSX.utils.sheet_to_json(ws, {defval:null}));
+      const fr = XLSX.utils.sheet_to_json(ws, {defval:null});
+      /* 파일 종류 자동 구분: 유형(대)가 제품/이물질 위주면 제품 파일 */
+      const pc = fr.filter(r=>['제품','이물질'].includes(r['유형(대)'])).length;
+      upFilesMeta.push({file:f, kind: pc > fr.length/2 ? 'prod' : 'svc'});
+      rows = rows.concat(fr);
     }
     rows = rows.filter(r=>r['등록일']);
     rows.forEach(r=>{ r._d = toDate(r['등록일']); });
@@ -540,7 +559,13 @@ g('upRun').onclick = async ()=>{
     rows = rows.filter(r=>r._d && ym(r._d)===month);
     if(!rows.length){ st.className='err'; st.textContent=`선택한 파일에 ${month} 등록 건이 없습니다. 추출 기간을 확인하세요.`; return; }
     upBlock = aggregate(month, rows);
-    st.textContent = `집계 완료: ${month} 총 ${upBlock.total}건 (이물질 ${upBlock.forb.length}건) · 이슈 후보 ${upBlock.issues.length}건`;
+    /* 실제 업로드된 파일 종류만 raw 목록에 반영 */
+    const kinds = new Set(upFilesMeta.map(x=>x.kind));
+    upBlock.raw = [];
+    if(kinds.has('svc')) upBlock.raw.push({label:`서비스 VOC 원본 (${upBlock.label})`, file:`voc_raw/${month}_서비스VOC.xlsx`});
+    if(kinds.has('prod')) upBlock.raw.push({label:`제품·이물질 VOC 원본 (${upBlock.label})`, file:`voc_raw/${month}_제품이물질VOC.xlsx`});
+    const kindTxt = upFilesMeta.map(x=>`${x.file.name}→${x.kind==='prod'?'제품·이물질':'서비스'}`).join(' · ');
+    st.textContent = `집계 완료: ${month} 총 ${upBlock.total}건 (이물질 ${upBlock.forb.length}건) · 이슈 후보 ${upBlock.issues.length}건 · 파일 구분: ${kindTxt}`;
     renderIssueEditor(upBlock.issues);
     g('upResult').style.display='block';
     g('pubHint').innerHTML = pubHintText(month);
@@ -633,19 +658,85 @@ function collectIssues(){
   })).filter(x=>x.title);
 }
 function pubHintText(month){
-  return `발행 후 할 일 — ① 다운로드된 <code>voc_data.json</code>으로 저장소의 기존 파일 교체 ② 원본 엑셀 2개를
-  <code>voc_raw/${month}_서비스VOC.xlsx</code>, <code>voc_raw/${month}_제품이물질VOC.xlsx</code> 이름으로 저장소 voc_raw 폴더에 추가
-  ③ S.HAN 저장소에 commit & push (Claude에게 "S.HAN에 VOC ${month} 업데이트 올려줘"라고 요청해도 됩니다)`;
+  return `수동 배포 시 — ① 다운로드된 <code>voc_data.json</code>으로 저장소의 기존 파일 교체 ② 원본 엑셀을
+  <code>voc_raw/${month}_서비스VOC.xlsx</code>, <code>voc_raw/${month}_제품이물질VOC.xlsx</code> 이름으로 voc_raw 폴더에 추가
+  ③ commit & push (Claude에게 "S.HAN에 VOC ${month} 업데이트 올려줘"라고 요청해도 됩니다)`;
 }
-g('upPublish').onclick = ()=>{
-  if(!upBlock) return;
+function buildMerged(){
   upBlock.issues = collectIssues();
   const base = DATA || {updated:'', months:[]};
   const months = base.months.filter(x=>x.key!==upBlock.key).concat([upBlock]).sort((a,b)=>a.key<b.key?-1:1);
-  const out = {updated:new Date().toISOString().slice(0,10), months};
+  return {updated:new Date().toISOString().slice(0,10), months};
+}
+g('upPublish').onclick = ()=>{
+  if(!upBlock) return;
+  const out = buildMerged();
   const blob = new Blob([JSON.stringify(out,null,1)], {type:'application/json'});
   const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='voc_data.json'; a.click();
   URL.revokeObjectURL(a.href);
+};
+
+/* ---------- 원클릭 배포 (GitHub API) ---------- */
+const GH_REPO = 'HANI-4455/S.HAN', GH_KEY = 'voc_gh_token';
+function ghToken(){ return localStorage.getItem(GH_KEY) || ''; }
+function ghState(){
+  g('ghState').textContent = ghToken() ? '✓ 토큰 저장됨 (이 브라우저)' : '토큰이 없습니다 — 아래 안내를 따라 만들어 주세요';
+}
+ghState();
+g('ghSave').onclick = ()=>{
+  const v = g('ghToken').value.trim();
+  if(v){ localStorage.setItem(GH_KEY, v); g('ghToken').value=''; }
+  else if(confirm('입력값이 비어 있습니다. 저장된 토큰을 삭제할까요?')) localStorage.removeItem(GH_KEY);
+  ghState();
+};
+
+function b64utf8(str){ return btoa(unescape(encodeURIComponent(str))); }
+function b64buf(buf){
+  const u8 = new Uint8Array(buf); let s='';
+  for(let i=0;i<u8.length;i+=8192) s += String.fromCharCode.apply(null, u8.subarray(i,i+8192));
+  return btoa(s);
+}
+async function ghPut(path, contentB64, msg, log){
+  const url = `https://api.github.com/repos/${GH_REPO}/contents/${encodeURI(path)}`;
+  const hd = {Authorization:`Bearer ${ghToken()}`, Accept:'application/vnd.github+json'};
+  let sha = null;
+  const cur0 = await fetch(url, {headers:hd, cache:'no-store'});
+  if(cur0.ok) sha = (await cur0.json()).sha;
+  else if(cur0.status===401) throw new Error('토큰 인증 실패(401) — 토큰이 만료되었거나 잘못되었습니다. 새 토큰을 저장해 주세요.');
+  else if(cur0.status !== 404) throw new Error(`${path} 조회 실패 (HTTP ${cur0.status})`);
+  const res = await fetch(url, {method:'PUT', headers:hd,
+    body: JSON.stringify({message:msg, content:contentB64, ...(sha?{sha}:{})})});
+  if(!res.ok){
+    const t = await res.text();
+    if(res.status===401) throw new Error('토큰 인증 실패(401) — 토큰이 만료되었거나 잘못되었습니다. 새 토큰을 저장해 주세요.');
+    if(res.status===403||res.status===404) throw new Error(`권한 오류(${res.status}) — 토큰의 Repository access에 S.HAN, Permissions에 Contents(Read and write)가 있는지 확인하세요.`);
+    throw new Error(`${path} 업로드 실패 (HTTP ${res.status}): ${t.slice(0,120)}`);
+  }
+  log(`✓ ${path} 반영 완료`);
+}
+
+g('upDeploy').onclick = async ()=>{
+  const lg = g('deployLog');
+  const log = s=>{ lg.innerHTML += s+'<br>'; };
+  lg.innerHTML='';
+  if(!upBlock){ lg.innerHTML='먼저 3단계 [집계 실행]을 눌러 주세요.'; return; }
+  if(!ghToken()){ lg.innerHTML='GitHub 토큰이 없습니다. 아래 안내대로 토큰을 만들어 저장한 뒤 다시 눌러 주세요.'; g('ghToken').focus(); return; }
+  const month = upBlock.key;
+  const btn = g('upDeploy'); btn.disabled = true;
+  try{
+    log(`배포 시작 — ${month} (총 ${upBlock.total}건)`);
+    const out = buildMerged();
+    const msg = `VOC ${month} 월간 업데이트 (대시보드 원클릭 배포)`;
+    await ghPut('voc_data.json', b64utf8(JSON.stringify(out,null,1)), msg, log);
+    for(const fm of upFilesMeta){
+      const name = fm.kind==='prod' ? `${month}_제품이물질VOC.xlsx` : `${month}_서비스VOC.xlsx`;
+      await ghPut(`voc_raw/${name}`, b64buf(await fm.file.arrayBuffer()), msg, log);
+    }
+    DATA = out;
+    init();
+    log(`<b style="color:#15237A">배포 완료!</b> 대시보드에 ${month} 탭이 추가되었습니다. GitHub Pages 반영까지 1~2분, 다른 PC에서는 캐시로 최대 10분 걸릴 수 있습니다.`);
+  }catch(err){ log(`<span style="color:#C0392B">오류: ${err.message}</span>`); }
+  finally{ btn.disabled = false; }
 };
 </script>
 </body>
