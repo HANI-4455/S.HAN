@@ -6,6 +6,7 @@
 <title>가맹영업 주요 지표 대시보드</title>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <style>
   :root{
     --primary:#15237A;   /* 다크 블루 */
@@ -142,6 +143,8 @@
   <div class="toolbar">
     <label>기준일자</label>
     <select id="dateSel" title="업로드된 일자 이력"></select>
+    <button class="btn" id="btnPpt">⬇ PPT 다운로드</button>
+    <button class="btn" id="btnData">⬇ 엑셀 다운로드</button>
     <button class="btn admin-only" id="btnThr">⚙ 신호등 기준 설정</button>
     <button class="btn admin-only" id="btnTpl">⬇ 엑셀 양식 받기</button>
     <div class="spacer"></div>
@@ -645,6 +648,109 @@ function applyMode(){
   updatePubNote();
 }
 
+/* ---------- 엑셀(업로드 데이터) 다운로드 — 모두 사용 가능 ---------- */
+function exportData(){
+  const data=store[curDate];
+  if(!data){ alert('다운로드할 데이터가 없습니다.'); return; }
+  const {metrics,rows}=data;
+  const header=['레벨','항목명','소속팀',...metrics];
+  const aoa=[header];
+  rows.forEach(r=>aoa.push([ r.level, r.name, r.team||'', ...metrics.map(m=>{ const v=r.vals[m]; return (v===''||v==null)?'':v; }) ]));
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=header.map(()=>({wch:12}));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'KPI');
+  XLSX.writeFile(wb,'가맹영업_KPI_데이터_'+String(curDate).replace(/\(예시\)/,'')+'.xlsx');
+}
+
+/* ---------- PPT 다운로드 ---------- */
+const PPT_BLUE='15237A', PPT_MBLUE='2F497D', PPT_ORANGE='F26300', PPT_HEADBG='DCE3F1',
+      PPT_TARGET='F0F3F9', PPT_TEXT='272727', PPT_LINE='C7D0E4',
+      DOT={g:'2FA84F',y:'F5C518',r:'E23B3B'};
+const PPT_FONT='맑은 고딕';
+/* A4 가로: 11.69 x 8.27 inch */
+const PPT_W=11.69, PPT_H=8.27, PPT_MX=0.25;   // MX=좌우 여백
+
+/* 한 셀: 값(위) + 신호등 점(아래). 목표행은 점 없음 */
+function pptCell(metric,row){
+  const raw=row.vals[metric];
+  const disp=(raw===''||raw==null)?'':fmt(raw);
+  const cls=(row.level==='목표')?'':light(metric,raw);
+  if(cls){
+    return { text:[ {text:disp||'-', options:{breakLine:true}}, {text:'●', options:{color:DOT[cls], fontSize:11, breakLine:false}} ],
+             options:{align:'center', valign:'middle'} };
+  }
+  return { text:disp, options:{align:'center', valign:'middle'} };
+}
+function pptHeaderRow(metrics){
+  const h=v=>({ text:v, options:{ bold:true, color:PPT_BLUE, fill:{color:PPT_HEADBG}, align:'center', valign:'middle', fontSize:9 } });
+  return [ {text:'구분', options:{bold:true, color:PPT_BLUE, fill:{color:PPT_HEADBG}, align:'left', valign:'middle', fontSize:9}}, ...metrics.map(h) ];
+}
+function pptDataRow(metrics,row,style){
+  const s=style||{};
+  const label={ text:(s.indent?'    ':'')+row.name, options:{ align:'left', valign:'middle', bold:!!s.bold,
+                 color:s.color||PPT_TEXT, fill:s.fill?{color:s.fill}:undefined, fontSize:9 } };
+  const cells=metrics.map(m=>{ const c=pptCell(m,row); c.options={...c.options, fontSize:9, fill:s.fill?{color:s.fill}:undefined}; return c; });
+  return [label,...cells];
+}
+function addKpiTable(slide,metrics,rows,y,h){
+  const table=[ pptHeaderRow(metrics) ];
+  rows.forEach(r=>table.push(pptDataRow(metrics,r.row,r.style)));
+  const usable=PPT_W-PPT_MX*2, labelW=1.5, colW=Math.max(0.45,(usable-labelW)/metrics.length);
+  slide.addTable(table,{
+    x:PPT_MX, y:y, w:usable, colW:[labelW, ...metrics.map(()=>colW)],
+    border:{type:'solid', color:PPT_LINE, pt:0.5},
+    fontFace:PPT_FONT, fontSize:8, valign:'middle', rowH:h||0.42, autoPage:false
+  });
+}
+function slideTitle(slide,pptx,title,sub){
+  slide.addText('파리크라상 · 사업지원팀',{x:PPT_W-4.45,y:0.18,w:4.2,h:0.3,align:'right',fontFace:PPT_FONT,fontSize:9,color:PPT_MBLUE,bold:true});
+  slide.addText(title,{x:PPT_MX,y:0.28,w:7.5,h:0.5,fontFace:PPT_FONT,fontSize:18,bold:true,color:PPT_BLUE});
+  // 오렌지+블루 구분선
+  slide.addShape(pptx.ShapeType.rect,{x:0.22,y:0.86,w:0.7,h:0.05,fill:{color:PPT_ORANGE},line:{type:'none'}});
+  slide.addShape(pptx.ShapeType.rect,{x:0.92,y:0.86,w:1.9,h:0.05,fill:{color:PPT_MBLUE},line:{type:'none'}});
+  if(sub) slide.addText(sub,{x:PPT_MX,y:0.95,w:PPT_W-PPT_MX*2,h:0.3,fontFace:PPT_FONT,fontSize:10,color:'6b7280'});
+}
+
+function exportPPT(){
+  const data=store[curDate];
+  if(!data){ alert('먼저 데이터를 불러오세요.'); return; }
+  if(typeof PptxGenJS==='undefined'){ alert('PPT 라이브러리 로딩 실패. 인터넷 연결을 확인하세요.'); return; }
+  const {metrics,rows}=data;
+  const pptx=new PptxGenJS();
+  pptx.defineLayout({name:'A4L', width:PPT_W, height:PPT_H});   // A4 가로
+  pptx.layout='A4L';
+  const dstr=String(curDate).replace(/\(예시\)/,'');
+
+  /* ── 메인 장표: 화면에 보이는 요약 (목표·전사·팀) ── */
+  const s1=pptx.addSlide();
+  slideTitle(s1,pptx,'가맹영업 주요 지표 진행사항','기준일자 '+dstr+'  ·  KPI지표와 함께 주요지표 관리');
+  const mainRows=[];
+  rows.filter(r=>r.level==='목표').forEach(r=>mainRows.push({row:r,style:{bold:true,color:PPT_MBLUE,fill:PPT_TARGET}}));
+  rows.filter(r=>r.level==='전사').forEach(r=>mainRows.push({row:r,style:{bold:true,fill:'F7F9FC'}}));
+  const teams=[...new Set(rows.filter(r=>r.level==='팀').map(r=>r.name))];
+  teams.forEach(tm=>{ const tr=rows.find(r=>r.level==='팀'&&r.name===tm); if(tr) mainRows.push({row:tr,style:{bold:true,color:PPT_BLUE}}); });
+  addKpiTable(s1,metrics,mainRows,1.35,0.5);
+  s1.addText('※ 신호등: 초록=양호, 노랑=주의, 빨강=미흡 (지표별 기준 적용)',{x:PPT_MX,y:PPT_H-0.4,w:PPT_W-PPT_MX*2,h:0.3,fontFace:PPT_FONT,fontSize:9,color:'9aa3b2'});
+
+  /* ── 어펜딕스: 팀별 SV별 상세 (팀당 1장) ── */
+  teams.forEach((tm,i)=>{
+    const tr=rows.find(r=>r.level==='팀'&&r.name===tm);
+    const svs=rows.filter(r=>r.level==='SV'&&r.team===tm);
+    const sl=pptx.addSlide();
+    slideTitle(sl,pptx,'[Appendix] '+tm+' — SV별 상세','기준일자 '+dstr);
+    const rws=[];
+    if(tr) rws.push({row:tr,style:{bold:true,color:PPT_BLUE,fill:PPT_TARGET}});
+    svs.forEach(sv=>rws.push({row:sv,style:{indent:true}}));
+    if(!svs.length) rws.push({row:{name:'(등록된 SV 데이터 없음)',level:'SV',vals:{}},style:{color:'9aa3b2'}});
+    // 행이 많으면 행높이 축소
+    const rh = rws.length>10 ? 0.34 : 0.44;
+    addKpiTable(sl,metrics,rws,1.35,rh);
+  });
+
+  pptx.writeFile({fileName:'가맹영업_KPI_대시보드_'+dstr+'.pptx'});
+}
+
 /* ---------- 이벤트 바인딩 ---------- */
 const fileEl=document.getElementById('file'), drop=document.getElementById('drop');
 document.getElementById('btnUpload').onclick=()=>fileEl.click();
@@ -659,6 +765,8 @@ document.getElementById('thrCancel').onclick=()=>document.getElementById('modal'
 document.getElementById('thrSave').onclick=saveThr;
 document.getElementById('btnTpl').onclick=downloadTemplate;
 document.getElementById('btnDemo').onclick=loadDemo;
+document.getElementById('btnPpt').onclick=exportPPT;
+document.getElementById('btnData').onclick=exportData;
 document.getElementById('btnPublish').onclick=publish;
 document.getElementById('btnLogin').onclick=toggleAdmin;
 document.getElementById('btnGh').onclick=openGh;
