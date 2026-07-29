@@ -188,11 +188,11 @@
 <div class="modal-bg" id="modal">
   <div class="modal">
     <h2>신호등 기준 설정</h2>
-    <p class="hint">지표마다 방향(높을수록/낮을수록 좋음)과 초록·노랑 경계값을 지정하세요. ‘사용안함’이면 신호등을 표시하지 않습니다. 경계값은 % 기호 없이 숫자만 입력.</p>
+    <p class="hint">🟢 <b>초록은 목표치(목표 행) 이상이면 자동</b>으로 켜집니다. 여러분은 <b>방향</b>과 <b>노랑 경계값</b>만 지정하면 됩니다. 노랑을 비워두면 ‘목표 미달=노랑’, 노랑을 지정하면 그 아래는 빨강. 위생법규적발처럼 낮을수록 좋은 지표는 방향을 ‘낮을수록 좋음’으로. 값은 % 없이 숫자만.</p>
     <div class="tbl-scroll">
       <table class="thr-table" id="thrTable">
         <thead>
-          <tr><th style="text-align:left">지표</th><th>방향</th><th>초록 ≥/≤</th><th>노랑 ≥/≤</th><th style="width:150px">판정 규칙</th></tr>
+          <tr><th style="text-align:left">지표</th><th>방향</th><th>초록(목표·자동)</th><th>노랑 경계</th><th style="width:170px">판정 규칙</th></tr>
         </thead>
         <tbody id="thrBody"></tbody>
       </table>
@@ -266,14 +266,29 @@ function toNum(v){
   let n=parseFloat(s);
   return isNaN(n)?null:n;
 }
+/* 해당 지표의 목표치(목표 행 값) → 숫자. 초록 경계로 사용 */
+function targetNum(metric){
+  const d=store[curDate]; if(!d) return null;
+  const t=d.rows.find(r=>r.level==='목표');
+  return t ? toNum(t.vals[metric]) : null;
+}
+/* 초록 = 목표치 이상(높을수록 좋음) / 이하(낮을수록 좋음), 자동.
+   노랑 = 관리자가 지정한 경계. 노랑 미설정 시 목표 미달은 노랑, 설정 시 그 아래는 빨강 */
 function light(metric,val){
   const c=thr[metric];
   if(!c||c.dir==='off') return '';
-  const n=toNum(val);
-  if(n==null) return '';
-  const {dir,green,yellow}=c;
-  if(dir==='high'){ if(n>=green)return'g'; if(n>=yellow)return'y'; return'r'; }
-  else            { if(n<=green)return'g'; if(n<=yellow)return'y'; return'r'; }
+  const n=toNum(val); if(n==null) return '';
+  const g=targetNum(metric);                       // 초록 경계(목표치, 자동)
+  const y=(c.yellow===''||c.yellow==null)?null:toNum(c.yellow);
+  if(c.dir==='high'){
+    if(g!=null && n>=g) return 'g';
+    if(y!=null) return n>=y ? 'y' : 'r';
+    return g!=null ? 'y' : '';
+  } else {
+    if(g!=null && n<=g) return 'g';
+    if(y!=null) return n<=y ? 'y' : 'r';
+    return g!=null ? 'y' : '';
+  }
 }
 
 /* ---------- 엑셀 파싱 ---------- */
@@ -322,6 +337,8 @@ function handleFile(f){
     const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
     const parsed=parseRows(aoa);
     if(!parsed) return;
+    // 업로드 원본 파일을 그대로 보관(다운로드용)
+    parsed.file={ name:f.name, b64:abToB64(e.target.result) };
     store[dateStr]=parsed;
     curDate=dateStr; localStorage.setItem(LS_DATE,curDate);
     ensureThr(parsed.metrics);
@@ -340,7 +357,13 @@ function suggestDate(fn){
 /* 새 지표 발견 시 임계값 기본값 채우기(사용안함으로 시작) */
 function ensureThr(metrics){
   let changed=false;
-  metrics.forEach(m=>{ if(!thr[m]){ thr[m]={dir:'off',green:0,yellow:0}; changed=true; } });
+  metrics.forEach(m=>{
+    const c=thr[m];
+    if(!c){ thr[m]={dir:'high',yellow:''}; changed=true; }                       // 신규: 초록=목표 자동
+    else if(c.dir==='off' && c.green===0 && c.yellow===0){                        // 구버전 미설정(off,0,0) → 자동모델 전환
+      thr[m]={dir:'high',yellow:''}; changed=true;
+    }
+  });
   if(changed) persist();
 }
 
@@ -427,7 +450,9 @@ function openThr(){
   ensureThr(metrics);
   const body=document.getElementById('thrBody');
   body.innerHTML=metrics.map(m=>{
-    const c=thr[m]||{dir:'off',green:0,yellow:0};
+    const c=thr[m]||{dir:'high',yellow:''};
+    const tgt=targetNum(m);
+    const tgtDisp=(tgt==null)?'<span style="color:#c94b4b">목표값 없음</span>':tgt;
     return `<tr data-m="${encodeURIComponent(m)}">
       <td class="mname">${m}</td>
       <td><select class="d">
@@ -435,8 +460,8 @@ function openThr(){
         <option value="high" ${c.dir==='high'?'selected':''}>높을수록 좋음</option>
         <option value="low" ${c.dir==='low'?'selected':''}>낮을수록 좋음</option>
       </select></td>
-      <td><input class="g" type="text" value="${c.green}"></td>
-      <td><input class="y" type="text" value="${c.yellow}"></td>
+      <td style="color:#2FA84F;font-weight:600" title="목표 행 값에서 자동">${tgtDisp}</td>
+      <td><input class="y" type="text" value="${c.yellow==null?'':c.yellow}" placeholder="(선택)"></td>
       <td class="rule" style="font-size:11px;color:#8a93a6"></td>
     </tr>`;
   }).join('');
@@ -446,18 +471,20 @@ function openThr(){
 }
 function updateRule(tr){
   const dir=tr.querySelector('.d').value;
-  const g=tr.querySelector('.g').value, y=tr.querySelector('.y').value;
+  const m=decodeURIComponent(tr.dataset.m);
+  const g=targetNum(m); const gs=(g==null)?'목표':g;
+  const y=tr.querySelector('.y').value.trim();
   const cell=tr.querySelector('.rule');
   if(dir==='off'){cell.textContent='표시 안함';return;}
-  if(dir==='high') cell.innerHTML=`≥${g} 초록 · ≥${y} 노랑 · 그외 빨강`;
-  else             cell.innerHTML=`≤${g} 초록 · ≤${y} 노랑 · 그외 빨강`;
+  const op = dir==='high' ? '≥' : '≤';
+  if(y==='') cell.innerHTML=`${op}${gs} 초록 · 그외 노랑`;
+  else       cell.innerHTML=`${op}${gs} 초록 · ${op}${y} 노랑 · 그외 빨강`;
 }
 function saveThr(){
   document.getElementById('thrBody').querySelectorAll('tr').forEach(tr=>{
     const m=decodeURIComponent(tr.dataset.m);
-    thr[m]={ dir:tr.querySelector('.d').value,
-             green:toNum(tr.querySelector('.g').value)||0,
-             yellow:toNum(tr.querySelector('.y').value)||0 };
+    const yv=tr.querySelector('.y').value.trim();
+    thr[m]={ dir:tr.querySelector('.d').value, yellow: yv==='' ? '' : (toNum(yv)) };
   });
   persist();
   document.getElementById('modal').classList.remove('show');
@@ -648,10 +675,23 @@ function applyMode(){
   updatePubNote();
 }
 
-/* ---------- 엑셀(업로드 데이터) 다운로드 — 모두 사용 가능 ---------- */
+/* base64 <-> bytes */
+function abToB64(ab){ const u=new Uint8Array(ab); let bin=''; const CH=0x8000; for(let i=0;i<u.length;i+=CH){ bin+=String.fromCharCode.apply(null,u.subarray(i,i+CH)); } return btoa(bin); }
+function b64ToU8(b64){ const bin=atob(b64); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
+
+/* ---------- 엑셀 다운로드 — 모두 사용 가능. 관리자가 올린 원본 파일 그대로 ---------- */
 function exportData(){
   const data=store[curDate];
   if(!data){ alert('다운로드할 데이터가 없습니다.'); return; }
+  // 1) 업로드 원본 파일이 보관돼 있으면 그대로 다운로드
+  if(data.file && data.file.b64){
+    const blob=new Blob([b64ToU8(data.file.b64)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download=data.file.name||('가맹영업_KPI_'+curDate+'.xlsx'); a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    return;
+  }
+  // 2) 원본이 없으면(예전 발행분/예시) 현재 데이터로 재구성
   const {metrics,rows}=data;
   const header=['레벨','항목명','소속팀',...metrics];
   const aoa=[header];
