@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PAS VOC 대시보드</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root{
+  --primary:#15237A; --secondary:#2F497D; --accent:#F26300; --text:#272727;
+  --chart-blue:#3D5AA9; --chart-muted:#8E97A8; --bg:#F7F8FA; --card:#FFFFFF; --line:#D9DEE8;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.55}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 24px 60px}
+
+.hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.hd h1{color:var(--primary);font-size:28px;font-weight:600;letter-spacing:-.5px}
+.hd .sub{font-size:13px;color:#6B7280;font-weight:300;margin-top:4px}
+.brand{color:var(--primary);font-weight:600;font-size:14px;letter-spacing:.5px;padding-top:6px;text-align:right}
+.brand a{display:block;font-size:11.5px;font-weight:400;color:#8A93A3;text-decoration:none;margin-top:4px}
+.brand a:hover{color:var(--secondary)}
+.rule{display:flex;height:2px;margin:14px 0 18px}
+.rule .o{width:64px;background:var(--accent)}
+.rule .b{flex:1;background:var(--secondary);opacity:.35}
+
+/* toolbar: month tabs + actions */
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{border:1px solid var(--secondary);background:#fff;color:var(--secondary);font-family:inherit;font-size:13px;font-weight:500;padding:7px 16px;border-radius:5px;cursor:pointer}
+.tab.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:none;font-family:inherit;font-size:13px;font-weight:600;padding:8px 16px;border-radius:5px;cursor:pointer;background:var(--accent);color:#fff}
+.btn.line{background:#fff;color:var(--secondary);border:1px solid var(--secondary);font-weight:500}
+.btn:disabled{opacity:.5;cursor:default}
+.dl-menu{position:relative}
+.dl-list{position:absolute;right:0;top:38px;background:#fff;border:1px solid var(--secondary);border-radius:6px;box-shadow:0 4px 14px rgba(21,35,122,.14);min-width:290px;z-index:20;display:none}
+.dl-list a{display:block;padding:10px 14px;font-size:12.5px;color:var(--text);text-decoration:none;border-bottom:1px solid var(--line)}
+.dl-list a:last-child{border-bottom:none}
+.dl-list a:hover{background:#F3F6FB;color:var(--primary)}
+
+.sec{margin-top:38px}
+.sec-h{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+.sec-h .no{color:var(--accent);font-size:22px;font-weight:600}
+.sec-h h2{color:var(--primary);font-size:20px;font-weight:600}
+.sec-h .cap{font-size:12px;color:#6B7280;font-weight:300}
+.sec-rule{display:flex;height:1px;margin:8px 0 18px}
+.sec-rule .o{width:40px;background:var(--accent)}
+.sec-rule .b{flex:1;background:var(--line)}
+
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+.kpi{background:var(--card);border:1px solid var(--secondary);border-radius:6px;padding:14px 16px}
+.kpi .t{font-size:12px;color:#6B7280;font-weight:400}
+.kpi .v{font-size:30px;font-weight:600;color:var(--primary);line-height:1.2;margin:2px 0}
+.kpi .v small{font-size:14px;font-weight:400;color:#6B7280}
+.kpi .d{font-size:11.5px;font-weight:300;color:#6B7280}
+.kpi .up{color:var(--accent);font-weight:500}
+.kpi .dn{color:var(--secondary);font-weight:500}
+.kpi.alert{border-color:var(--accent)}
+.kpi.alert .v{color:var(--accent)}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:18px 20px}
+.card h3{font-size:15px;font-weight:600;color:var(--primary);margin-bottom:2px}
+.card .note{font-size:11.5px;color:#8A93A3;font-weight:300;margin-bottom:12px}
+.legend{display:flex;gap:14px;font-size:12px;color:#4B5563;margin-bottom:10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+.hbar-row{display:grid;grid-template-columns:150px 1fr 34px;align-items:center;gap:8px;margin:7px 0}
+.hbar-row .lb{font-size:12.5px;text-align:right;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbar-row .tr{background:#EEF1F6;border-radius:4px;height:16px;position:relative}
+.hbar-row .fill{height:100%;border-radius:4px;background:var(--chart-blue);min-width:2px;transition:opacity .15s}
+.hbar-row:hover .fill{opacity:.82}
+.hbar-row .vl{font-size:12px;font-weight:600;color:var(--secondary)}
+.hbar-row .flag{color:var(--accent);font-weight:600}
+
+.g2-row{display:grid;grid-template-columns:90px 1fr 76px;align-items:center;gap:8px;margin:9px 0}
+.g2-row .lb{font-size:12.5px;text-align:right}
+.g2-row .bars{display:flex;flex-direction:column;gap:3px}
+.g2-row .tr{background:#EEF1F6;border-radius:3px;height:11px}
+.g2-row .fill{height:100%;border-radius:3px;min-width:2px}
+.g2-row .vl{font-size:11.5px;color:#4B5563;line-height:1.35}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{background:var(--secondary);color:#fff;font-weight:500;padding:8px 10px;text-align:left;white-space:nowrap}
+td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:hover td{background:#F3F6FB}
+td.c, th.c{text-align:center}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;background:#EEF1F6;color:var(--secondary);white-space:nowrap}
+.pill.warn{background:#FDEBDD;color:#C24F00;font-weight:500}
+
+.issue{background:var(--card);border:1px solid var(--secondary);border-left:4px solid var(--secondary);border-radius:6px;padding:16px 18px;margin-bottom:12px}
+.issue.legal,.issue.hyg{border-color:var(--accent);border-left-color:var(--accent)}
+.issue .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.tag{font-size:11px;font-weight:600;padding:2px 9px;border-radius:3px;color:#fff;background:var(--secondary)}
+.tag.legal{background:var(--accent)}
+.tag.hyg{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+.tag.impr{background:#fff;color:var(--secondary);border:1px solid var(--secondary)}
+.issue .ti{font-size:14.5px;font-weight:600;color:var(--primary)}
+.issue .meta{font-size:11.5px;color:#8A93A3;font-weight:300}
+.issue .bd{font-size:13px;margin:4px 0 6px}
+.issue .act{font-size:12.5px;color:var(--secondary)}
+.issue .act b{color:var(--accent);font-weight:600}
+
+.lc-wrap{position:relative}
+.lc-tip{position:absolute;pointer-events:none;background:#fff;border:1px solid var(--secondary);border-radius:4px;padding:6px 10px;font-size:12px;box-shadow:0 2px 8px rgba(21,35,122,.12);display:none;white-space:nowrap;z-index:5}
+.lc-tip b{color:var(--primary)}
+
+/* admin upload */
+.admin{border:1px dashed var(--secondary);background:#FBFCFE}
+.admin .step{display:flex;gap:10px;align-items:flex-start;margin:14px 0}
+.admin .sn{flex:0 0 24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-size:12.5px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.admin label.fld{font-size:12.5px;color:#4B5563;display:block;margin-bottom:4px}
+.admin input[type=month]{font-family:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:5px}
+.admin input[type=file]{font-family:inherit;font-size:12.5px}
+.admin .hint{font-size:11.5px;color:#8A93A3;font-weight:300;margin-top:4px;line-height:1.6}
+.admin .hint code{background:#EEF1F6;padding:1px 5px;border-radius:3px;font-size:11px}
+#upStatus{font-size:12.5px;margin-top:8px;color:var(--secondary)}
+#upStatus.err{color:#C0392B}
+.iss-edit{background:#fff;border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin:8px 0}
+.iss-edit .row1{display:flex;gap:8px;margin-bottom:6px}
+.iss-edit select,.iss-edit input,.iss-edit textarea{font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:4px;padding:5px 8px}
+.iss-edit input{flex:1}
+.iss-edit textarea{width:100%;resize:vertical;margin-top:6px}
+.iss-edit .del{background:#fff;border:1px solid #C0392B;color:#C0392B;border-radius:4px;font-size:11.5px;cursor:pointer;padding:2px 10px}
+.foot{margin-top:44px;font-size:11.5px;color:#8A93A3;font-weight:300;border-top:1px solid var(--line);padding-top:14px}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(3,1fr)}.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hd">
+    <div>
+      <h1>PAS VOC 대시보드</h1>
+      <div class="sub" id="subTitle">파스쿠찌 고객의 소리(VOC) 월별 현황</div>
+    </div>
+    <div class="brand">파리크라상<a href="index.html">← 사업지원팀 허브</a></div>
+  </div>
+  <div class="rule"><div class="o"></div><div class="b"></div></div>
+
+  <div class="toolbar">
+    <div class="tabs" id="monthTabs"></div>
+    <div class="actions">
+      <div class="dl-menu">
+        <button class="btn line" id="rawBtn">원본 엑셀 다운로드 ▾</button>
+        <div class="dl-list" id="rawList"></div>
+      </div>
+      <button class="btn" id="pptBtn">PPT로 추출</button>
+    </div>
+  </div>
+
+  <div id="app" style="display:none">
+    <div class="sec" style="margin-top:20px">
+      <div class="sec-h"><span class="no">01</span><h2>종합 현황</h2><span class="cap" id="cap01">단위: 건</span></div>
+      <div class="sec-rule"><div class="o"></div><div class="b"></div></div>
+      <div class="kpis" id="kpis"></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">02</span><h2>주간 발생 추이</h2><span class="cap">주 시작일(월요일) 기준 · 당월 등록 건만 집계</span></div>
+      <div class="sec-rule"><div class="o"></div><div class="b"></div></div>
+      <div class="card">
+        <div class="legend">
+          <span><i class="sw" style="background:var(--chart-blue)"></i>전체 VOC</span>
+          <span><i class="sw" style="background:var(--accent)"></i>불만</span>
+        </div>
+        <div class="lc-wrap" id="lineChart"></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">03</span><h2>유형별 현황</h2><span class="cap" id="cap03"></span></div>
+      <div class="sec-rule"><div class="o"></div><div class="b"></div></div>
+      <div class="grid2">
+        <div class="card">
+          <h3>발생 유형(대) 전월 비교</h3>
+          <div class="note" id="catNote"></div>
+          <div class="legend" id="catLegend"></div>
+          <div id="catChart"></div>
+        </div>
+        <div class="card">
+          <h3>세부유형 TOP 10</h3>
+          <div class="note">유형(소) 기준</div>
+          <div id="subChart"></div>
+        </div>
+        <div class="card">
+          <h3>접수 채널</h3>
+          <div class="note">당월 기준</div>
+          <div id="chChart"></div>
+        </div>
+        <div class="card">
+          <h3>요구유형 구성</h3>
+          <div class="note">불만 / 문의 / 칭찬 / 제안</div>
+          <div id="reqChart"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">04</span><h2>반복 발생 매장 · 제품</h2><span class="cap">당월 기준 · ★ 경영진 주목 이슈 연관</span></div>
+      <div class="sec-rule"><div class="o"></div><div class="b"></div></div>
+      <div class="grid2">
+        <div class="card">
+          <h3>VOC 다발 매장 TOP 10</h3>
+          <div class="note">매장명 기준</div>
+          <div id="storeChart"></div>
+        </div>
+        <div class="card">
+          <h3>VOC 다발 제품 TOP 10</h3>
+          <div class="note">제품명 기재 건 기준</div>
+          <div id="prodChart"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">05</span><h2 id="forbTitle">안전관련 필수 조치 — 이물질 VOC</h2><span class="cap" id="forbCap"></span></div>
+      <div class="sec-rule"><div class="o"></div><div class="b"></div></div>
+      <div class="grid2" style="grid-template-columns:1fr 2fr">
+        <div class="card">
+          <h3>이물 유형 분포</h3>
+          <div class="note">유형(소) 기준</div>
+          <div id="forbChart"></div>
+        </div>
+        <div class="card" style="overflow-x:auto">
+          <h3>이물질 VOC 상세</h3>
+          <div class="note">현물보유는 회사현물보유여부 기준</div>
+          <table id="forbTable">
+            <thead><tr><th class="c">등록일</th><th>매장</th><th>제품</th><th>이물 유형</th><th>내용</th><th>현물보유</th><th class="c">담당</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">06</span><h2>경영진 주목 이슈</h2><span class="cap">반복발생 · 법적 리스크 · 개선사항 — 별도 확인 필요</span></div>
+      <div class="sec-rule"><div class="o"></div><div class="b"></div></div>
+      <div id="issues"></div>
+    </div>
+  </div>
+
+  <div id="loadErr" style="display:none" class="card">
+    <h3>데이터를 불러오지 못했습니다</h3>
+    <div class="note">voc_data.json을 읽을 수 없습니다. GitHub Pages(https://hani-4455.github.io/S.HAN/voc_dashboard.html)에서 열어주세요.
+    로컬 파일로 열었다면 브라우저 보안 정책상 데이터 로드가 차단됩니다.</div>
+  </div>
+
+  <!-- 07 월별 업데이트 (관리자) -->
+  <div class="sec">
+    <div class="sec-h"><span class="no">07</span><h2>월별 데이터 업데이트</h2><span class="cap">관리자용 · 매월 VOC 조회 리스트 엑셀 업로드 → 집계 → 발행</span></div>
+    <div class="sec-rule"><div class="o"></div><div class="b"></div></div>
+    <div class="card admin">
+      <div class="step"><div class="sn">1</div><div>
+        <label class="fld">대상 월 선택</label>
+        <input type="month" id="upMonth">
+      </div></div>
+      <div class="step"><div class="sn">2</div><div style="flex:1">
+        <label class="fld">VOC 조회 리스트 엑셀 업로드 (서비스 + 제품·이물질, 여러 개 선택 가능)</label>
+        <input type="file" id="upFiles" accept=".xlsx,.xls" multiple>
+        <div class="hint">시스템에서 해당 월 기간으로 추출한 <code>VOC_조회_리스트_*.xlsx</code> 파일을 그대로 올리면 됩니다. 서비스/제품 파일은 자동으로 구분·병합됩니다.</div>
+      </div></div>
+      <div class="step"><div class="sn">3</div><div>
+        <button class="btn" id="upRun">집계 실행</button>
+        <div id="upStatus"></div>
+      </div></div>
+      <div id="upResult" style="display:none">
+        <div class="step"><div class="sn">4</div><div style="flex:1">
+          <label class="fld">경영진 주목 이슈 검토 (자동 추출된 후보를 수정·삭제하거나 추가하세요)</label>
+          <div id="issEditor"></div>
+          <button class="btn line" id="issAdd" style="margin-top:6px">+ 이슈 카드 추가</button>
+        </div></div>
+        <div class="step"><div class="sn">5</div><div>
+          <button class="btn" id="upPublish">voc_data.json 생성 · 다운로드</button>
+          <div class="hint" id="pubHint" style="margin-top:8px"></div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<script>
+const CSSV = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const BLUE = CSSV('--chart-blue'), ORANGE = CSSV('--accent'), MUTED = CSSV('--chart-muted');
+const TAGS = {legal:'법적 리스크', repeat:'반복 발생', hyg:'위생 리스크', impr:'개선 사항'};
+let DATA = null, cur = null;
+
+/* ---------- load ---------- */
+fetch('voc_data.json', {cache:'no-store'})
+  .then(r => { if(!r.ok) throw 0; return r.json(); })
+  .then(j => { DATA = j; init(); })
+  .catch(() => { document.getElementById('loadErr').style.display='block'; });
+
+function init(){
+  const tabs = document.getElementById('monthTabs');
+  tabs.innerHTML = DATA.months.map((m,i) =>
+    `<button class="tab" data-i="${i}">${m.label}</button>`).join('');
+  tabs.querySelectorAll('.tab').forEach(b => b.onclick = () => select(+b.dataset.i));
+  select(DATA.months.length-1);
+  document.getElementById('foot').textContent =
+    `출처: VOC 조회 리스트 엑셀 (서비스 / 제품·이물질) · 데이터 기준일 ${DATA.updated} · 전월비는 직전 월 등록 건과 비교`;
+  document.getElementById('app').style.display='block';
+}
+
+function select(i){
+  cur = DATA.months[i];
+  document.querySelectorAll('#monthTabs .tab').forEach((b,j)=>b.classList.toggle('on', j===i));
+  render(cur, DATA.months[i-1] || null);
+}
+
+/* ---------- render ---------- */
+const g = id => document.getElementById(id);
+const sum = o => Object.values(o).reduce((a,b)=>a+b,0);
+function delta(nu, old){
+  if(old==null) return '<span class="d" style="color:#8A93A3">전월 데이터 없음</span>';
+  const d = nu-old;
+  return `${old} → ${nu} ` + (d>0?`<span class="up">▲ ${d}</span>`:d<0?`<span class="dn">▼ ${-d}</span>`:'<span class="dn">—</span>');
+}
+
+function render(m, prev){
+  g('subTitle').textContent = `파스쿠찌 고객의 소리(VOC) 현황 · ${m.label}`;
+  g('cap01').textContent = `단위: 건 · ( )는 전월 → 당월`;
+  g('cap03').textContent = prev ? `${prev.label} 대비` : '전월 데이터 없음';
+
+  const rq = m.reqtype, prq = prev ? prev.reqtype : null;
+  const bul = rq['불만']||0, tot = m.total;
+  const kp = [
+    ['총 발생 VOC', tot, prev?delta(tot,prev.total):delta(tot,null)],
+    ['불만', `${bul} <small>${(bul/tot*100).toFixed(1)}%</small>`, delta(bul, prq?prq['불만']||0:null)],
+    ['문의', rq['문의']||0, delta(rq['문의']||0, prq?prq['문의']||0:null)],
+    ['칭찬', rq['칭찬']||0, delta(rq['칭찬']||0, prq?prq['칭찬']||0:null)],
+    ['제안', rq['제안']||0, delta(rq['제안']||0, prq?prq['제안']||0:null)],
+  ];
+  let html = kp.map(k=>`<div class="kpi"><div class="t">${k[0]}</div><div class="v">${k[1]}</div><div class="d">${k[2]}</div></div>`).join('');
+  const ic = {}; m.issues.forEach(x=>ic[x.tag]=(ic[x.tag]||0)+1);
+  const ics = Object.entries(ic).map(([t,c])=>`${TAGS[t].slice(0,2)} ${c}`).join(' · ');
+  html += `<div class="kpi alert"><div class="t">경영진 확인 필요 이슈</div><div class="v">${m.issues.length}</div><div class="d">${ics||'—'}</div></div>`;
+  g('kpis').innerHTML = html;
+
+  lineChart(g('lineChart'), m.weekly);
+
+  /* 유형(대) 전월 비교 */
+  const CATS = ['제품','판매서비스','인적서비스','점포서비스','이벤트','이물질'];
+  const rows = CATS.map(c=>[c, prev?(prev.cat[c]||0):null, m.cat[c]||0]);
+  g('catNote').textContent = prev ? `위 막대 ${prev.label.slice(-3)}(회색) · 아래 막대 ${m.label.slice(-3)}(블루)` : '전월 데이터 없음';
+  g('catLegend').innerHTML = prev ? `<span><i class="sw" style="background:${MUTED}"></i>${prev.label.slice(-3)}</span><span><i class="sw" style="background:${BLUE}"></i>${m.label.slice(-3)}</span>` : '';
+  const cmax = Math.max(...rows.flatMap(r=>[r[1]||0,r[2]]));
+  g('catChart').innerHTML = rows.map(r=>{
+    const d = r[1]==null?null:r[2]-r[1];
+    const ds = d==null?'':d>0?`<span style="color:${ORANGE};font-weight:600">▲${d}</span>`:d<0?`<span style="color:#6B7280;font-weight:600">▼${-d}</span>`:'—';
+    return `<div class="g2-row" title="${r[0]} — ${r[1]==null?'':`전월 ${r[1]}건 → `}당월 ${r[2]}건">
+      <div class="lb">${r[0]}</div><div class="bars">
+      ${r[1]==null?'':`<div class="tr"><div class="fill" style="width:${(r[1]/cmax*100)||0}%;background:${MUTED}"></div></div>`}
+      <div class="tr"><div class="fill" style="width:${(r[2]/cmax*100)||0}%;background:${BLUE}"></div></div></div>
+      <div class="vl">${r[1]==null?'':r[1]+' → '}<b>${r[2]}</b> ${ds}</div></div>`;
+  }).join('');
+
+  hbars(g('subChart'), m.subtype_top, BLUE);
+  hbars(g('chChart'), m.channel, BLUE);
+  hbars(g('reqChart'), Object.entries(m.reqtype), BLUE);
+  hbars(g('storeChart'), m.store_top, BLUE, ORANGE);
+  hbars(g('prodChart'), m.prod_top, BLUE, ORANGE);
+
+  g('forbTitle').textContent = `안전관련 필수 조치 — 이물질 VOC ${m.forb.length}건`;
+  g('forbCap').textContent = prev ? `전월 ${prev.forb.length}건 → 당월 ${m.forb.length}건` : '';
+  const ft = {}; m.forb.forEach(r=>{ const k=r[3].replace(/\(.*\)/,'').trim(); ft[k]=(ft[k]||0)+1; });
+  hbars(g('forbChart'), Object.entries(ft).sort((a,b)=>b[1]-a[1]), ORANGE);
+  document.querySelector('#forbTable tbody').innerHTML = m.forb.map(r=>{
+    const star = /신고|식약처|벌레|곤충/.test(r[3]+r[4]);
+    return `<tr${star?' style="background:#FFF7F0"':''}>
+      <td class="c">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td>
+      <td><span class="pill${star?' warn':''}">${r[3]}</span></td>
+      <td>${star?'★ ':''}${r[4]}</td><td>${r[5]}</td><td class="c">${r[6]}</td></tr>`;
+  }).join('');
+
+  g('issues').innerHTML = m.issues.map(x=>`
+    <div class="issue ${x.tag}">
+      <div class="top"><span class="tag ${x.tag}">${x.label||TAGS[x.tag]}</span>
+        <span class="ti">${x.title}</span><span class="meta">${x.meta||''}</span></div>
+      <div class="bd">${x.body}</div>
+      ${x.act?`<div class="act"><b>권고</b> — ${x.act}</div>`:''}
+    </div>`).join('') || '<div class="card"><div class="note">등록된 이슈가 없습니다.</div></div>';
+
+  /* 원본 다운로드 목록 */
+  g('rawList').innerHTML = (m.raw||[]).map(r=>`<a href="${r.file}" download>⬇ ${r.label}</a>`).join('')
+    || '<a>등록된 원본 파일이 없습니다</a>';
+}
+
+function hbars(el, rows, color, flagColor){
+  const max = Math.max(...rows.map(r=>r[1]), 1);
+  el.innerHTML = rows.map(r=>{
+    const flagged = r[2]===1;
+    return `<div class="hbar-row" title="${r[0]}: ${r[1]}건">
+      <div class="lb">${flagged?'<span class="flag">★</span> ':''}${r[0]}</div>
+      <div class="tr"><div class="fill" style="width:${r[1]/max*100}%;background:${flagged&&flagColor?flagColor:color}"></div></div>
+      <div class="vl">${r[1]}</div></div>`;
+  }).join('');
+}
+
+function lineChart(wrap, data){
+  const W=1100, H=260, P={l:36,r:20,t:14,b:30};
+  const n = data.length;
+  const maxY = Math.max(10, Math.ceil(Math.max(...data.map(d=>d.t))/10)*10);
+  const x = i => n===1 ? W/2 : P.l + i*(W-P.l-P.r)/(n-1);
+  const y = v => H-P.b - v/maxY*(H-P.t-P.b);
+  const path = k => data.map((d,i)=>`${i?'L':'M'}${x(i)},${y(d[k])}`).join('');
+  let s = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" id="lcsvg">`;
+  for(let v=0; v<=maxY; v+=maxY/5){
+    s += `<line x1="${P.l}" y1="${y(v)}" x2="${W-P.r}" y2="${y(v)}" stroke="#E5E9F0"/>`;
+    s += `<text x="${P.l-8}" y="${y(v)+4}" font-size="11" fill="#8A93A3" text-anchor="end">${v}</text>`;
+  }
+  data.forEach((d,i)=>{ s += `<text x="${x(i)}" y="${H-8}" font-size="11" fill="#6B7280" text-anchor="middle">${d.w}</text>`; });
+  s += `<path d="${path('t')}" fill="none" stroke="${BLUE}" stroke-width="2"/>`;
+  s += `<path d="${path('b')}" fill="none" stroke="${ORANGE}" stroke-width="2"/>`;
+  data.forEach((d,i)=>{
+    s += `<circle cx="${x(i)}" cy="${y(d.t)}" r="3.5" fill="${BLUE}" stroke="#fff" stroke-width="2"/>`;
+    s += `<circle cx="${x(i)}" cy="${y(d.b)}" r="3.5" fill="${ORANGE}" stroke="#fff" stroke-width="2"/>`;
+    s += `<text x="${x(i)}" y="${y(d.t)-10}" font-size="11.5" font-weight="600" fill="#15237A" text-anchor="middle">${d.t}</text>`;
+  });
+  s += `<line id="lcCross" x1="0" y1="${P.t}" x2="0" y2="${H-P.b}" stroke="#2F497D" stroke-dasharray="3,3" style="display:none"/></svg>
+        <div class="lc-tip" id="lcTip"></div>`;
+  wrap.innerHTML = s;
+  const svg=g('lcsvg'), tip=g('lcTip'), cross=g('lcCross');
+  svg.onmousemove = e=>{
+    const rc = svg.getBoundingClientRect(), sx=(e.clientX-rc.left)*W/rc.width;
+    let i = n===1?0:Math.round((sx-P.l)/((W-P.l-P.r)/(n-1))); i=Math.max(0,Math.min(n-1,i));
+    const d = data[i];
+    cross.style.display=''; cross.setAttribute('x1',x(i)); cross.setAttribute('x2',x(i));
+    tip.style.display='block';
+    tip.innerHTML = `<b>${d.w} 주</b><br>전체 ${d.t}건 · 불만 ${d.b}건`;
+    tip.style.left = Math.min(x(i)*rc.width/W+12, rc.width-150)+'px';
+    tip.style.top = (y(Math.max(d.t,d.b))*rc.height/H-10)+'px';
+  };
+  svg.onmouseleave = ()=>{ tip.style.display='none'; cross.style.display='none'; };
+}
+
+/* ---------- 원본 다운로드 드롭다운 ---------- */
+g('rawBtn').onclick = e=>{ e.stopPropagation(); const l=g('rawList'); l.style.display=l.style.display==='block'?'none':'block'; };
+document.addEventListener('click', ()=>{ g('rawList').style.display='none'; });
+
+/* ---------- PPT 추출 ---------- */
+g('pptBtn').onclick = ()=>{
+  if(!cur) return;
+  const m = cur, i = DATA.months.indexOf(m), prev = DATA.months[i-1]||null;
+  const P='15237A', S='2F497D', A='F26300', T='272727', F='맑은 고딕';
+  const pres = new PptxGenJS();
+  pres.layout = 'LAYOUT_WIDE';
+
+  /* S1 표지 */
+  let s = pres.addSlide();
+  s.background = {color:'FFFFFF'};
+  s.addText('파리크라상', {x:11.2,y:0.35,w:1.8,h:0.4,fontFace:F,fontSize:13,bold:true,color:P,align:'right'});
+  s.addText(`PAS VOC 현황`, {x:0.8,y:2.7,w:11,h:1.1,fontFace:F,fontSize:40,bold:true,color:P});
+  s.addText(m.label, {x:0.8,y:3.8,w:11,h:0.7,fontFace:F,fontSize:24,color:A,bold:true});
+  s.addShape('rect',{x:0.85,y:4.6,w:0.9,h:0.03,fill:{color:A}});
+  s.addShape('rect',{x:1.75,y:4.6,w:6,h:0.03,fill:{color:S}});
+  s.addText(`데이터 기준일 ${DATA.updated} · 사업지원팀`, {x:0.8,y:4.75,w:8,h:0.4,fontFace:F,fontSize:13,color:'6B7280'});
+
+  /* S2 요약 */
+  s = pres.addSlide(); s.background={color:'FFFFFF'};
+  slideTitle(s, '01', '종합 현황');
+  const rq=m.reqtype, bul=rq['불만']||0;
+  const kpis=[['총 발생 VOC',m.total,prev?`${prev.total} → ${m.total}`:''],['불만',bul,`${(bul/m.total*100).toFixed(1)}%`],['문의',rq['문의']||0,''],['칭찬',rq['칭찬']||0,''],['제안',rq['제안']||0,''],['주목 이슈',m.issues.length,'하단 별첨']];
+  kpis.forEach((k,j)=>{
+    const x=0.7+j*2.1;
+    s.addShape('roundRect',{x, y:1.5, w:1.95, h:1.5, rectRadius:0.06, fill:{color:'FFFFFF'}, line:{color:j===5?A:S, width:1}});
+    s.addText(String(k[0]),{x,y:1.62,w:1.95,h:0.35,fontFace:F,fontSize:11,color:'6B7280',align:'center'});
+    s.addText(String(k[1]),{x,y:1.95,w:1.95,h:0.6,fontFace:F,fontSize:26,bold:true,color:j===5?A:P,align:'center'});
+    s.addText(String(k[2]),{x,y:2.55,w:1.95,h:0.35,fontFace:F,fontSize:10,color:'6B7280',align:'center'});
+  });
+  const CATS=['제품','판매서비스','인적서비스','점포서비스','이벤트','이물질'];
+  const catRows=[[hcell('구분'),hcell('전월'),hcell('당월'),hcell('증감')]];
+  CATS.forEach(c=>{
+    const p0=prev?(prev.cat[c]||0):null, n0=m.cat[c]||0, d=p0==null?null:n0-p0;
+    catRows.push([cell(c,true), cell(p0==null?'-':p0), cell(n0), {text:d==null?'-':d>0?`▲${d}`:d<0?`▼${-d}`:'—', options:{fontFace:F,fontSize:11,color:d>0?A:'6B7280',align:'center',valign:'middle'}}]);
+  });
+  s.addText('발생 유형(대) 전월 비교',{x:0.7,y:3.35,w:6,h:0.4,fontFace:F,fontSize:14,bold:true,color:P});
+  s.addTable(catRows,{x:0.7,y:3.75,w:6.0,rowH:0.32,border:{type:'solid',color:'D9DEE8',pt:0.5},fill:{color:'FFFFFF'}});
+  const subRows=[[hcell('세부유형 TOP5'),hcell('건수')]];
+  m.subtype_top.slice(0,5).forEach(r=>subRows.push([cell(r[0],true),cell(r[1])]));
+  s.addText('세부유형(소) TOP 5',{x:7.2,y:3.35,w:5,h:0.4,fontFace:F,fontSize:14,bold:true,color:P});
+  s.addTable(subRows,{x:7.2,y:3.75,w:5.4,rowH:0.32,border:{type:'solid',color:'D9DEE8',pt:0.5}});
+
+  /* S3 이물질 */
+  s = pres.addSlide(); s.background={color:'FFFFFF'};
+  slideTitle(s, '02', `안전관련 필수 조치 — 이물질 VOC ${m.forb.length}건`);
+  const fRows=[[hcell('등록일'),hcell('매장'),hcell('제품'),hcell('이물 유형'),hcell('내용'),hcell('현물보유'),hcell('담당')]];
+  m.forb.forEach(r=>fRows.push(r.map((v,j)=>cell(v, j===1||j===4))));
+  s.addTable(fRows,{x:0.5,y:1.4,w:12.3,border:{type:'solid',color:'D9DEE8',pt:0.5},autoPage:true,autoPageRepeatHeader:true,fontSize:9,rowH:0.28});
+
+  /* S4 이슈 */
+  s = pres.addSlide(); s.background={color:'FFFFFF'};
+  slideTitle(s, '03', `경영진 주목 이슈 ${m.issues.length}건`);
+  const iRows=[[hcell('구분'),hcell('이슈'),hcell('내용 · 권고')]];
+  m.issues.forEach(x=>{
+    iRows.push([
+      {text:x.label||TAGS[x.tag],options:{fontFace:F,fontSize:10,bold:true,color:(x.tag==='legal'||x.tag==='hyg')?A:S,align:'center',valign:'middle'}},
+      {text:`${x.title}\n${x.meta||''}`,options:{fontFace:F,fontSize:10,bold:true,color:P,valign:'middle'}},
+      {text:`${x.body}${x.act?`\n[권고] ${x.act}`:''}`,options:{fontFace:F,fontSize:9.5,color:T,valign:'middle'}}
+    ]);
+  });
+  s.addTable(iRows,{x:0.5,y:1.4,w:12.3,colW:[1.3,4.2,6.8],border:{type:'solid',color:'D9DEE8',pt:0.5},autoPage:true,autoPageRepeatHeader:true});
+
+  function slideTitle(sl, no, t){
+    sl.addText('파리크라상',{x:11.2,y:0.3,w:1.8,h:0.35,fontFace:F,fontSize:11,bold:true,color:P,align:'right'});
+    sl.addText([{text:no+'  ',options:{color:A,bold:true}},{text:t,options:{color:P,bold:true}}],{x:0.5,y:0.45,w:11,h:0.6,fontFace:F,fontSize:22});
+    sl.addShape('rect',{x:0.55,y:1.1,w:0.6,h:0.025,fill:{color:A}});
+    sl.addShape('rect',{x:1.15,y:1.1,w:11.6,h:0.025,fill:{color:'D9DEE8'}});
+  }
+  function hcell(t){ return {text:String(t),options:{fontFace:F,fontSize:10,bold:true,color:'FFFFFF',fill:{color:S},align:'center',valign:'middle'}}; }
+  function cell(t,left){ return {text:String(t),options:{fontFace:F,fontSize:10,color:T,align:left?'left':'center',valign:'middle'}}; }
+
+  pres.writeFile({fileName:`PAS_VOC_현황_${m.key}.pptx`});
+};
+
+/* ---------- 월별 업데이트(관리자) ---------- */
+let upBlock = null;
+g('upRun').onclick = async ()=>{
+  const st = g('upStatus'); st.className=''; st.textContent='';
+  const month = g('upMonth').value;
+  const files = g('upFiles').files;
+  if(!month){ st.className='err'; st.textContent='대상 월을 선택하세요.'; return; }
+  if(!files.length){ st.className='err'; st.textContent='엑셀 파일을 선택하세요.'; return; }
+  try{
+    let rows = [];
+    for(const f of files){
+      const wb = XLSX.read(await f.arrayBuffer(), {cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      rows = rows.concat(XLSX.utils.sheet_to_json(ws, {defval:null}));
+    }
+    rows = rows.filter(r=>r['등록일']);
+    rows.forEach(r=>{ r._d = toDate(r['등록일']); });
+    const ym = d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    rows = rows.filter(r=>r._d && ym(r._d)===month);
+    if(!rows.length){ st.className='err'; st.textContent=`선택한 파일에 ${month} 등록 건이 없습니다. 추출 기간을 확인하세요.`; return; }
+    upBlock = aggregate(month, rows);
+    st.textContent = `집계 완료: ${month} 총 ${upBlock.total}건 (이물질 ${upBlock.forb.length}건) · 이슈 후보 ${upBlock.issues.length}건`;
+    renderIssueEditor(upBlock.issues);
+    g('upResult').style.display='block';
+    g('pubHint').innerHTML = pubHintText(month);
+  }catch(err){ st.className='err'; st.textContent='파일 처리 중 오류: '+err.message; }
+};
+
+function toDate(v){
+  if(v instanceof Date) return v;
+  if(typeof v==='string'){ const d=new Date(v.replace(' ','T')); return isNaN(d)?null:d; }
+  if(typeof v==='number'){ const d=XLSX.SSF.parse_date_code(v); return d?new Date(d.y,d.m-1,d.d):null; }
+  return null;
+}
+const cnt = (rows,key,tx)=>{ const o={}; rows.forEach(r=>{ let v=r[key]; if(v==null||v==='')return; v=tx?tx(String(v)):String(v); o[v]=(o[v]||0)+1; }); return o; };
+const topN = (o,n=10)=>Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,n);
+
+function aggregate(month, rows){
+  const label = `${month.slice(0,4)}년 ${+month.slice(5)}월`;
+  const bul = rows.filter(r=>r['요구유형']==='불만');
+  const wkKey = d=>{ const s=new Date(d); s.setDate(d.getDate()-((d.getDay()+6)%7));
+    return `${String(s.getMonth()+1).padStart(2,'0')}/${String(s.getDate()).padStart(2,'0')}`; };
+  const wA=cnt(rows.map(r=>({k:wkKey(r._d)})),'k'), wB=cnt(bul.map(r=>({k:wkKey(r._d)})),'k');
+  const weekly = Object.keys(wA).sort().map(w=>({w, t:wA[w], b:wB[w]||0}));
+  const stripStore = s=>s.replace(' 파스쿠찌','');
+  const forbRows = rows.filter(r=>r['유형(대)']==='이물질').sort((a,b)=>a._d-b._d);
+  const md = d=>`${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const forb = forbRows.map(r=>[md(r._d), stripStore(String(r['매장명']||'')), String(r['제품명']||''), String(r['유형(소)']||''),
+    String(r['VOC제목']||''), String(r['회사현물보유여부']||'').replace('>','·'), String(r['영업담당자']||'')]);
+
+  /* 자동 이슈 후보 */
+  const issues = [];
+  const LEGAL = /(신고|식약처|구청|보건소|경찰|법적|소송|배상|언론|기자|진정서|모욕|폭언)/;
+  rows.forEach(r=>{
+    const txt = `${r['VOC제목']||''} ${r['VOC내용']||''}`;
+    if(LEGAL.test(txt) && issues.length<8 && r['요구유형']==='불만'){
+      issues.push({tag:'legal', label:TAGS.legal, title:String(r['VOC제목']||'제목 없음'),
+        meta:`${md(r._d)} · ${stripStore(String(r['매장명']||''))}${r['제품명']?' · '+r['제품명']:''}`,
+        body:String(r['VOC내용']||'').replace(/\n+/g,' ').slice(0,160)+'…',
+        act:'사실관계 확인 및 대응 방안 수립 (자동 추출 — 원문 확인 후 수정 필요)'});
+    }
+  });
+  topN(cnt(rows.filter(r=>r['제품명']),'제품명'),3).filter(x=>x[1]>=3).forEach(x=>{
+    issues.push({tag:'repeat', label:TAGS.repeat, title:`${x[0]} VOC ${x[1]}건 — 동일 제품 반복`,
+      meta:`${label} · 제품 반복 발생`, body:'동일 제품에서 당월 3건 이상 VOC 발생. 원문 확인 후 발생 유형·원인을 요약해 주세요.',
+      act:'원재료·생산라인 점검 및 담당 PM 원인 회신 관리'});
+  });
+  topN(cnt(rows.map(r=>({s:stripStore(String(r['매장명']||''))})),'s'),3).filter(x=>x[1]>=3).forEach(x=>{
+    issues.push({tag:'repeat', label:TAGS.repeat, title:`${x[0]}점 VOC ${x[1]}건 — 단일 매장 다발`,
+      meta:`${label} · 매장 반복 발생`, body:'단일 매장에서 당월 3건 이상 VOC 발생. 원문 확인 후 공통 원인 여부를 요약해 주세요.',
+      act:'담당 SV 현장 점검 및 개선 조치 회신'});
+  });
+  return { key:month, label, total:rows.length,
+    reqtype:cnt(rows,'요구유형'), cat:cnt(rows,'유형(대)'), weekly,
+    subtype_top:topN(cnt(rows,'유형(소)')),
+    store_top:topN(cnt(rows,'매장명',stripStore)).map(x=>[x[0],x[1],0]),
+    prod_top:topN(cnt(rows,'제품명')).map(x=>[x[0],x[1],0]),
+    channel:topN(cnt(rows,'접수채널',v=>v.split('>').pop()),99),
+    forb, issues,
+    raw:[{label:`서비스 VOC 원본 (${label})`,file:`voc_raw/${month}_서비스VOC.xlsx`},
+         {label:`제품·이물질 VOC 원본 (${label})`,file:`voc_raw/${month}_제품이물질VOC.xlsx`}] };
+}
+
+function renderIssueEditor(list){
+  const ed = g('issEditor');
+  ed.innerHTML = '';
+  list.forEach((x,i)=>{
+    const div = document.createElement('div'); div.className='iss-edit'; div.dataset.i=i;
+    div.innerHTML = `
+      <div class="row1">
+        <select class="f-tag">${Object.entries(TAGS).map(([k,v])=>`<option value="${k}"${x.tag===k?' selected':''}>${v}</option>`).join('')}</select>
+        <input class="f-title" value="${esc(x.title)}" placeholder="이슈 제목">
+        <button class="del">삭제</button>
+      </div>
+      <input class="f-meta" style="width:100%" value="${esc(x.meta||'')}" placeholder="날짜 · 매장 · 제품">
+      <textarea class="f-body" rows="2" placeholder="내용 요약">${esc(x.body||'')}</textarea>
+      <textarea class="f-act" rows="1" placeholder="권고 조치">${esc(x.act||'')}</textarea>`;
+    div.querySelector('.del').onclick = ()=>div.remove();
+    ed.appendChild(div);
+  });
+}
+const esc = s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+g('issAdd').onclick = ()=>{
+  const cur2 = collectIssues(); cur2.push({tag:'repeat',label:TAGS.repeat,title:'',meta:'',body:'',act:''});
+  renderIssueEditor(cur2);
+};
+function collectIssues(){
+  return [...document.querySelectorAll('#issEditor .iss-edit')].map(d=>({
+    tag:d.querySelector('.f-tag').value, label:TAGS[d.querySelector('.f-tag').value],
+    title:d.querySelector('.f-title').value.trim(), meta:d.querySelector('.f-meta').value.trim(),
+    body:d.querySelector('.f-body').value.trim(), act:d.querySelector('.f-act').value.trim()
+  })).filter(x=>x.title);
+}
+function pubHintText(month){
+  return `발행 후 할 일 — ① 다운로드된 <code>voc_data.json</code>으로 저장소의 기존 파일 교체 ② 원본 엑셀 2개를
+  <code>voc_raw/${month}_서비스VOC.xlsx</code>, <code>voc_raw/${month}_제품이물질VOC.xlsx</code> 이름으로 저장소 voc_raw 폴더에 추가
+  ③ S.HAN 저장소에 commit & push (Claude에게 "S.HAN에 VOC ${month} 업데이트 올려줘"라고 요청해도 됩니다)`;
+}
+g('upPublish').onclick = ()=>{
+  if(!upBlock) return;
+  upBlock.issues = collectIssues();
+  const base = DATA || {updated:'', months:[]};
+  const months = base.months.filter(x=>x.key!==upBlock.key).concat([upBlock]).sort((a,b)=>a.key<b.key?-1:1);
+  const out = {updated:new Date().toISOString().slice(0,10), months};
+  const blob = new Blob([JSON.stringify(out,null,1)], {type:'application/json'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='voc_data.json'; a.click();
+  URL.revokeObjectURL(a.href);
+};
+</script>
+</body>
+</html>
