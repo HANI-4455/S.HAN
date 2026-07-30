@@ -144,7 +144,7 @@
     <label>기준일자</label>
     <select id="dateSel" title="업로드된 일자 이력"></select>
     <button class="btn" id="btnPpt">⬇ PPT 다운로드</button>
-    <button class="btn" id="btnData">⬇ 엑셀 다운로드</button>
+    <button class="btn admin-only" id="btnData">⬇ 엑셀 다운로드</button>
     <button class="btn admin-only" id="btnThr">⚙ 신호등 기준 설정</button>
     <button class="btn admin-only" id="btnTpl">⬇ 엑셀 양식 받기</button>
     <div class="spacer"></div>
@@ -575,7 +575,11 @@ function markPublished(){ dirty=false; localStorage.setItem(LS_DIRTY,'0'); updat
 
 async function publish(){
   if(!Object.keys(store).length){ alert('발행할 데이터가 없습니다. 먼저 엑셀을 업로드하세요.'); return; }
-  const json=JSON.stringify({ data:store, thr:thr, exportedAt:new Date().toISOString() },null,2);
+  // 보안: 업로드 원본 엑셀(file.b64)은 발행본에서 제외 — 공개 URL로 유출되지 않게.
+  // 원본은 관리자 브라우저에만 보관되고, 열람자에게는 대시보드 표시용 데이터만 전달.
+  const pubData={};
+  Object.keys(store).forEach(d=>{ const {file, ...rest}=store[d]; pubData[d]=rest; });
+  const json=JSON.stringify({ data:pubData, thr:thr, exportedAt:new Date().toISOString() },null,2);
   const cfg=loadJSON(LS_GH,null);
   const hasGh=cfg&&cfg.token&&cfg.owner&&cfg.repo;
   if(hasGh){
@@ -703,6 +707,7 @@ function b64ToU8(b64){ const bin=atob(b64); const u=new Uint8Array(bin.length); 
 
 /* ---------- 엑셀 다운로드 — 모두 사용 가능. 관리자가 올린 원본 파일 그대로 ---------- */
 function exportData(){
+  if(!isAdmin){ alert('엑셀 다운로드는 관리자만 가능합니다.'); return; }
   const data=store[curDate];
   if(!data){ alert('다운로드할 데이터가 없습니다.'); return; }
   // 1) 업로드 원본 파일이 보관돼 있으면 그대로 다운로드
