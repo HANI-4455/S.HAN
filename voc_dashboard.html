@@ -143,10 +143,6 @@ td.c, th.c{text-align:center}
   <div class="toolbar">
     <div class="tabs" id="monthTabs"></div>
     <div class="actions">
-      <div class="dl-menu">
-        <button class="btn line" id="rawBtn">원본 엑셀 다운로드 ▾</button>
-        <div class="dl-list" id="rawList"></div>
-      </div>
       <button class="btn" id="pptBtn">PPT로 추출</button>
     </div>
   </div>
@@ -252,7 +248,18 @@ td.c, th.c{text-align:center}
   <div class="sec">
     <div class="sec-h"><span class="no">07</span><h2>월별 데이터 업데이트</h2><span class="cap">관리자용 · 매월 VOC 조회 리스트 엑셀 업로드 → 집계 → 발행</span></div>
     <div class="sec-rule"><div class="o"></div><div class="b"></div></div>
-    <div class="card admin">
+
+    <div class="card admin" id="gate">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:13px;color:var(--secondary)">🔒 관리자 전용 기능입니다.</span>
+        <input type="password" id="gatePw" placeholder="관리자 비밀번호" style="font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:5px;padding:7px 10px;width:200px">
+        <button class="btn line" id="gateBtn">확인</button>
+        <span id="gateErr" class="hint" style="color:#C0392B"></span>
+      </div>
+      <div class="hint" style="margin-top:8px">사업지원팀 허브와 동일한 비밀번호입니다. 열람만 하실 분은 위 대시보드만 보시면 됩니다.</div>
+    </div>
+
+    <div class="card admin" id="adminPanel" style="display:none">
       <div class="step"><div class="sn">1</div><div>
         <label class="fld">대상 월 선택</label>
         <input type="month" id="upMonth">
@@ -402,9 +409,6 @@ function render(m, prev){
       ${x.act?`<div class="act"><b>권고</b> — ${x.act}</div>`:''}
     </div>`).join('') || '<div class="card"><div class="note">등록된 이슈가 없습니다.</div></div>';
 
-  /* 원본 다운로드 목록 */
-  g('rawList').innerHTML = (m.raw||[]).map(r=>`<a href="${r.file}" download>⬇ ${r.label}</a>`).join('')
-    || '<a>등록된 원본 파일이 없습니다</a>';
 }
 
 function hbars(el, rows, color, flagColor){
@@ -454,10 +458,6 @@ function lineChart(wrap, data){
   };
   svg.onmouseleave = ()=>{ tip.style.display='none'; cross.style.display='none'; };
 }
-
-/* ---------- 원본 다운로드 드롭다운 ---------- */
-g('rawBtn').onclick = e=>{ e.stopPropagation(); const l=g('rawList'); l.style.display=l.style.display==='block'?'none':'block'; };
-document.addEventListener('click', ()=>{ g('rawList').style.display='none'; });
 
 /* ---------- PPT 추출 ---------- */
 g('pptBtn').onclick = ()=>{
@@ -559,11 +559,6 @@ g('upRun').onclick = async ()=>{
     rows = rows.filter(r=>r._d && ym(r._d)===month);
     if(!rows.length){ st.className='err'; st.textContent=`선택한 파일에 ${month} 등록 건이 없습니다. 추출 기간을 확인하세요.`; return; }
     upBlock = aggregate(month, rows);
-    /* 실제 업로드된 파일 종류만 raw 목록에 반영 */
-    const kinds = new Set(upFilesMeta.map(x=>x.kind));
-    upBlock.raw = [];
-    if(kinds.has('svc')) upBlock.raw.push({label:`서비스 VOC 원본 (${upBlock.label})`, file:`voc_raw/${month}_서비스VOC.xlsx`});
-    if(kinds.has('prod')) upBlock.raw.push({label:`제품·이물질 VOC 원본 (${upBlock.label})`, file:`voc_raw/${month}_제품이물질VOC.xlsx`});
     const kindTxt = upFilesMeta.map(x=>`${x.file.name}→${x.kind==='prod'?'제품·이물질':'서비스'}`).join(' · ');
     st.textContent = `집계 완료: ${month} 총 ${upBlock.total}건 (이물질 ${upBlock.forb.length}건) · 이슈 후보 ${upBlock.issues.length}건 · 파일 구분: ${kindTxt}`;
     renderIssueEditor(upBlock.issues);
@@ -642,9 +637,7 @@ function aggregate(month, rows){
     store_top:topN(cnt(rows,'매장명',stripStore)).map(x=>[x[0],x[1],0]),
     prod_top:topN(cnt(rows,'제품명')).map(x=>[x[0],x[1],0]),
     channel:topN(cnt(rows,'접수채널',v=>v.split('>').pop()),99),
-    forb, issues,
-    raw:[{label:`서비스 VOC 원본 (${label})`,file:`voc_raw/${month}_서비스VOC.xlsx`},
-         {label:`제품·이물질 VOC 원본 (${label})`,file:`voc_raw/${month}_제품이물질VOC.xlsx`}] };
+    forb, issues };
 }
 
 function renderIssueEditor(list){
@@ -678,9 +671,9 @@ function collectIssues(){
   })).filter(x=>x.title);
 }
 function pubHintText(month){
-  return `수동 배포 시 — ① 다운로드된 <code>voc_data.json</code>으로 저장소의 기존 파일 교체 ② 원본 엑셀을
-  <code>voc_raw/${month}_서비스VOC.xlsx</code>, <code>voc_raw/${month}_제품이물질VOC.xlsx</code> 이름으로 voc_raw 폴더에 추가
-  ③ commit & push (Claude에게 "S.HAN에 VOC ${month} 업데이트 올려줘"라고 요청해도 됩니다)`;
+  return `수동 배포 시 — 다운로드된 <code>voc_data.json</code>으로 저장소의 기존 파일을 교체하고 commit &amp; push
+  (Claude에게 "S.HAN에 VOC ${month} 업데이트 올려줘"라고 요청해도 됩니다).
+  <b>업로드한 원본 엑셀은 저장소에 올라가지 않으며, 집계 결과만 반영됩니다.</b>`;
 }
 function buildMerged(){
   upBlock.issues = collectIssues();
@@ -695,6 +688,21 @@ g('upPublish').onclick = ()=>{
   const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='voc_data.json'; a.click();
   URL.revokeObjectURL(a.href);
 };
+
+/* ---------- 관리자 게이트 ---------- */
+const DEFAULT_ADMIN_PW = 'sbt2024!';
+function adminPw(){ return localStorage.getItem('sbt_admin_pw') || DEFAULT_ADMIN_PW; }
+function openAdmin(){
+  g('gate').style.display='none';
+  g('adminPanel').style.display='block';
+  sessionStorage.setItem('voc_admin','1');
+}
+g('gateBtn').onclick = ()=>{
+  if(g('gatePw').value === adminPw()){ g('gateErr').textContent=''; openAdmin(); }
+  else { g('gateErr').textContent='비밀번호가 틀렸습니다.'; g('gatePw').value=''; g('gatePw').focus(); }
+};
+g('gatePw').onkeydown = e=>{ if(e.key==='Enter') g('gateBtn').click(); };
+if(sessionStorage.getItem('voc_admin')==='1') openAdmin();
 
 /* ---------- 원클릭 배포 (GitHub API) ---------- */
 const GH_REPO = 'HANI-4455/S.HAN', GH_KEY = 'voc_gh_token';
@@ -748,10 +756,7 @@ g('upDeploy').onclick = async ()=>{
     const out = buildMerged();
     const msg = `VOC ${month} 월간 업데이트 (대시보드 원클릭 배포)`;
     await ghPut('voc_data.json', b64utf8(JSON.stringify(out,null,1)), msg, log);
-    for(const fm of upFilesMeta){
-      const name = fm.kind==='prod' ? `${month}_제품이물질VOC.xlsx` : `${month}_서비스VOC.xlsx`;
-      await ghPut(`voc_raw/${name}`, b64buf(await fm.file.arrayBuffer()), msg, log);
-    }
+    log('· 원본 엑셀은 개인정보 보호를 위해 저장소에 업로드하지 않습니다 (집계 결과만 반영)');
     DATA = out;
     init();
     log(`<b style="color:#15237A">배포 완료!</b> 대시보드에 ${month} 탭이 추가되었습니다. GitHub Pages 반영까지 1~2분, 다른 PC에서는 캐시로 최대 10분 걸릴 수 있습니다.`);
