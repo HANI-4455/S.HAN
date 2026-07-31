@@ -762,8 +762,51 @@ function deleteCard(id) {
   saveCards(cards); renderTagFilter(); renderCards();
 }
 
-const DEFAULT_ADMIN_PW = "sbt2024!";
-function getAdminPw() { return localStorage.getItem("sbt_admin_pw") || DEFAULT_ADMIN_PW; }
+/* ===== 공유 관리자 인증 (admin_auth.json — 모든 사용자 공통) ===== */
+const FALLBACK_ADMIN_PW = "sbt2024!";
+let _authCache = null;
+async function loadAuth(force){
+  if(_authCache && !force) return _authCache;
+  try{
+    const r = await fetch("admin_auth.json?t=" + Date.now(), {cache:"no-store"});
+    if(r.ok) _authCache = await r.json();
+  }catch(e){}
+  return _authCache;
+}
+async function pbkdf2b64(pw, saltB64, iter){
+  const salt = Uint8Array.from(atob(saltB64), c=>c.charCodeAt(0));
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({name:"PBKDF2", salt, iterations:iter, hash:"SHA-256"}, key, 256);
+  return btoa(String.fromCharCode.apply(null, new Uint8Array(bits)));
+}
+async function verifyAdminPw(pw){
+  const a = await loadAuth();
+  if(!a || !a.hash) return pw === FALLBACK_ADMIN_PW;
+  return (await pbkdf2b64(pw, a.salt, a.iterations)) === a.hash;
+}
+async function buildAuthPayload(pw){
+  const s = crypto.getRandomValues(new Uint8Array(16));
+  const saltB64 = btoa(String.fromCharCode.apply(null, s)), iter = 210000;
+  return {algo:"PBKDF2-SHA256", iterations:iter, salt:saltB64,
+          hash: await pbkdf2b64(pw, saltB64, iter), updated: new Date().toISOString().slice(0,10)};
+}
+/* 새 비밀번호를 저장소에 커밋 → 모든 사용자에게 적용 (GitHub 토큰 필요) */
+async function commitAuth(payload){
+  const tok = localStorage.getItem("voc_gh_token");
+  if(!tok) throw new Error("GitHub 토큰이 없습니다. VOC 대시보드 07 섹션에서 토큰을 먼저 저장해 주세요.");
+  const url = "https://api.github.com/repos/HANI-4455/S.HAN/contents/admin_auth.json";
+  const hd = {Authorization:"Bearer " + tok, Accept:"application/vnd.github+json"};
+  let sha = null;
+  const cur = await fetch(url, {headers:hd, cache:"no-store"});
+  if(cur.ok) sha = (await cur.json()).sha;
+  else if(cur.status === 401) throw new Error("토큰 인증 실패(401) — 토큰을 다시 저장해 주세요.");
+  const body = {message:"관리자 비밀번호 변경", content: btoa(unescape(encodeURIComponent(JSON.stringify(payload,null,1)))), ...(sha?{sha}:{})};
+  const res = await fetch(url, {method:"PUT", headers:hd, body: JSON.stringify(body)});
+  if(!res.ok) throw new Error("저장 실패 (HTTP " + res.status + ") — 토큰 권한(Contents: Read and write)을 확인하세요.");
+  _authCache = payload;
+}
+
+localStorage.removeItem("sbt_admin_pw"); /* 브라우저별 비번 폐기 — 공유 파일로 일원화 */
 let isAdmin = false;
 let pendingAction = null;
 
@@ -794,22 +837,25 @@ function showChangePwView() {
   document.getElementById("adminChangePwView").style.display = "block";
   setTimeout(() => document.getElementById("curPwInput").focus(), 100);
 }
-function doChangePw() {
+async function doChangePw() {
   const cur  = document.getElementById("curPwInput").value;
   const nw   = document.getElementById("newPwInput").value;
   const conf = document.getElementById("newPwConfirm").value;
   const errEl = document.getElementById("changePwErr");
   errEl.style.display = "block";
-  if (cur !== getAdminPw())  { errEl.textContent = "현재 비밀번호가 틀렸습니다."; return; }
-  if (nw.length < 4)         { errEl.textContent = "새 비밀번호는 4자 이상이어야 합니다."; return; }
+  if (!(await verifyAdminPw(cur))) { errEl.textContent = "현재 비밀번호가 틀렸습니다."; return; }
+  if (nw.length < 8)         { errEl.textContent = "새 비밀번호는 8자 이상으로 지정해 주세요."; return; }
   if (nw !== conf)           { errEl.textContent = "새 비밀번호가 일치하지 않습니다."; return; }
-  localStorage.setItem("sbt_admin_pw", nw);
-  alert("✅ 비밀번호가 변경되었습니다.");
-  closeAdminModal();
+  errEl.textContent = "저장 중...";
+  try {
+    await commitAuth(await buildAuthPayload(nw));
+    alert("✅ 비밀번호가 변경되었습니다. 모든 사용자에게 적용됩니다 (반영까지 최대 10분).");
+    closeAdminModal();
+  } catch (e) { errEl.textContent = e.message; }
 }
-function checkAdminPw() {
+async function checkAdminPw() {
   const pw = document.getElementById("adminPwInput").value;
-  if (pw === getAdminPw()) {
+  if (await verifyAdminPw(pw)) {
     isAdmin = true;
     closeAdminModal();
     document.getElementById("defaultMgrBtn").style.display = "";

@@ -291,6 +291,16 @@ td.c, th.c{text-align:center}
             <button class="btn line" id="upPublish">voc_data.json만 다운로드 (수동 배포용)</button>
           </div>
           <div id="deployLog" class="hint" style="margin-top:8px"></div>
+          <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px">
+            <label class="fld">관리자 비밀번호 변경 — 저장소에 반영되어 <b>모든 사용자·모든 PC에 동일 적용</b>됩니다</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <input type="password" id="pwNew" placeholder="새 비밀번호 (8자 이상)" style="font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:5px;padding:7px 10px;width:200px">
+              <input type="password" id="pwNew2" placeholder="새 비밀번호 확인" style="font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:5px;padding:7px 10px;width:200px">
+              <button class="btn line" id="pwChange">비밀번호 변경</button>
+              <span id="pwMsg" class="hint"></span>
+            </div>
+            <div class="hint" style="margin-top:6px">허브(index.html)와 동일한 비밀번호이며, 변경 시 양쪽에 함께 적용됩니다. 반영까지 최대 10분(캐시).</div>
+          </div>
           <div class="hint" style="margin-top:10px">
             <b>토큰 만들기(최초 1회, 5분)</b> — GitHub 로그인 → <code>Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token</code>
             → Repository access: <code>Only select repositories → HANI-4455/S.HAN</code> → Permissions: <code>Contents → Read and write</code> → 생성된 <code>github_pat_…</code> 값을 위에 붙여넣고 저장.
@@ -690,19 +700,77 @@ g('upPublish').onclick = ()=>{
 };
 
 /* ---------- 관리자 게이트 ---------- */
-const DEFAULT_ADMIN_PW = 'sbt2024!';
-function adminPw(){ return localStorage.getItem('sbt_admin_pw') || DEFAULT_ADMIN_PW; }
+/* ===== 공유 관리자 인증 (admin_auth.json — 모든 사용자 공통) ===== */
+const FALLBACK_ADMIN_PW = "sbt2024!";
+let _authCache = null;
+async function loadAuth(force){
+  if(_authCache && !force) return _authCache;
+  try{
+    const r = await fetch("admin_auth.json?t=" + Date.now(), {cache:"no-store"});
+    if(r.ok) _authCache = await r.json();
+  }catch(e){}
+  return _authCache;
+}
+async function pbkdf2b64(pw, saltB64, iter){
+  const salt = Uint8Array.from(atob(saltB64), c=>c.charCodeAt(0));
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({name:"PBKDF2", salt, iterations:iter, hash:"SHA-256"}, key, 256);
+  return btoa(String.fromCharCode.apply(null, new Uint8Array(bits)));
+}
+async function verifyAdminPw(pw){
+  const a = await loadAuth();
+  if(!a || !a.hash) return pw === FALLBACK_ADMIN_PW;
+  return (await pbkdf2b64(pw, a.salt, a.iterations)) === a.hash;
+}
+async function buildAuthPayload(pw){
+  const s = crypto.getRandomValues(new Uint8Array(16));
+  const saltB64 = btoa(String.fromCharCode.apply(null, s)), iter = 210000;
+  return {algo:"PBKDF2-SHA256", iterations:iter, salt:saltB64,
+          hash: await pbkdf2b64(pw, saltB64, iter), updated: new Date().toISOString().slice(0,10)};
+}
+/* 새 비밀번호를 저장소에 커밋 → 모든 사용자에게 적용 (GitHub 토큰 필요) */
+async function commitAuth(payload){
+  const tok = localStorage.getItem("voc_gh_token");
+  if(!tok) throw new Error("GitHub 토큰이 없습니다. VOC 대시보드 07 섹션에서 토큰을 먼저 저장해 주세요.");
+  const url = "https://api.github.com/repos/HANI-4455/S.HAN/contents/admin_auth.json";
+  const hd = {Authorization:"Bearer " + tok, Accept:"application/vnd.github+json"};
+  let sha = null;
+  const cur = await fetch(url, {headers:hd, cache:"no-store"});
+  if(cur.ok) sha = (await cur.json()).sha;
+  else if(cur.status === 401) throw new Error("토큰 인증 실패(401) — 토큰을 다시 저장해 주세요.");
+  const body = {message:"관리자 비밀번호 변경", content: btoa(unescape(encodeURIComponent(JSON.stringify(payload,null,1)))), ...(sha?{sha}:{})};
+  const res = await fetch(url, {method:"PUT", headers:hd, body: JSON.stringify(body)});
+  if(!res.ok) throw new Error("저장 실패 (HTTP " + res.status + ") — 토큰 권한(Contents: Read and write)을 확인하세요.");
+  _authCache = payload;
+}
+
+localStorage.removeItem("sbt_admin_pw");
 function openAdmin(){
   g('gate').style.display='none';
   g('adminPanel').style.display='block';
   sessionStorage.setItem('voc_admin','1');
 }
-g('gateBtn').onclick = ()=>{
-  if(g('gatePw').value === adminPw()){ g('gateErr').textContent=''; openAdmin(); }
+g('gateBtn').onclick = async ()=>{
+  g('gateErr').textContent='확인 중...';
+  if(await verifyAdminPw(g('gatePw').value)){ g('gateErr').textContent=''; openAdmin(); }
   else { g('gateErr').textContent='비밀번호가 틀렸습니다.'; g('gatePw').value=''; g('gatePw').focus(); }
 };
 g('gatePw').onkeydown = e=>{ if(e.key==='Enter') g('gateBtn').click(); };
 if(sessionStorage.getItem('voc_admin')==='1') openAdmin();
+
+g('pwChange').onclick = async ()=>{
+  const msg = g('pwMsg'), a = g('pwNew').value, b = g('pwNew2').value;
+  msg.style.color = '#C0392B';
+  if(a.length < 8){ msg.textContent = '새 비밀번호는 8자 이상으로 지정해 주세요.'; return; }
+  if(a !== b){ msg.textContent = '두 입력값이 일치하지 않습니다.'; return; }
+  msg.style.color = ''; msg.textContent = '저장 중...';
+  try{
+    await commitAuth(await buildAuthPayload(a));
+    g('pwNew').value = ''; g('pwNew2').value = '';
+    msg.style.color = '#15237A';
+    msg.textContent = '✓ 변경 완료 — 모든 사용자에게 적용됩니다 (최대 10분).';
+  }catch(e){ msg.style.color = '#C0392B'; msg.textContent = e.message; }
+};
 
 /* ---------- 원클릭 배포 (GitHub API) ---------- */
 const GH_REPO = 'HANI-4455/S.HAN', GH_KEY = 'voc_gh_token';
