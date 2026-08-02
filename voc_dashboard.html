@@ -470,75 +470,96 @@ function lineChart(wrap, data){
 }
 
 /* ---------- PPT 추출 ---------- */
+/* 표지·머리말 골드 로고 (템플릿 PPT에서 추출) */
+const LOGO = "image/jpeg;base64,/9j/4AAQSkZJRgABAQEAeAB4AAD/4QLQRXhpZgAATU0AKgAAAAgABAE7AAIAAAADankAAIdpAAQAAAABAAABSpydAAEAAAAGAAACwuocAAcAAAEMAAAAPgAAAAAc6gAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWQAwACAAAAFAAAApiQBAACAAAAFAAAAqySkQACAAAAAzU0AACSkgACAAAAAzU0AADqHAAHAAABDAAAAYwAAAAAHOoAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADIwMjQ6MTE6MTMgMDk6MjE6MjAAMjAyNDoxMToxMyAwOToyMToyMAAAAGoAeQAAAP/hBBVodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvADw/eHBhY2tldCBiZWdpbj0n77u/JyBpZD0nVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkJz8+DQo8eDp4bXBtZXRhIHhtbG5zOng9ImFkb2JlOm5zOm1ldGEvIj48cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPjxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PSJ1dWlkOmZhZjViZGQ1LWJhM2QtMTFkYS1hZDMxLWQzM2Q3NTE4MmYxYiIgeG1sbnM6ZGM9Imh0dHA6Ly9wdXJsLm9yZy9kYy9lbGVtZW50cy8xLjEvIi8+PHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9InV1aWQ6ZmFmNWJkZDUtYmEzZC0xMWRhLWFkMzEtZDMzZDc1MTgyZjFiIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iPjx4bXA6Q3JlYXRlRGF0ZT4yMDI0LTExLTEzVDA5OjIxOjIwLjUzODwveG1wOkNyZWF0ZURhdGU+PC9yZGY6RGVzY3JpcHRpb24+PHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9InV1aWQ6ZmFmNWJkZDUtYmEzZC0xMWRhLWFkMzEtZDMzZDc1MTgyZjFiIiB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iPjxkYzpjcmVhdG9yPjxyZGY6U2VxIHhtbG5zOnJkZj0iaHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyI+PHJkZjpsaT5qeTwvcmRmOmxpPjwvcmRmOlNlcT4NCgkJCTwvZGM6Y3JlYXRvcj48L3JkZjpEZXNjcmlwdGlvbj48L3JkZjpSREY+PC94OnhtcG1ldGE+DQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgPD94cGFja2V0IGVuZD0ndyc/Pv/bAEMABwUFBgUE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";
+
 g('pptBtn').onclick = ()=>{
   if(!cur) return;
   const m = cur, i = DATA.months.indexOf(m), prev = DATA.months[i-1]||null;
-  const P='15237A', S='2F497D', A='F26300', T='272727', F='맑은 고딕';
+  /* 사내 PPT 규칙: A4 가로(10.83 x 7.5in), 나눔바른고딕, 표지 흰 배경 + 검은 타이틀 + 우측 상단 골드 로고 */
+  const P='15237A', S='2F497D', A='F26300', T='272727', K='000000', F='나눔바른고딕';
+  const W=10.83, H=7.5, ML=0.5, CW=W-ML*2;           /* 슬라이드/여백/본문 폭 */
+  const LG={x:8.97,y:0.15,w:1.74,h:0.27};            /* 템플릿과 동일한 로고 위치 */
   const pres = new PptxGenJS();
-  pres.layout = 'LAYOUT_WIDE';
+  pres.defineLayout({name:'A4LAND', width:W, height:H});
+  pres.layout = 'A4LAND';
 
-  /* S1 표지 */
+  /* S1 표지 — 흰 배경, 검은색 타이틀, 우측 상단 골드 로고 */
   let s = pres.addSlide();
   s.background = {color:'FFFFFF'};
-  s.addText('파리크라상', {x:11.2,y:0.35,w:1.8,h:0.4,fontFace:F,fontSize:13,bold:true,color:P,align:'right'});
-  s.addText(`PAS VOC 현황`, {x:0.8,y:2.7,w:11,h:1.1,fontFace:F,fontSize:40,bold:true,color:P});
-  s.addText(m.label, {x:0.8,y:3.8,w:11,h:0.7,fontFace:F,fontSize:24,color:A,bold:true});
-  s.addShape('rect',{x:0.85,y:4.6,w:0.9,h:0.03,fill:{color:A}});
-  s.addShape('rect',{x:1.75,y:4.6,w:6,h:0.03,fill:{color:S}});
-  s.addText(`데이터 기준일 ${DATA.updated} · 사업지원팀`, {x:0.8,y:4.75,w:8,h:0.4,fontFace:F,fontSize:13,color:'6B7280'});
+  s.addImage({data:LOGO, ...LG});
+  s.addText('PAS VOC 현황', {x:ML+0.3,y:2.6,w:CW-0.6,h:0.9,fontFace:F,fontSize:32,bold:true,color:K});
+  s.addText(m.label, {x:ML+0.3,y:3.5,w:CW-0.6,h:0.5,fontFace:F,fontSize:20,bold:true,color:K});
+  s.addShape('rect',{x:ML+0.35,y:4.15,w:0.8,h:0.03,fill:{color:A}});
+  s.addShape('rect',{x:ML+1.15,y:4.15,w:5.2,h:0.03,fill:{color:S}});
+  s.addText(`데이터 기준일 ${DATA.updated} · 파리크라상 사업지원팀`,
+            {x:ML+0.3,y:4.3,w:CW-0.6,h:0.4,fontFace:F,fontSize:12,color:'6B7280'});
 
-  /* S2 요약 */
+  /* S2 종합 현황 */
   s = pres.addSlide(); s.background={color:'FFFFFF'};
   slideTitle(s, '01', '종합 현황');
   const rq=m.reqtype, bul=rq['불만']||0;
-  const kpis=[['총 발생 VOC',m.total,prev?`${prev.total} → ${m.total}`:''],['불만',bul,`${(bul/m.total*100).toFixed(1)}%`],['문의',rq['문의']||0,''],['칭찬',rq['칭찬']||0,''],['제안',rq['제안']||0,''],['주목 이슈',m.issues.length,'하단 별첨']];
+  const kpis=[['총 발생 VOC',m.total,prev?`전월 ${prev.total}건`:''],['불만',bul,`${(bul/m.total*100).toFixed(1)}%`],
+              ['문의',rq['문의']||0,''],['칭찬',rq['칭찬']||0,''],['제안',rq['제안']||0,''],
+              ['주목 이슈',m.issues.length,'별첨 참조']];
+  const kw=(CW-0.15*5)/6;
   kpis.forEach((k,j)=>{
-    const x=0.7+j*2.1;
-    s.addShape('roundRect',{x, y:1.5, w:1.95, h:1.5, rectRadius:0.06, fill:{color:'FFFFFF'}, line:{color:j===5?A:S, width:1}});
-    s.addText(String(k[0]),{x,y:1.62,w:1.95,h:0.35,fontFace:F,fontSize:11,color:'6B7280',align:'center'});
-    s.addText(String(k[1]),{x,y:1.95,w:1.95,h:0.6,fontFace:F,fontSize:26,bold:true,color:j===5?A:P,align:'center'});
-    s.addText(String(k[2]),{x,y:2.55,w:1.95,h:0.35,fontFace:F,fontSize:10,color:'6B7280',align:'center'});
+    const x=ML+j*(kw+0.15);
+    s.addShape('roundRect',{x, y:1.35, w:kw, h:1.3, rectRadius:0.06, fill:{color:'FFFFFF'}, line:{color:j===5?A:S, width:1}});
+    s.addText(String(k[0]),{x,y:1.45,w:kw,h:0.3,fontFace:F,fontSize:11,color:'6B7280',align:'center'});
+    s.addText(String(k[1]),{x,y:1.72,w:kw,h:0.5,fontFace:F,fontSize:22,bold:true,color:j===5?A:P,align:'center'});
+    s.addText(String(k[2]),{x,y:2.22,w:kw,h:0.3,fontFace:F,fontSize:10,color:'6B7280',align:'center'});
   });
   const CATS=['제품','판매서비스','인적서비스','점포서비스','이벤트','이물질'];
   const catRows=[[hcell('구분'),hcell('전월'),hcell('당월'),hcell('증감')]];
   CATS.forEach(c=>{
     const p0=prev?(prev.cat[c]||0):null, n0=m.cat[c]||0, d=p0==null?null:n0-p0;
-    catRows.push([cell(c,true), cell(p0==null?'-':p0), cell(n0), {text:d==null?'-':d>0?`▲${d}`:d<0?`▼${-d}`:'—', options:{fontFace:F,fontSize:11,color:d>0?A:'6B7280',align:'center',valign:'middle'}}]);
+    catRows.push([cell(c,true), cell(p0==null?'-':p0), cell(n0),
+      {text:d==null?'-':d>0?`▲${d}`:d<0?`▼${-d}`:'—',
+       options:{fontFace:F,fontSize:11,color:d>0?A:'6B7280',align:'center',valign:'middle'}}]);
   });
-  s.addText('발생 유형(대) 전월 비교',{x:0.7,y:3.35,w:6,h:0.4,fontFace:F,fontSize:14,bold:true,color:P});
-  s.addTable(catRows,{x:0.7,y:3.75,w:6.0,rowH:0.32,border:{type:'solid',color:'D9DEE8',pt:0.5},fill:{color:'FFFFFF'}});
-  const subRows=[[hcell('세부유형 TOP5'),hcell('건수')]];
-  m.subtype_top.slice(0,5).forEach(r=>subRows.push([cell(r[0],true),cell(r[1])]));
-  s.addText('세부유형(소) TOP 5',{x:7.2,y:3.35,w:5,h:0.4,fontFace:F,fontSize:14,bold:true,color:P});
-  s.addTable(subRows,{x:7.2,y:3.75,w:5.4,rowH:0.32,border:{type:'solid',color:'D9DEE8',pt:0.5}});
+  const halfW=(CW-0.4)/2;
+  s.addText('발생 유형(대) 전월 비교',{x:ML,y:2.95,w:halfW,h:0.35,fontFace:F,fontSize:14,bold:true,color:P});
+  s.addTable(catRows,{x:ML,y:3.3,w:halfW,rowH:0.32,border:{type:'solid',color:'D9DEE8',pt:0.5},fill:{color:'FFFFFF'}});
+  const subRows=[[hcell('세부유형(소)'),hcell('건수')]];
+  m.subtype_top.slice(0,6).forEach(r=>subRows.push([cell(r[0],true),cell(r[1])]));
+  s.addText('세부유형 TOP 6',{x:ML+halfW+0.4,y:2.95,w:halfW,h:0.35,fontFace:F,fontSize:14,bold:true,color:P});
+  s.addTable(subRows,{x:ML+halfW+0.4,y:3.3,w:halfW,rowH:0.32,border:{type:'solid',color:'D9DEE8',pt:0.5}});
 
   /* S3 이물질 */
   s = pres.addSlide(); s.background={color:'FFFFFF'};
   slideTitle(s, '02', `안전관련 필수 조치 — 이물질 VOC ${m.forb.length}건`);
   const fRows=[[hcell('등록일'),hcell('매장'),hcell('제품'),hcell('이물 유형'),hcell('내용'),hcell('현물보유'),hcell('담당')]];
   m.forb.forEach(r=>fRows.push(r.map((v,j)=>cell(v, j===1||j===4))));
-  s.addTable(fRows,{x:0.5,y:1.4,w:12.3,border:{type:'solid',color:'D9DEE8',pt:0.5},autoPage:true,autoPageRepeatHeader:true,fontSize:9,rowH:0.28});
+  s.addTable(fRows,{x:ML,y:1.3,w:CW,colW:[0.72,1.32,1.65,1.2,3.16,1.15,0.63],
+    border:{type:'solid',color:'D9DEE8',pt:0.5},autoPage:true,autoPageRepeatHeader:true,
+    autoPageSlideStartY:1.3, fontSize:10, rowH:0.26});
 
-  /* S4 이슈 */
+  /* S4 경영진 주목 이슈 */
   s = pres.addSlide(); s.background={color:'FFFFFF'};
   slideTitle(s, '03', `경영진 주목 이슈 ${m.issues.length}건`);
   const iRows=[[hcell('구분'),hcell('이슈'),hcell('내용 · 권고')]];
   m.issues.forEach(x=>{
     iRows.push([
       {text:x.label||TAGS[x.tag],options:{fontFace:F,fontSize:10,bold:true,color:(x.tag==='legal'||x.tag==='hyg')?A:S,align:'center',valign:'middle'}},
-      {text:`${x.title}\n${x.meta||''}`,options:{fontFace:F,fontSize:10,bold:true,color:P,valign:'middle'}},
-      {text:`${x.body}${x.act?`\n[권고] ${x.act}`:''}`,options:{fontFace:F,fontSize:9.5,color:T,valign:'middle'}}
+      {text:`${x.title}
+${x.meta||''}`,options:{fontFace:F,fontSize:10,bold:true,color:P,valign:'middle'}},
+      {text:`${x.body}${x.act?`
+[권고] ${x.act}`:''}`,options:{fontFace:F,fontSize:10,color:T,valign:'middle'}}
     ]);
   });
-  s.addTable(iRows,{x:0.5,y:1.4,w:12.3,colW:[1.3,4.2,6.8],border:{type:'solid',color:'D9DEE8',pt:0.5},autoPage:true,autoPageRepeatHeader:true});
+  s.addTable(iRows,{x:ML,y:1.3,w:CW,colW:[1.1,3.3,5.43],
+    border:{type:'solid',color:'D9DEE8',pt:0.5},autoPage:true,autoPageRepeatHeader:true,autoPageSlideStartY:1.3});
 
+  /* 내지 머리말: 오렌지 섹션번호 + 다크블루 제목 + 오렌지/그레이 구분선 + 골드 로고 */
   function slideTitle(sl, no, t){
-    sl.addText('파리크라상',{x:11.2,y:0.3,w:1.8,h:0.35,fontFace:F,fontSize:11,bold:true,color:P,align:'right'});
-    sl.addText([{text:no+'  ',options:{color:A,bold:true}},{text:t,options:{color:P,bold:true}}],{x:0.5,y:0.45,w:11,h:0.6,fontFace:F,fontSize:22});
-    sl.addShape('rect',{x:0.55,y:1.1,w:0.6,h:0.025,fill:{color:A}});
-    sl.addShape('rect',{x:1.15,y:1.1,w:11.6,h:0.025,fill:{color:'D9DEE8'}});
+    sl.addImage({data:LOGO, ...LG});
+    sl.addText([{text:no+'  ',options:{color:A,bold:true}},{text:t,options:{color:P,bold:true}}],
+               {x:ML,y:0.5,w:CW-2.0,h:0.5,fontFace:F,fontSize:20,margin:0});
+    sl.addShape('rect',{x:ML,y:1.05,w:0.6,h:0.025,fill:{color:A}});
+    sl.addShape('rect',{x:ML+0.6,y:1.05,w:CW-0.6,h:0.025,fill:{color:'D9DEE8'}});
   }
-  function hcell(t){ return {text:String(t),options:{fontFace:F,fontSize:10,bold:true,color:'FFFFFF',fill:{color:S},align:'center',valign:'middle'}}; }
+  function hcell(t){ return {text:String(t),options:{fontFace:F,fontSize:11,bold:true,color:'FFFFFF',fill:{color:S},align:'center',valign:'middle'}}; }
   function cell(t,left){ return {text:String(t),options:{fontFace:F,fontSize:10,color:T,align:left?'left':'center',valign:'middle'}}; }
 
   pres.writeFile({fileName:`PAS_VOC_현황_${m.key}.pptx`});
