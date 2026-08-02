@@ -1,0 +1,17 @@
+{
+ "algo": "PBKDF2-SHA256",
+ "iterations": 210000,
+ "updated": "2026-08-02",
+ "users": {
+  "1": {"salt": "6IOfPUe6nGwMHBQkavlzNA==", "hash": "O8CDohALpoIJFQV2CeAveMFa4OkcDY2Qwv4A5rFyL9E="},
+  "2": {"salt": "G6VwLH3+MPYG3hBDyZrrsg==", "hash": "u3Qp1c+gRmcgSkjZq92UPPW3V8xUkn7O5S260lDwz00="},
+  "3": {"salt": "IX2KN397xQIEXwaNOxAB3g==", "hash": "JW7Ey1pLqSCyzDKj7Ebkp2NqXLpabQGr6LBta2d8TGk="},
+  "4": {"salt": "+TfuG/M2z7fwPZwtQnLq6Q==", "hash": "sLLyTWqB9skAR9dWmYX33Q5i9MkP+NCqyaNvqdwMJco="},
+  "5": {"salt": "R7xDymKD5/P2NP9G7V23dw==", "hash": "4vK6vBY00xh2nj0a7qHqFrd5WEwrGbbzL9Yksjo8E60="},
+  "6": {"salt": "MG2PvYlLG3L612HCpSghCg==", "hash": "Gh2BykqLHg8qFTCNPotaMlulJWC+4MfkwEKiHYTpj7E="},
+  "7": {"salt": "lIn2uheHdFDyFJk6r7jA0w==", "hash": "I8aqPvF6WA+FZgU/7dDWGdTgo04ZNNJbn7foP7xCMiI="},
+  "8": {"salt": "HTh0UprnuFjE43ugqn5t3Q==", "hash": "nn61kNgD4nq3FZkKhIQbQR15XM0v06d9HbYShSuP+FY="},
+  "9": {"salt": "8aPw7rCaj4D1Bls3+0ebsg==", "hash": "dXUyjpOSoXVCM+CHkG6rvMuJ6uWixR90nh8UjP5QRdQ="},
+  "10": {"salt": "b7089EtyJiBMuyesTBZI7A==", "hash": "FYax3A7b4DA5uo7nfEpfqvq/48qGcPBY+pdhJG1q+cQ="}
+ }
+}

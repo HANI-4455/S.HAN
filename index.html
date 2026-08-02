@@ -491,9 +491,74 @@
       .hero { padding: 28px 20px 24px; }
       .hero h1 { font-size: 22px; }
     }
+
+    /* ── 로그인 게이트 ── */
+    .login-gate {
+      position: fixed; inset: 0; z-index: 500;
+      background: linear-gradient(160deg, #15237A 0%, #2F497D 100%);
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .login-gate.done { display: none; }
+    .login-card {
+      background: #fff; border-radius: 12px; padding: 36px 32px; width: 380px; max-width: 94vw;
+      box-shadow: 0 24px 70px rgba(0,0,0,0.28);
+    }
+    .login-card .lc-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+    .login-card .lc-mark { width: 40px; height: 40px; background: var(--primary); border-radius: 6px;
+      display: flex; align-items: center; justify-content: center; color: #fff; font-size: 17px; font-weight: 700; letter-spacing: -1px; }
+    .login-card .lc-name { font-size: 16px; font-weight: 700; color: var(--primary); }
+    .login-card .lc-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .login-card .lc-eyebrow { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .login-card .lc-eyebrow .o { width: 24px; height: 2px; background: var(--accent); }
+    .login-card .lc-eyebrow .b { width: 60px; height: 1px; background: #D1D8E8; }
+    .login-card h2 { font-size: 20px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+    .login-card p.desc { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+    .login-card label { display: block; font-size: 11px; color: var(--muted); font-weight: 700;
+      text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px; }
+    .login-card select, .login-card input {
+      width: 100%; border: 1px solid #D1D8E8; border-radius: 6px; padding: 11px 13px;
+      font-size: 14px; font-family: inherit; outline: none; margin-bottom: 14px; background: #fff; color: var(--text);
+    }
+    .login-card select:focus, .login-card input:focus { border-color: var(--primary); }
+    .login-card .lc-err { font-size: 12px; color: #EF4444; margin: -6px 0 12px; display: none; }
+    .login-card .lc-btn { width: 100%; padding: 12px; background: var(--accent); color: #fff; border: none;
+      border-radius: 6px; font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer; }
+    .login-card .lc-btn:hover { opacity: .9; }
+    .login-card .lc-btn:disabled { opacity: .55; cursor: not-allowed; }
+    .login-card .lc-foot { font-size: 11px; color: #9CA3AF; margin-top: 16px; line-height: 1.6; }
+
+    /* 헤더 사용자 칩 */
+    .user-chip { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--secondary); font-weight: 600; }
+    .user-chip .uid { background: var(--light); padding: 3px 10px; border-radius: 20px; }
+    .user-chip button { background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer;
+      font-family: inherit; text-decoration: underline; padding: 0; }
+    .user-chip button:hover { color: var(--accent); }
   </style>
 </head>
 <body>
+
+<!-- 로그인 게이트 -->
+<div class="login-gate" id="loginGate">
+  <div class="login-card">
+    <div class="lc-brand">
+      <div class="lc-mark">PC</div>
+      <div>
+        <div class="lc-name">Paris Croissant</div>
+        <div class="lc-sub">사업지원팀 포털</div>
+      </div>
+    </div>
+    <div class="lc-eyebrow"><div class="o"></div><div class="b"></div></div>
+    <h2>로그인</h2>
+    <p class="desc">배정받은 ID와 비밀번호로 로그인하세요.</p>
+    <label for="loginId">ID</label>
+    <select id="loginId"></select>
+    <label for="loginPw">비밀번호</label>
+    <input type="password" id="loginPw" placeholder="비밀번호" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="lc-err" id="loginErr">ID 또는 비밀번호가 올바르지 않습니다.</div>
+    <button class="lc-btn" id="loginBtn" onclick="doLogin()">로그인</button>
+    <div class="lc-foot">접속 기록(ID·시간)이 남습니다. 계정은 담당자에게 문의하세요.</div>
+  </div>
+</div>
 
 <header>
   <div class="brand">
@@ -503,7 +568,12 @@
       <div class="brand-sub">사업지원팀 포털</div>
     </div>
   </div>
-  <div class="header-right">BUSINESS SUPPORT TEAM</div>
+  <div class="header-right">
+    <span class="user-chip" id="userChip" style="display:none">
+      <span class="uid" id="userChipId"></span>
+      <button onclick="logout()">로그아웃</button>
+    </span>
+  </div>
 </header>
 
 <div class="hero">
@@ -1007,8 +1077,93 @@ function resetDefaultCards() {
   renderDefaultsList();
 }
 
-renderTagFilter();
-renderCards();
+/* ===== 로그인 게이트 + 접속 로그 ===== */
+const LOGIN_URL = "login_users.json";
+const LOGIN_SESSION_DAYS = 30;
+const LOG_SHEET_URL = "https://script.google.com/macros/s/AKfycbz7LDqYodP8Eka-Egond7q438y4HlgWfHPaq5mRHDaUNtM2-j42xGqG8Jc-4XrVWTGv5g/exec";
+let _loginUsers = null;
+
+async function loadLoginUsers(){
+  if(_loginUsers) return _loginUsers;
+  try{
+    const r = await fetch(LOGIN_URL + "?t=" + Date.now(), {cache:"no-store"});
+    if(r.ok){ _loginUsers = await r.json(); localStorage.setItem("sbt_login_users_cache", JSON.stringify(_loginUsers)); return _loginUsers; }
+  }catch(e){}
+  const cached = localStorage.getItem("sbt_login_users_cache");
+  if(cached){ _loginUsers = JSON.parse(cached); return _loginUsers; }
+  return null;
+}
+
+function currentSession(){
+  try{
+    const s = JSON.parse(localStorage.getItem("sbt_login") || "null");
+    if(!s || !s.id || !s.ts) return null;
+    if(Date.now() - s.ts > LOGIN_SESSION_DAYS*864e5) return null;
+    return s;
+  }catch(e){ return null; }
+}
+
+/* 접속 로그 전송 (Apps Script 접속로그 시트) — 브라우저별 12시간 1회로 중복 억제 */
+function logAccess(id, kind){
+  try{
+    const k = "sbt_last_log_" + id;
+    const last = +(localStorage.getItem(k) || 0);
+    if(kind !== "login" && Date.now() - last < 12*36e5) return; // 자동 재진입은 12h 디바운스
+    localStorage.setItem(k, String(Date.now()));
+    const payload = JSON.stringify({action:"logAccess", id:id, kind:kind||"visit",
+      time:new Date().toISOString(), tz:"KST", ua:navigator.userAgent, page:"hub"});
+    fetch(LOG_SHEET_URL, {method:"POST", mode:"no-cors",
+      headers:{"Content-Type":"text/plain;charset=utf-8"}, body:payload}).catch(()=>{});
+  }catch(e){}
+}
+
+function enterHub(session, kind){
+  document.getElementById("loginGate").classList.add("done");
+  const chip = document.getElementById("userChip");
+  chip.style.display = ""; document.getElementById("userChipId").textContent = "ID " + session.id;
+  renderTagFilter(); renderCards();
+  logAccess(session.id, kind);
+}
+
+function logout(){
+  localStorage.removeItem("sbt_login");
+  location.reload();
+}
+
+async function doLogin(){
+  const id = document.getElementById("loginId").value;
+  const pw = document.getElementById("loginPw").value;
+  const err = document.getElementById("loginErr");
+  const btn = document.getElementById("loginBtn");
+  err.style.display = "none"; btn.disabled = true; btn.textContent = "확인 중…";
+  try{
+    const data = await loadLoginUsers();
+    if(!data || !data.users){ err.textContent = "로그인 정보를 불러올 수 없습니다. 새로고침 후 다시 시도하세요."; err.style.display="block"; return; }
+    const u = data.users[id];
+    const ok = u && (await pbkdf2b64(pw, u.salt, data.iterations)) === u.hash;
+    if(ok){
+      const session = {id:id, ts:Date.now()};
+      localStorage.setItem("sbt_login", JSON.stringify(session));
+      enterHub(session, "login");
+    }else{
+      err.textContent = "ID 또는 비밀번호가 올바르지 않습니다.";
+      err.style.display = "block";
+      document.getElementById("loginPw").value = ""; document.getElementById("loginPw").focus();
+    }
+  }catch(e){
+    err.textContent = "오류: " + e.message; err.style.display = "block";
+  }finally{ btn.disabled = false; btn.textContent = "로그인"; }
+}
+
+function initGate(){
+  const sel = document.getElementById("loginId");
+  sel.innerHTML = Array.from({length:10}, (_,i)=>`<option value="${i+1}">${i+1}</option>`).join("");
+  const session = currentSession();
+  if(session){ enterHub(session, "visit"); }
+  else { setTimeout(()=>document.getElementById("loginPw").focus(), 100); }
+}
+
+initGate();
 </script>
 </body>
 </html>
