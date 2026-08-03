@@ -144,6 +144,7 @@
   <div class="toolbar">
     <label>기준일자</label>
     <select id="dateSel" title="업로드된 일자 이력"></select>
+    <button class="btn admin-only" id="btnDelDate" title="선택한 기준일자 데이터 삭제" style="border-color:#c94b4b;color:#c94b4b">🗑 일자 삭제</button>
     <button class="btn" id="btnPpt">⬇ PPT 다운로드</button>
     <button class="btn admin-only" id="btnData">⬇ 엑셀 다운로드</button>
     <button class="btn admin-only" id="btnThr">⚙ 신호등 기준 설정</button>
@@ -248,9 +249,12 @@ const PUB_FILE='kpi_data.json';
 /* 지표 묶음: 여러 지표를 한 그룹으로 묶어 표 머리글에 그룹명을 함께 표시.
    예) 품질점검이 커피·케익·델리 3개로 나뉜 경우.
    엑셀 헤더명을 그대로 적으면 되고, 없는 이름은 무시됩니다. */
-const METRIC_GROUPS={ '품질점검':['커피','케익','델리'] };
+const METRIC_GROUPS={ '품질점검':['커피품질','케익품질','델리품질'] };
 function groupOf(metric){
-  for(const g in METRIC_GROUPS){ if(METRIC_GROUPS[g].includes(metric)) return g; }
+  const k=String(metric==null?'':metric).replace(/\s/g,'');   // 띄어쓰기 차이 무시
+  for(const g in METRIC_GROUPS){
+    if(METRIC_GROUPS[g].some(v=>v.replace(/\s/g,'')===k)) return g;
+  }
   return '';
 }
 
@@ -720,6 +724,19 @@ function applyMode(){
 function abToB64(ab){ const u=new Uint8Array(ab); let bin=''; const CH=0x8000; for(let i=0;i<u.length;i+=CH){ bin+=String.fromCharCode.apply(null,u.subarray(i,i+CH)); } return btoa(bin); }
 function b64ToU8(b64){ const bin=atob(b64); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
 
+/* ---------- 기준일자 삭제 (관리자 전용) ---------- */
+function deleteDate(){
+  if(!isAdmin){ alert('관리자만 삭제할 수 있습니다.'); return; }
+  if(!curDate || !store[curDate]){ alert('삭제할 기준일자가 없습니다.'); return; }
+  if(!confirm('기준일자 [ '+curDate+' ] 데이터를 삭제할까요?\n\n삭제 후 [발행]을 눌러야 열람자 화면에도 반영됩니다.')) return;
+  delete store[curDate];
+  const dates=Object.keys(store).sort().reverse();
+  curDate=dates[0]||'';
+  if(curDate) localStorage.setItem(LS_DATE,curDate); else localStorage.removeItem(LS_DATE);
+  persist();
+  render();
+}
+
 /* ---------- 엑셀 다운로드 — 모두 사용 가능. 관리자가 올린 원본 파일 그대로 ---------- */
 function exportData(){
   if(!isAdmin){ alert('엑셀 다운로드는 관리자만 가능합니다.'); return; }
@@ -853,6 +870,7 @@ document.getElementById('btnTpl').onclick=downloadTemplate;
 document.getElementById('btnDemo').onclick=loadDemo;
 document.getElementById('btnPpt').onclick=exportPPT;
 document.getElementById('btnData').onclick=exportData;
+document.getElementById('btnDelDate').onclick=deleteDate;
 document.getElementById('btnPublish').onclick=publish;
 document.getElementById('btnLogin').onclick=toggleAdmin;
 document.getElementById('btnGh').onclick=openGh;
