@@ -82,6 +82,7 @@
     background:#DCE3F1;color:var(--primary);font-weight:600;font-size:12px;
     position:sticky;top:0;z-index:2;line-height:1.3;
   }
+  thead th .grp{display:block;font-size:10px;font-weight:500;color:var(--accent);line-height:1.2;margin-bottom:2px}
   th.label,td.label{text-align:left;position:sticky;left:0;background:#fff;z-index:1;min-width:150px;font-weight:600}
   thead th.label{background:#DCE3F1;z-index:3}
   tr.target td{background:#F0F3F9;font-weight:600;color:var(--secondary)}
@@ -244,6 +245,15 @@ const FIXED=['레벨','항목명','소속팀'];  // 고정 컬럼(대소문자/�
 const ADMIN_PW='1111';
 const PUB_FILE='kpi_data.json';
 
+/* 지표 묶음: 여러 지표를 한 그룹으로 묶어 표 머리글에 그룹명을 함께 표시.
+   예) 품질점검이 커피·케익·델리 3개로 나뉜 경우.
+   엑셀 헤더명을 그대로 적으면 되고, 없는 이름은 무시됩니다. */
+const METRIC_GROUPS={ '품질점검':['커피','케익','델리'] };
+function groupOf(metric){
+  for(const g in METRIC_GROUPS){ if(METRIC_GROUPS[g].includes(metric)) return g; }
+  return '';
+}
+
 const LS_DIRTY='kpiDash_dirty', LS_GH='kpiDash_gh';
 let store = {};    // { '2026-07-31': {metrics:[...], rows:[...]} }
 let thr   = {};    // { '매출달성율': {dir:'high', green:100, yellow:95} }
@@ -405,7 +415,11 @@ function render(){
   // 헤더
   const thead=document.getElementById('thead');
   thead.innerHTML='<tr><th class="label">구분</th>'+
-    metrics.map(m=>`<th title="${m}">${m}</th>`).join('')+'</tr>';
+    metrics.map(m=>{
+      const g=groupOf(m);
+      const cap=g?`<span class="grp">${g}</span>`:'';
+      return `<th title="${g?g+' - '+m:m}">${cap}${m}</th>`;
+    }).join('')+'</tr>';
 
   // 바디: 목표 → 전사 → 팀(+SV)
   const tbody=document.getElementById('tbody');
@@ -475,8 +489,9 @@ function openThr(){
     const tgt=targetNum(m);
     let tgtDisp=(tgt==null)?'<span style="color:#c94b4b">목표값 없음</span>':tgt;
     if(hasScopedTarget(m)) tgtDisp+=' <span style="color:#F26300;font-size:10px">+팀/SV별</span>';
+    const gp=groupOf(m);
     return `<tr data-m="${encodeURIComponent(m)}">
-      <td class="mname">${m}</td>
+      <td class="mname">${gp?`<span style="color:#F26300;font-size:10px">${gp} · </span>`:''}${m}</td>
       <td><select class="d">
         <option value="off" ${c.dir==='off'?'selected':''}>사용안함</option>
         <option value="high" ${c.dir==='high'?'selected':''}>높을수록 좋음</option>
@@ -750,7 +765,11 @@ function pptCell(metric,row){
   return { text:disp, options:{align:'center', valign:'middle'} };
 }
 function pptHeaderRow(metrics){
-  const h=v=>({ text:v, options:{ bold:true, color:PPT_BLUE, fill:{color:PPT_HEADBG}, align:'center', valign:'middle', fontSize:9 } });
+  const h=v=>{
+    const g=groupOf(v);
+    const txt = g ? [ {text:g, options:{fontSize:7, color:PPT_ORANGE, breakLine:true}}, {text:v, options:{fontSize:9, bold:true, color:PPT_BLUE}} ] : v;
+    return { text:txt, options:{ bold:true, color:PPT_BLUE, fill:{color:PPT_HEADBG}, align:'center', valign:'middle', fontSize:9 } };
+  };
   return [ {text:'구분', options:{bold:true, color:PPT_BLUE, fill:{color:PPT_HEADBG}, align:'left', valign:'middle', fontSize:9}}, ...metrics.map(h) ];
 }
 function pptDataRow(metrics,row,style){
