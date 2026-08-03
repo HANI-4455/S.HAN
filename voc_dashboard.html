@@ -521,13 +521,26 @@ g('pptBtn').onclick = ()=>{
   const m = cur, i = DATA.months.indexOf(m), prev = DATA.months[i-1]||null;
   /* 사내 PPT 규칙: A4 가로(10.83 x 7.5in), 나눔바른고딕, 표지 흰 배경 + 검은 타이틀 + 우측 상단 골드 로고 */
   const P='15237A', S='2F497D', A='F26300', T='272727', K='000000', R='C00000', F='나눔바른고딕';
-  const W=10.83, H=7.5, ML=0.5, CW=W-ML*2;           /* 슬라이드/여백/본문 폭 */
-  const LG={x:8.97,y:0.15,w:1.74,h:0.27};            /* 템플릿과 동일한 로고 위치 */
+  const BLUE_C='3D5AA9', MUTED_C='8E97A8', GRID='E5E9F0', GRAY='6B7280';
+  const W=10.83, H=7.5, ML=0.5, CW=W-ML*2;
+  const LG={x:8.97,y:0.15,w:1.74,h:0.27};
   const pres = new PptxGenJS();
   pres.defineLayout({name:'A4LAND', width:W, height:H});
   pres.layout = 'A4LAND';
 
-  /* S1 표지 — 흰 배경, 검은색 타이틀, 우측 상단 골드 로고 */
+  const CH = {                                   /* 차트 공통 옵션 */
+    chartColors:[BLUE_C, A],
+    catAxisLabelFontFace:F, valAxisLabelFontFace:F, dataLabelFontFace:F, legendFontFace:F,
+    catAxisLabelFontSize:9, valAxisLabelFontSize:9, dataLabelFontSize:9, legendFontSize:9,
+    catAxisLabelColor:GRAY, valAxisLabelColor:GRAY, dataLabelColor:T,
+    valGridLine:{color:GRID, size:1}, catGridLine:{style:'none'},
+    border:{pt:0, color:'FFFFFF'}
+  };
+  const opt = o => Object.assign({}, CH, o);
+  const dlt = (p0, n0) => p0==null ? '전월 데이터 없음'
+      : `${p0} → ${n0} ` + (n0>p0 ? `▲${n0-p0}` : n0<p0 ? `▼${p0-n0}` : '—');
+
+  /* ─────────── S1 표지 ─────────── */
   let s = pres.addSlide();
   s.background = {color:'FFFFFF'};
   s.addImage({data:LOGO, ...LG});
@@ -536,51 +549,113 @@ g('pptBtn').onclick = ()=>{
   s.addShape('rect',{x:ML+0.35,y:4.15,w:0.8,h:0.03,fill:{color:A}});
   s.addShape('rect',{x:ML+1.15,y:4.15,w:5.2,h:0.03,fill:{color:S}});
   s.addText(`데이터 기준일 ${DATA.updated} · 파리크라상 사업지원팀`,
-            {x:ML+0.3,y:4.3,w:CW-0.6,h:0.4,fontFace:F,fontSize:12,color:'6B7280'});
+            {x:ML+0.3,y:4.3,w:CW-0.6,h:0.4,fontFace:F,fontSize:12,color:GRAY});
 
-  /* S2 종합 현황 */
+  /* ─────────── S2 01 종합 현황 ─────────── */
   s = pres.addSlide(); s.background={color:'FFFFFF'};
   slideTitle(s, '01', '종합 현황');
-  const rq=m.reqtype, bul=rq['불만']||0;
-  const kpis=[['총 발생 VOC',m.total,prev?`전월 ${prev.total}건`:''],['불만',bul,`${(bul/m.total*100).toFixed(1)}%`],
-              ['문의',rq['문의']||0,''],['칭찬',rq['칭찬']||0,''],['제안',rq['제안']||0,''],
-              ['주목 이슈',m.issues.length,'별첨 참조']];
+  const rq=m.reqtype, prq=prev?prev.reqtype:null, bul=rq['불만']||0;
+  const kpis=[
+    ['총 발생 VOC', m.total, dlt(prev?prev.total:null, m.total)],
+    ['불만', `${bul} (${(bul/m.total*100).toFixed(1)}%)`, dlt(prq?prq['불만']||0:null, bul)],
+    ['문의', rq['문의']||0, dlt(prq?prq['문의']||0:null, rq['문의']||0)],
+    ['칭찬', rq['칭찬']||0, dlt(prq?prq['칭찬']||0:null, rq['칭찬']||0)],
+    ['제안', rq['제안']||0, dlt(prq?prq['제안']||0:null, rq['제안']||0)],
+    ['확인 필요 이슈', m.issues.length, '별첨 참조']
+  ];
   const kw=(CW-0.15*5)/6;
   kpis.forEach((k,j)=>{
-    const x=ML+j*(kw+0.15);
-    s.addShape('roundRect',{x, y:1.35, w:kw, h:1.3, rectRadius:0.06, fill:{color:'FFFFFF'}, line:{color:j===5?A:S, width:1}});
-    s.addText(String(k[0]),{x,y:1.45,w:kw,h:0.3,fontFace:F,fontSize:11,color:'6B7280',align:'center'});
-    s.addText(String(k[1]),{x,y:1.72,w:kw,h:0.5,fontFace:F,fontSize:22,bold:true,color:j===5?A:P,align:'center'});
-    s.addText(String(k[2]),{x,y:2.22,w:kw,h:0.3,fontFace:F,fontSize:10,color:'6B7280',align:'center'});
+    const x=ML+j*(kw+0.15), red=(j===5);
+    s.addShape('roundRect',{x, y:1.35, w:kw, h:1.35, rectRadius:0.06,
+      fill:{color:'FFFFFF'}, line:{color:red?A:S, width:1}});
+    s.addText(String(k[0]),{x,y:1.44,w:kw,h:0.28,fontFace:F,fontSize:10.5,color:GRAY,align:'center',margin:0});
+    s.addText(String(k[1]),{x,y:1.70,w:kw,h:0.52,fontFace:F,fontSize:20,bold:true,color:red?A:P,align:'center',margin:0});
+    s.addText(String(k[2]),{x,y:2.24,w:kw,h:0.34,fontFace:F,fontSize:9.5,
+      color:/▲/.test(String(k[2]))?A:GRAY, align:'center', margin:0});
   });
+  /* 유형(대) 전월 비교 — 차트 + 표 */
   const CATS=['제품','판매서비스','인적서비스','점포서비스','이벤트','이물질'];
-  const catRows=[[hcell('구분'),hcell('전월'),hcell('당월'),hcell('증감')]];
-  CATS.forEach(c=>{
-    const p0=prev?(prev.cat[c]||0):null, n0=m.cat[c]||0, d=p0==null?null:n0-p0;
-    catRows.push([cell(c,true), cell(p0==null?'-':p0), cell(n0),
-      {text:d==null?'-':d>0?`▲${d}`:d<0?`▼${-d}`:'—',
-       options:{fontFace:F,fontSize:11,color:d>0?A:'6B7280',align:'center',valign:'middle'}}]);
-  });
-  const halfW=(CW-0.4)/2;
-  s.addText('발생 유형(대) 전월 비교',{x:ML,y:2.95,w:halfW,h:0.35,fontFace:F,fontSize:14,bold:true,color:P});
-  s.addTable(catRows,{x:ML,y:3.3,w:halfW,rowH:0.32,border:{type:'solid',color:'D9DEE8',pt:0.5},fill:{color:'FFFFFF'}});
+  const curV=CATS.map(c=>m.cat[c]||0), prvV=CATS.map(c=>prev?(prev.cat[c]||0):0);
+  s.addText('발생 유형(대) 전월 비교',{x:ML,y:2.95,w:5.6,h:0.32,fontFace:F,fontSize:13,bold:true,color:P,margin:0});
+  const catSeries = prev
+    ? [{name:prev.label, labels:CATS, values:prvV},{name:m.label, labels:CATS, values:curV}]
+    : [{name:m.label, labels:CATS, values:curV}];
+  s.addChart(pres.ChartType.bar, catSeries, opt({
+    x:ML, y:3.3, w:5.6, h:3.7, barDir:'bar', barGrouping:'clustered',
+    chartColors: prev?[MUTED_C, BLUE_C]:[BLUE_C],
+    showLegend:!!prev, legendPos:'b', showValue:true, dataLabelPosition:'outEnd'
+  }));
+  /* 세부유형 TOP 6 표 */
   const subRows=[[hcell('세부유형(소)'),hcell('건수')]];
   m.subtype_top.slice(0,6).forEach(r=>subRows.push([cell(r[0],true),cell(r[1])]));
-  s.addText('세부유형 TOP 6',{x:ML+halfW+0.4,y:2.95,w:halfW,h:0.35,fontFace:F,fontSize:14,bold:true,color:P});
-  s.addTable(subRows,{x:ML+halfW+0.4,y:3.3,w:halfW,rowH:0.32,border:{type:'solid',color:'D9DEE8',pt:0.5}});
+  s.addText('세부유형 TOP 6',{x:ML+5.9,y:2.95,w:3.93,h:0.32,fontFace:F,fontSize:13,bold:true,color:P,margin:0});
+  s.addTable(subRows,{x:ML+5.9,y:3.3,w:3.93,rowH:0.3,border:{type:'solid',color:'D9DEE8',pt:0.5}});
+  const orn=m.opsReturn||{};
+  if((orn.event||0)+(orn.simple||0) > 0){
+    s.addText(`※ 이 중 행사 반품 ${orn.event||0}건 · 단순 반품 ${orn.simple||0}건은 고객 불만이 아닌 운영성 반품`,
+      {x:ML+5.9,y:3.35+0.3*subRows.length,w:3.93,h:0.5,fontFace:F,fontSize:9,color:GRAY,margin:0});
+  }
 
-  /* S3 이물질 */
+  /* ─────────── S3 02 주간 발생 추이 ─────────── */
   s = pres.addSlide(); s.background={color:'FFFFFF'};
-  slideTitle(s, '02', `안전관련 필수 조치 — 이물질 VOC ${m.forb.length}건`);
+  slideTitle(s, '02', '주간 발생 추이');
+  s.addText('주 시작일(월요일) 기준 · 당월 등록 건만 집계',
+            {x:ML,y:1.15,w:CW,h:0.28,fontFace:F,fontSize:10,color:GRAY,margin:0});
+  const wl=m.weekly.map(w=>w.w);
+  s.addChart(pres.ChartType.line, [
+    {name:'전체 VOC', labels:wl, values:m.weekly.map(w=>w.t)},
+    {name:'불만',     labels:wl, values:m.weekly.map(w=>w.b)}
+  ], opt({
+    x:ML, y:1.5, w:CW, h:5.3, lineSize:2, lineDataSymbolSize:7,
+    showLegend:true, legendPos:'b', showValue:true, dataLabelPosition:'t'
+  }));
+
+  /* ─────────── S4 03 유형별 현황 ─────────── */
+  s = pres.addSlide(); s.background={color:'FFFFFF'};
+  slideTitle(s, '03', '유형별 현황');
+  const half=(CW-0.33)/2, top1=1.55, top2=4.45, chH=2.35;
+  sub('세부유형 TOP 10 (유형(소))', ML, 1.22);
+  s.addChart(pres.ChartType.bar, [{name:'건수', labels:m.subtype_top.map(r=>r[0]), values:m.subtype_top.map(r=>r[1])}],
+    opt({x:ML, y:top1, w:half, h:chH, barDir:'bar', chartColors:[BLUE_C],
+         showValue:true, dataLabelPosition:'outEnd', showLegend:false}));
+  sub('접수 채널', ML+half+0.33, 1.22);
+  s.addChart(pres.ChartType.bar, [{name:'건수', labels:m.channel.map(r=>r[0]), values:m.channel.map(r=>r[1])}],
+    opt({x:ML+half+0.33, y:top1, w:half, h:chH, barDir:'bar', chartColors:[BLUE_C],
+         showValue:true, dataLabelPosition:'outEnd', showLegend:false}));
+  sub('요구유형 구성', ML, top2-0.33);
+  const rqK=Object.keys(m.reqtype);
+  s.addChart(pres.ChartType.bar, [{name:'건수', labels:rqK, values:rqK.map(k=>m.reqtype[k])}],
+    opt({x:ML, y:top2, w:half, h:chH, barDir:'bar', chartColors:[BLUE_C],
+         showValue:true, dataLabelPosition:'outEnd', showLegend:false}));
+  sub('유형(대) 구성', ML+half+0.33, top2-0.33);
+  s.addChart(pres.ChartType.bar, [{name:'건수', labels:CATS, values:curV}],
+    opt({x:ML+half+0.33, y:top2, w:half, h:chH, barDir:'bar', chartColors:[BLUE_C],
+         showValue:true, dataLabelPosition:'outEnd', showLegend:false}));
+
+  /* ─────────── S5 04 반복 발생 매장·제품 ─────────── */
+  s = pres.addSlide(); s.background={color:'FFFFFF'};
+  slideTitle(s, '04', '반복 발생 매장 · 제품');
+  sub('VOC 다발 매장 TOP 10', ML, 1.22);
+  s.addChart(pres.ChartType.bar, [{name:'건수', labels:m.store_top.map(r=>r[0]), values:m.store_top.map(r=>r[1])}],
+    opt({x:ML, y:1.55, w:half, h:5.25, barDir:'bar', chartColors:[BLUE_C],
+         showValue:true, dataLabelPosition:'outEnd', showLegend:false}));
+  sub('VOC 다발 제품 TOP 10', ML+half+0.33, 1.22);
+  s.addChart(pres.ChartType.bar, [{name:'건수', labels:m.prod_top.map(r=>r[0]), values:m.prod_top.map(r=>r[1])}],
+    opt({x:ML+half+0.33, y:1.55, w:half, h:5.25, barDir:'bar', chartColors:[BLUE_C],
+         showValue:true, dataLabelPosition:'outEnd', showLegend:false}));
+
+  /* ─────────── S6 05 이물질 ─────────── */
+  s = pres.addSlide(); s.background={color:'FFFFFF'};
+  slideTitle(s, '05', `안전관련 필수 조치 — 이물질 VOC ${m.forb.length}건`);
   const fRows=[[hcell('등록일'),hcell('매장'),hcell('제품'),hcell('이물 유형'),hcell('내용'),hcell('현물보유'),hcell('담당')]];
   m.forb.forEach(r=>fRows.push(r.map((v,j)=>cell(v, j===1||j===4))));
   s.addTable(fRows,{x:ML,y:1.3,w:CW,colW:[0.72,1.32,1.65,1.2,3.16,1.15,0.63],
     border:{type:'solid',color:'D9DEE8',pt:0.5},autoPage:true,autoPageRepeatHeader:true,
     autoPageSlideStartY:1.3, fontSize:10, rowH:0.26});
 
-  /* S4 주목 이슈 — 요약표 1장 + 이슈별 상세 슬라이드(내용 전문, 넘치면 이어서) */
+  /* ─────────── S7 06 주목 이슈 요약 ─────────── */
   s = pres.addSlide(); s.background={color:'FFFFFF'};
-  slideTitle(s, '03', `주목 이슈 ${m.issues.length}건`);
+  slideTitle(s, '06', `주목 이슈 ${m.issues.length}건`);
   const iRows=[[hcell('구분'),hcell('이슈'),hcell('발생')]];
   m.issues.forEach(x=>{
     iRows.push([
@@ -592,51 +667,63 @@ g('pptBtn').onclick = ()=>{
   s.addTable(iRows,{x:ML,y:1.3,w:CW,colW:[1.3,5.0,3.53],
     border:{type:'solid',color:'D9DEE8',pt:0.5},autoPage:true,autoPageRepeatHeader:true,autoPageSlideStartY:1.3});
   s.addText('※ 각 이슈의 상세 내용과 권고는 다음 장부터 이어집니다.',
-            {x:ML,y:7.0,w:CW,h:0.3,fontFace:F,fontSize:10,color:'6B7280',margin:0});
+            {x:ML,y:7.0,w:CW,h:0.3,fontFace:F,fontSize:10,color:GRAY,margin:0});
 
-  /* 긴 본문을 슬라이드 단위로 나눔 — 자르지 않고 이어서 표기 */
-  function paginate(text, cpl, maxLines){
-    const src = String(text==null?'':text).split('\n');
-    const pages=[]; let cur=[], used=0;
-    for(const ln of src){
-      const need = Math.max(1, Math.ceil(ln.length / cpl));
-      if(used + need > maxLines && cur.length){ pages.push(cur.join('\n')); cur=[]; used=0; }
-      cur.push(ln); used += need;
-    }
-    if(cur.length) pages.push(cur.join('\n'));
-    return pages.length ? pages : [''];
-  }
-
+  /* ─────────── 이슈별 상세 — 좌우 2단으로 한 장에 ─────────── */
   m.issues.forEach((x, xi)=>{
     const isRed = (x.tag==='legal' || x.tag==='hyg');
-    const pages = paginate(x.body, 62, 24);
-    pages.forEach((pg, pi)=>{
-      const sl = pres.addSlide(); sl.background={color:'FFFFFF'};
-      slideTitle(sl, '03', `주목 이슈 (${xi+1}/${m.issues.length})`);
-      /* 태그 + 제목 + 메타 */
-      sl.addShape('roundRect',{x:ML,y:1.22,w:1.05,h:0.28,rectRadius:0.04,
+    const colW=(CW-0.35)/2, bodyTop=1.95;
+    const hasAct = !!x.act;
+    const bodyH = hasAct ? 4.05 : 4.85;
+    /* 2단에 다 들어가는 가장 큰 글꼴 선택 */
+    let fs=10, lines=null;
+    for(const cand of [10,9,8,7,6.5]){
+      const cpl = Math.floor(colW / (cand/72)) - 1;
+      const maxL = Math.floor(bodyH / (cand*1.3/72));
+      lines = wrapLines(x.body, cpl);
+      if(lines.total <= maxL*2){ fs=cand; lines.maxL=maxL; break; }
+      fs=cand; lines.maxL=maxL;
+    }
+    const [L, Rt] = splitCols(lines.rows, lines.maxL);
+
+    const sl = pres.addSlide(); sl.background={color:'FFFFFF'};
+    slideTitle(sl, '06', `주목 이슈 (${xi+1}/${m.issues.length})`);
+    sl.addShape('roundRect',{x:ML,y:1.22,w:1.05,h:0.28,rectRadius:0.04,
+      fill:{color:'FFFFFF'},line:{color:isRed?A:S,width:1}});
+    sl.addText(x.label||TAGS[x.tag],{x:ML,y:1.22,w:1.05,h:0.28,fontFace:F,fontSize:9,
+      bold:true,color:isRed?A:S,align:'center',valign:'middle',margin:0});
+    sl.addText(x.title,{x:ML+1.2,y:1.2,w:CW-1.2,h:0.32,fontFace:F,fontSize:14,bold:true,color:R,margin:0,valign:'middle'});
+    sl.addText(x.meta||'',{x:ML,y:1.58,w:CW,h:0.26,fontFace:F,fontSize:10,color:GRAY,margin:0});
+    const base={fontFace:F, fontSize:fs, color:T};
+    sl.addText(richRuns(L, base, R), {x:ML, y:bodyTop, w:colW, h:bodyH, margin:0, valign:'top', lineSpacingMultiple:1.2});
+    if(Rt) sl.addText(richRuns(Rt, base, R), {x:ML+colW+0.35, y:bodyTop, w:colW, h:bodyH, margin:0, valign:'top', lineSpacingMultiple:1.2});
+    /* 단 사이 옅은 구분선 */
+    sl.addShape('rect',{x:ML+colW+0.17, y:bodyTop, w:0.008, h:bodyH, fill:{color:'D9DEE8'}});
+    if(hasAct){
+      sl.addShape('roundRect',{x:ML,y:6.18,w:CW,h:0.82,rectRadius:0.05,
         fill:{color:'FFFFFF'},line:{color:isRed?A:S,width:1}});
-      sl.addText(x.label||TAGS[x.tag],{x:ML,y:1.22,w:1.05,h:0.28,fontFace:F,fontSize:9,
-        bold:true,color:isRed?A:S,align:'center',valign:'middle',margin:0});
-      sl.addText(x.title + (pages.length>1 ? `  (${pi+1}/${pages.length})` : ''),
-        {x:ML+1.2,y:1.2,w:CW-1.2,h:0.32,fontFace:F,fontSize:14,bold:true,color:R,margin:0,valign:'middle'});
-      sl.addText(x.meta||'',{x:ML,y:1.56,w:CW,h:0.26,fontFace:F,fontSize:10,color:'6B7280',margin:0});
-      /* 본문 */
-      const last = (pi === pages.length-1);
-      const bodyH = (last && x.act) ? 4.35 : 5.15;
-      sl.addText(richRuns(pg, {fontFace:F,fontSize:10,color:T}, R),
-        {x:ML,y:1.92,w:CW,h:bodyH,margin:0,valign:'top',lineSpacingMultiple:1.25});
-      /* 권고 — 마지막 장에만 */
-      if(last && x.act){
-        sl.addShape('roundRect',{x:ML,y:6.4,w:CW,h:0.72,rectRadius:0.05,
-          fill:{color:'FFFFFF'},line:{color:isRed?A:S,width:1}});
-        sl.addText([{text:'권고  ',options:{color:A,bold:true}},{text:x.act,options:{color:S}}],
-          {x:ML+0.15,y:6.4,w:CW-0.3,h:0.72,fontFace:F,fontSize:10,valign:'middle',margin:0});
-      }
-    });
+      sl.addText([{text:'권고  ',options:{color:A,bold:true}}].concat(richRuns(x.act,{fontFace:F,fontSize:10,color:S},R)),
+        {x:ML+0.15,y:6.18,w:CW-0.3,h:0.82,fontFace:F,fontSize:10,valign:'middle',margin:0});
+    }
   });
 
-  /* 내지 머리말: 오렌지 섹션번호 + 다크블루 제목 + 오렌지/그레이 구분선 + 골드 로고 */
+  /* 줄바꿈 폭 기준으로 실제 표시 줄 수 계산 */
+  function wrapLines(text, cpl){
+    const rows=[]; let total=0;
+    String(text==null?'':text).split('\n').forEach(ln=>{
+      const n=Math.max(1, Math.ceil(ln.length/cpl));
+      rows.push({t:ln, n}); total+=n;
+    });
+    return {rows, total};
+  }
+  /* 왼쪽 단이 maxL줄을 넘지 않도록 나누고, 나머지를 오른쪽 단으로 */
+  function splitCols(rows, maxL){
+    const half=Math.min(maxL, Math.ceil(rows.reduce((a,b)=>a+b.n,0)/2));
+    const L=[], Rt=[]; let used=0;
+    rows.forEach(r=>{ if(used+r.n<=half || !L.length){ L.push(r.t); used+=r.n; } else Rt.push(r.t); });
+    return [L.join('\n'), Rt.length?Rt.join('\n'):null];
+  }
+  function sub(t, x, y){ s.addText(t,{x,y,w:(CW-0.33)/2,h:0.3,fontFace:F,fontSize:13,bold:true,color:P,margin:0}); }
   function slideTitle(sl, no, t){
     sl.addImage({data:LOGO, ...LG});
     sl.addText([{text:no+'  ',options:{color:A,bold:true}},{text:t,options:{color:P,bold:true}}],
