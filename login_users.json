@@ -12,6 +12,7 @@
   "7": {"salt": "lIn2uheHdFDyFJk6r7jA0w==", "hash": "I8aqPvF6WA+FZgU/7dDWGdTgo04ZNNJbn7foP7xCMiI="},
   "8": {"salt": "HTh0UprnuFjE43ugqn5t3Q==", "hash": "nn61kNgD4nq3FZkKhIQbQR15XM0v06d9HbYShSuP+FY="},
   "9": {"salt": "8aPw7rCaj4D1Bls3+0ebsg==", "hash": "dXUyjpOSoXVCM+CHkG6rvMuJ6uWixR90nh8UjP5QRdQ="},
-  "10": {"salt": "b7089EtyJiBMuyesTBZI7A==", "hash": "FYax3A7b4DA5uo7nfEpfqvq/48qGcPBY+pdhJG1q+cQ="}
+  "10": {"salt": "b7089EtyJiBMuyesTBZI7A==", "hash": "FYax3A7b4DA5uo7nfEpfqvq/48qGcPBY+pdhJG1q+cQ="},
+  "tjdgks2013": {"salt": "Dkodb8Evni7U7XjO5dewQg==", "hash": "l5Y2sKpYcjE7/000D/MnJMfioKlaFPpX6yFHMe7mY40=", "admin": true, "label": "관리자"}
  }
 }

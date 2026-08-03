@@ -1117,10 +1117,15 @@ function logAccess(id, kind){
   }catch(e){}
 }
 
-function enterHub(session, kind){
+async function enterHub(session, kind){
   document.getElementById("loginGate").classList.add("done");
   const chip = document.getElementById("userChip");
-  chip.style.display = ""; document.getElementById("userChipId").textContent = "ID " + session.id;
+  chip.style.display = "";
+  /* 관리자 계정(login_users.json의 admin:true)이면 편집 권한 자동 부여 */
+  let u = null;
+  try{ const data = await loadLoginUsers(); u = data && data.users && data.users[session.id]; }catch(e){}
+  if(u && u.admin){ isAdmin = true; document.getElementById("defaultMgrBtn").style.display = ""; }
+  document.getElementById("userChipId").textContent = (u && u.label) ? u.label : ("ID " + session.id);
   renderTagFilter(); renderCards();
   logAccess(session.id, kind);
 }
@@ -1144,7 +1149,7 @@ async function doLogin(){
     if(ok){
       const session = {id:id, ts:Date.now()};
       localStorage.setItem("sbt_login", JSON.stringify(session));
-      enterHub(session, "login");
+      await enterHub(session, "login");
     }else{
       err.textContent = "ID 또는 비밀번호가 올바르지 않습니다.";
       err.style.display = "block";
@@ -1158,6 +1163,16 @@ async function doLogin(){
 function initGate(){
   const sel = document.getElementById("loginId");
   sel.innerHTML = Array.from({length:10}, (_,i)=>`<option value="${i+1}">${i+1}</option>`).join("");
+  /* 파일에 등록된 추가 계정(관리자 등)을 드롭다운에 붙임 */
+  loadLoginUsers().then(data=>{
+    if(!data || !data.users) return;
+    Object.keys(data.users).forEach(id=>{
+      if(/^\d+$/.test(id)) return; /* 1~10은 이미 있음 */
+      const opt = document.createElement("option");
+      opt.value = id; opt.textContent = data.users[id].label || id;
+      sel.appendChild(opt);
+    });
+  });
   const session = currentSession();
   if(session){ enterHub(session, "visit"); }
   else { setTimeout(()=>document.getElementById("loginPw").focus(), 100); }
