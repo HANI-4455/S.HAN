@@ -1,7 +1,7 @@
 {
  "algo": "PBKDF2-SHA256",
  "iterations": 210000,
- "salt": "8wMfYBxXsprTttgvAhPg6Q==",
- "hash": "e8557uMoDZpGXkR/zF4PskoUhFggLwV7R4suBcSkymw=",
- "updated": "2026-07-31"
+ "salt": "H45t/Dinqr7g9w4/2zQWow==",
+ "hash": "4YCeUGAxCd2SI4KAqZDspIls56PTmsfmna482Uj/feY=",
+ "updated": "2026-08-03"
 }
