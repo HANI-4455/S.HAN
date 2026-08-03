@@ -101,6 +101,8 @@ td.c, th.c{text-align:center}
 .issue .ti{font-size:14.5px;font-weight:600;color:var(--danger)}
 .issue .meta{font-size:11.5px;color:#8A93A3;font-weight:300}
 .issue .bd{font-size:13px;margin:4px 0 6px;white-space:pre-wrap;word-break:break-word;line-height:1.6}
+.issue .bd .hl{color:var(--danger);font-weight:600}
+.issue .act .hl{color:var(--danger);font-weight:600}
 .issue .act{font-size:12.5px;color:var(--secondary);white-space:pre-wrap;word-break:break-word;line-height:1.6}
 .issue .act b{color:var(--accent);font-weight:600}
 
@@ -325,6 +327,34 @@ td.c, th.c{text-align:center}
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <script>
+/* 본문 강조 키워드 — 이슈로 분류된 근거가 되는 위험 신호 (긴 단어 우선) */
+const HL_WORDS = ['식약처','보건소','구청','경찰','112','신고','고소','소송','법적','진정서',
+                  '모욕','폭언','욕설','언론','기자','제보','손해배상','배상','보상',
+                  '애벌레','벌레','곤충','바퀴','이물질','상해','다쳤','화상','통증'];
+const HL_RE = new RegExp('(' + HL_WORDS.join('|') + ')', 'g');
+const escHtml = t => String(t==null?'':t)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+/* 화면용: 이스케이프 후 키워드만 강조 */
+function highlight(t){
+  return escHtml(t).replace(HL_RE, '<b class="hl">$1</b>');
+}
+/* PPT용: 줄 단위로 나눠 키워드 런에만 빨간 굵은 글씨 적용 */
+function richRuns(text, base, kwColor){
+  const runs = [];
+  String(text==null?'':text).split('\n').forEach(ln=>{
+    if(!ln.length){ runs.push({text:' ', options:Object.assign({}, base, {breakLine:true})}); return; }
+    const parts = ln.split(HL_RE).filter(p=>p!=='');
+    parts.forEach((p,i)=>{
+      const isKw = HL_WORDS.indexOf(p) >= 0;
+      const o = Object.assign({}, base);
+      if(isKw){ o.bold = true; o.color = kwColor; }
+      if(i === parts.length-1) o.breakLine = true;
+      runs.push({text:p, options:o});
+    });
+  });
+  return runs.length ? runs : [{text:' ', options:Object.assign({}, base)}];
+}
+
 const CSSV = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const BLUE = CSSV('--chart-blue'), ORANGE = CSSV('--accent'), MUTED = CSSV('--chart-muted');
 const TAGS = {legal:'법적 리스크', repeat:'반복 발생', hyg:'위생 리스크', impr:'개선 사항'};
@@ -427,9 +457,9 @@ function render(m, prev){
   g('issues').innerHTML = m.issues.map(x=>`
     <div class="issue ${x.tag}">
       <div class="top"><span class="tag ${x.tag}">${x.label||TAGS[x.tag]}</span>
-        <span class="ti">${x.title}</span><span class="meta">${x.meta||''}</span></div>
-      <div class="bd">${x.body}</div>
-      ${x.act?`<div class="act"><b>권고</b> — ${x.act}</div>`:''}
+        <span class="ti">${escHtml(x.title)}</span><span class="meta">${escHtml(x.meta||'')}</span></div>
+      <div class="bd">${highlight(x.body)}</div>
+      ${x.act?`<div class="act"><b>권고</b> — ${highlight(x.act)}</div>`:''}
     </div>`).join('') || '<div class="card"><div class="note">등록된 이슈가 없습니다.</div></div>';
 
 }
@@ -594,8 +624,8 @@ g('pptBtn').onclick = ()=>{
       /* 본문 */
       const last = (pi === pages.length-1);
       const bodyH = (last && x.act) ? 4.35 : 5.15;
-      sl.addText(pg,{x:ML,y:1.92,w:CW,h:bodyH,fontFace:F,fontSize:10,color:T,
-        margin:0,valign:'top',lineSpacingMultiple:1.25});
+      sl.addText(richRuns(pg, {fontFace:F,fontSize:10,color:T}, R),
+        {x:ML,y:1.92,w:CW,h:bodyH,margin:0,valign:'top',lineSpacingMultiple:1.25});
       /* 권고 — 마지막 장에만 */
       if(last && x.act){
         sl.addShape('roundRect',{x:ML,y:6.4,w:CW,h:0.72,rectRadius:0.05,
