@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <style>
 :root{
+  --danger:#C00000;
   --primary:#15237A; --secondary:#2F497D; --accent:#F26300; --text:#272727;
   --chart-blue:#3D5AA9; --chart-muted:#8E97A8; --bg:#F7F8FA; --card:#FFFFFF; --line:#D9DEE8;
 }
@@ -97,7 +98,7 @@ td.c, th.c{text-align:center}
 .tag.legal{background:var(--accent)}
 .tag.hyg{background:#fff;color:var(--accent);border:1px solid var(--accent)}
 .tag.impr{background:#fff;color:var(--secondary);border:1px solid var(--secondary)}
-.issue .ti{font-size:14.5px;font-weight:600;color:var(--primary)}
+.issue .ti{font-size:14.5px;font-weight:600;color:var(--danger)}
 .issue .meta{font-size:11.5px;color:#8A93A3;font-weight:300}
 .issue .bd{font-size:13px;margin:4px 0 6px;white-space:pre-wrap;word-break:break-word;line-height:1.6}
 .issue .act{font-size:12.5px;color:var(--secondary);white-space:pre-wrap;word-break:break-word;line-height:1.6}
@@ -195,7 +196,7 @@ td.c, th.c{text-align:center}
     </div>
 
     <div class="sec">
-      <div class="sec-h"><span class="no">04</span><h2>반복 발생 매장 · 제품</h2><span class="cap">당월 기준 · ★ 경영진 주목 이슈 연관</span></div>
+      <div class="sec-h"><span class="no">04</span><h2>반복 발생 매장 · 제품</h2><span class="cap">당월 기준 · ★ 주목 이슈 연관</span></div>
       <div class="sec-rule"><div class="o"></div><div class="b"></div></div>
       <div class="grid2">
         <div class="card">
@@ -232,7 +233,7 @@ td.c, th.c{text-align:center}
     </div>
 
     <div class="sec">
-      <div class="sec-h"><span class="no">06</span><h2>경영진 주목 이슈</h2><span class="cap">반복발생 · 법적 리스크 · 개선사항 — 별도 확인 필요</span></div>
+      <div class="sec-h"><span class="no">06</span><h2>주목 이슈</h2><span class="cap">반복발생 · 법적 리스크 · 개선사항 — 별도 확인 필요</span></div>
       <div class="sec-rule"><div class="o"></div><div class="b"></div></div>
       <div id="issues"></div>
     </div>
@@ -275,7 +276,7 @@ td.c, th.c{text-align:center}
       </div></div>
       <div id="upResult" style="display:none">
         <div class="step"><div class="sn">4</div><div style="flex:1">
-          <label class="fld">경영진 주목 이슈 검토 (자동 추출된 후보를 수정·삭제하거나 추가하세요)</label>
+          <label class="fld">주목 이슈 검토 (자동 추출된 후보를 수정·삭제하거나 추가하세요)</label>
           <div id="issEditor"></div>
           <button class="btn line" id="issAdd" style="margin-top:6px">+ 이슈 카드 추가</button>
         </div></div>
@@ -379,7 +380,7 @@ function render(m, prev){
   let html = kp.map(k=>`<div class="kpi"><div class="t">${k[0]}</div><div class="v">${k[1]}</div><div class="d">${k[2]}</div></div>`).join('');
   const ic = {}; m.issues.forEach(x=>ic[x.tag]=(ic[x.tag]||0)+1);
   const ics = Object.entries(ic).map(([t,c])=>`${TAGS[t].slice(0,2)} ${c}`).join(' · ');
-  html += `<div class="kpi alert"><div class="t">경영진 확인 필요 이슈</div><div class="v">${m.issues.length}</div><div class="d">${ics||'—'}</div></div>`;
+  html += `<div class="kpi alert"><div class="t">확인 필요 이슈</div><div class="v">${m.issues.length}</div><div class="d">${ics||'—'}</div></div>`;
   g('kpis').innerHTML = html;
 
   lineChart(g('lineChart'), m.weekly);
@@ -489,7 +490,7 @@ g('pptBtn').onclick = ()=>{
   if(!cur) return;
   const m = cur, i = DATA.months.indexOf(m), prev = DATA.months[i-1]||null;
   /* 사내 PPT 규칙: A4 가로(10.83 x 7.5in), 나눔바른고딕, 표지 흰 배경 + 검은 타이틀 + 우측 상단 골드 로고 */
-  const P='15237A', S='2F497D', A='F26300', T='272727', K='000000', F='나눔바른고딕';
+  const P='15237A', S='2F497D', A='F26300', T='272727', K='000000', R='C00000', F='나눔바른고딕';
   const W=10.83, H=7.5, ML=0.5, CW=W-ML*2;           /* 슬라이드/여백/본문 폭 */
   const LG={x:8.97,y:0.15,w:1.74,h:0.27};            /* 템플릿과 동일한 로고 위치 */
   const pres = new PptxGenJS();
@@ -547,14 +548,14 @@ g('pptBtn').onclick = ()=>{
     border:{type:'solid',color:'D9DEE8',pt:0.5},autoPage:true,autoPageRepeatHeader:true,
     autoPageSlideStartY:1.3, fontSize:10, rowH:0.26});
 
-  /* S4 경영진 주목 이슈 — 요약표 1장 + 이슈별 상세 슬라이드(내용 전문, 넘치면 이어서) */
+  /* S4 주목 이슈 — 요약표 1장 + 이슈별 상세 슬라이드(내용 전문, 넘치면 이어서) */
   s = pres.addSlide(); s.background={color:'FFFFFF'};
-  slideTitle(s, '03', `경영진 주목 이슈 ${m.issues.length}건`);
+  slideTitle(s, '03', `주목 이슈 ${m.issues.length}건`);
   const iRows=[[hcell('구분'),hcell('이슈'),hcell('발생')]];
   m.issues.forEach(x=>{
     iRows.push([
       {text:x.label||TAGS[x.tag],options:{fontFace:F,fontSize:10,bold:true,color:(x.tag==='legal'||x.tag==='hyg')?A:S,align:'center',valign:'middle'}},
-      {text:x.title,options:{fontFace:F,fontSize:10,bold:true,color:P,valign:'middle'}},
+      {text:x.title,options:{fontFace:F,fontSize:10,bold:true,color:R,valign:'middle'}},
       {text:x.meta||'',options:{fontFace:F,fontSize:10,color:T,valign:'middle'}}
     ]);
   });
@@ -581,14 +582,14 @@ g('pptBtn').onclick = ()=>{
     const pages = paginate(x.body, 62, 24);
     pages.forEach((pg, pi)=>{
       const sl = pres.addSlide(); sl.background={color:'FFFFFF'};
-      slideTitle(sl, '03', `경영진 주목 이슈 (${xi+1}/${m.issues.length})`);
+      slideTitle(sl, '03', `주목 이슈 (${xi+1}/${m.issues.length})`);
       /* 태그 + 제목 + 메타 */
       sl.addShape('roundRect',{x:ML,y:1.22,w:1.05,h:0.28,rectRadius:0.04,
         fill:{color:'FFFFFF'},line:{color:isRed?A:S,width:1}});
       sl.addText(x.label||TAGS[x.tag],{x:ML,y:1.22,w:1.05,h:0.28,fontFace:F,fontSize:9,
         bold:true,color:isRed?A:S,align:'center',valign:'middle',margin:0});
       sl.addText(x.title + (pages.length>1 ? `  (${pi+1}/${pages.length})` : ''),
-        {x:ML+1.2,y:1.2,w:CW-1.2,h:0.32,fontFace:F,fontSize:14,bold:true,color:P,margin:0,valign:'middle'});
+        {x:ML+1.2,y:1.2,w:CW-1.2,h:0.32,fontFace:F,fontSize:14,bold:true,color:R,margin:0,valign:'middle'});
       sl.addText(x.meta||'',{x:ML,y:1.56,w:CW,h:0.26,fontFace:F,fontSize:10,color:'6B7280',margin:0});
       /* 본문 */
       const last = (pi === pages.length-1);
