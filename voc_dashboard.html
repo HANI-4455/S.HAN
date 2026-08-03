@@ -99,8 +99,8 @@ td.c, th.c{text-align:center}
 .tag.impr{background:#fff;color:var(--secondary);border:1px solid var(--secondary)}
 .issue .ti{font-size:14.5px;font-weight:600;color:var(--primary)}
 .issue .meta{font-size:11.5px;color:#8A93A3;font-weight:300}
-.issue .bd{font-size:13px;margin:4px 0 6px}
-.issue .act{font-size:12.5px;color:var(--secondary)}
+.issue .bd{font-size:13px;margin:4px 0 6px;white-space:pre-wrap;word-break:break-word;line-height:1.6}
+.issue .act{font-size:12.5px;color:var(--secondary);white-space:pre-wrap;word-break:break-word;line-height:1.6}
 .issue .act b{color:var(--accent);font-weight:600}
 
 .lc-wrap{position:relative}
@@ -178,7 +178,7 @@ td.c, th.c{text-align:center}
         </div>
         <div class="card">
           <h3>세부유형 TOP 10</h3>
-          <div class="note">유형(소) 기준</div>
+          <div class="note" id="subNote">유형(소) 기준</div>
           <div id="subChart"></div>
         </div>
         <div class="card">
@@ -400,6 +400,11 @@ function render(m, prev){
       <div class="vl">${r[1]==null?'':r[1]+' → '}<b>${r[2]}</b> ${ds}</div></div>`;
   }).join('');
 
+  const orn = m.opsReturn || {};
+  const ops = (orn.event||0) + (orn.simple||0);
+  g('subNote').innerHTML = '유형(소) 기준' + (ops
+    ? ` · 이 중 <b>행사 반품 ${orn.event||0}건 · 단순 반품 ${orn.simple||0}건</b>은 고객 불만이 아닌 운영성 반품입니다`
+    : '');
   hbars(g('subChart'), m.subtype_top, BLUE);
   hbars(g('chChart'), m.channel, BLUE);
   hbars(g('reqChart'), Object.entries(m.reqtype), BLUE);
@@ -542,21 +547,63 @@ g('pptBtn').onclick = ()=>{
     border:{type:'solid',color:'D9DEE8',pt:0.5},autoPage:true,autoPageRepeatHeader:true,
     autoPageSlideStartY:1.3, fontSize:10, rowH:0.26});
 
-  /* S4 경영진 주목 이슈 */
+  /* S4 경영진 주목 이슈 — 요약표 1장 + 이슈별 상세 슬라이드(내용 전문, 넘치면 이어서) */
   s = pres.addSlide(); s.background={color:'FFFFFF'};
   slideTitle(s, '03', `경영진 주목 이슈 ${m.issues.length}건`);
-  const iRows=[[hcell('구분'),hcell('이슈'),hcell('내용 · 권고')]];
+  const iRows=[[hcell('구분'),hcell('이슈'),hcell('발생')]];
   m.issues.forEach(x=>{
     iRows.push([
       {text:x.label||TAGS[x.tag],options:{fontFace:F,fontSize:10,bold:true,color:(x.tag==='legal'||x.tag==='hyg')?A:S,align:'center',valign:'middle'}},
-      {text:`${x.title}
-${x.meta||''}`,options:{fontFace:F,fontSize:10,bold:true,color:P,valign:'middle'}},
-      {text:`${x.body}${x.act?`
-[권고] ${x.act}`:''}`,options:{fontFace:F,fontSize:10,color:T,valign:'middle'}}
+      {text:x.title,options:{fontFace:F,fontSize:10,bold:true,color:P,valign:'middle'}},
+      {text:x.meta||'',options:{fontFace:F,fontSize:10,color:T,valign:'middle'}}
     ]);
   });
-  s.addTable(iRows,{x:ML,y:1.3,w:CW,colW:[1.1,3.3,5.43],
+  s.addTable(iRows,{x:ML,y:1.3,w:CW,colW:[1.3,5.0,3.53],
     border:{type:'solid',color:'D9DEE8',pt:0.5},autoPage:true,autoPageRepeatHeader:true,autoPageSlideStartY:1.3});
+  s.addText('※ 각 이슈의 상세 내용과 권고는 다음 장부터 이어집니다.',
+            {x:ML,y:7.0,w:CW,h:0.3,fontFace:F,fontSize:10,color:'6B7280',margin:0});
+
+  /* 긴 본문을 슬라이드 단위로 나눔 — 자르지 않고 이어서 표기 */
+  function paginate(text, cpl, maxLines){
+    const src = String(text==null?'':text).split('\n');
+    const pages=[]; let cur=[], used=0;
+    for(const ln of src){
+      const need = Math.max(1, Math.ceil(ln.length / cpl));
+      if(used + need > maxLines && cur.length){ pages.push(cur.join('\n')); cur=[]; used=0; }
+      cur.push(ln); used += need;
+    }
+    if(cur.length) pages.push(cur.join('\n'));
+    return pages.length ? pages : [''];
+  }
+
+  m.issues.forEach((x, xi)=>{
+    const isRed = (x.tag==='legal' || x.tag==='hyg');
+    const pages = paginate(x.body, 62, 24);
+    pages.forEach((pg, pi)=>{
+      const sl = pres.addSlide(); sl.background={color:'FFFFFF'};
+      slideTitle(sl, '03', `경영진 주목 이슈 (${xi+1}/${m.issues.length})`);
+      /* 태그 + 제목 + 메타 */
+      sl.addShape('roundRect',{x:ML,y:1.22,w:1.05,h:0.28,rectRadius:0.04,
+        fill:{color:'FFFFFF'},line:{color:isRed?A:S,width:1}});
+      sl.addText(x.label||TAGS[x.tag],{x:ML,y:1.22,w:1.05,h:0.28,fontFace:F,fontSize:9,
+        bold:true,color:isRed?A:S,align:'center',valign:'middle',margin:0});
+      sl.addText(x.title + (pages.length>1 ? `  (${pi+1}/${pages.length})` : ''),
+        {x:ML+1.2,y:1.2,w:CW-1.2,h:0.32,fontFace:F,fontSize:14,bold:true,color:P,margin:0,valign:'middle'});
+      sl.addText(x.meta||'',{x:ML,y:1.56,w:CW,h:0.26,fontFace:F,fontSize:10,color:'6B7280',margin:0});
+      /* 본문 */
+      const last = (pi === pages.length-1);
+      const bodyH = (last && x.act) ? 4.35 : 5.15;
+      sl.addText(pg,{x:ML,y:1.92,w:CW,h:bodyH,fontFace:F,fontSize:10,color:T,
+        margin:0,valign:'top',lineSpacingMultiple:1.25});
+      /* 권고 — 마지막 장에만 */
+      if(last && x.act){
+        sl.addShape('roundRect',{x:ML,y:6.4,w:CW,h:0.72,rectRadius:0.05,
+          fill:{color:'FFFFFF'},line:{color:isRed?A:S,width:1}});
+        sl.addText([{text:'권고  ',options:{color:A,bold:true}},{text:x.act,options:{color:S}}],
+          {x:ML+0.15,y:6.4,w:CW-0.3,h:0.72,fontFace:F,fontSize:10,valign:'middle',margin:0});
+      }
+    });
+  });
 
   /* 내지 머리말: 오렌지 섹션번호 + 다크블루 제목 + 오렌지/그레이 구분선 + 골드 로고 */
   function slideTitle(sl, no, t){
@@ -611,11 +658,34 @@ function toDate(v){
   if(typeof v==='number'){ const d=XLSX.SSF.parse_date_code(v); return d?new Date(d.y,d.m-1,d.d):null; }
   return null;
 }
+/* VOC 원문 정리: 빈 줄/중복 공백/탭 제거 (내용은 자르지 않음) */
+function cleanText(t){
+  return String(t==null?'':t)
+    .replace(/\r/g,'')
+    .split(/\n/)
+    .map(l=>l.replace(/\t+/g,' ').replace(/\s{2,}/g,' ').trim())
+    .filter(l=>l.length)
+    .join('\n')
+    .replace(/\n{3,}/g,'\n\n');
+}
 const cnt = (rows,key,tx)=>{ const o={}; rows.forEach(r=>{ let v=r[key]; if(v==null||v==='')return; v=tx?tx(String(v)):String(v); o[v]=(o[v]||0)+1; }); return o; };
 const topN = (o,n=10)=>Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,n);
 
+/* 기타 클레임 세분화: 고객 불만이 아닌 운영성 반품(행사/단순)을 별도 구분 */
+const RE_EVENT  = /(행사\s*반품|프로모션|이벤트\s*반품|행사\s*폐기)/;
+const RE_SIMPLE = /(단순\s*반품|파손\s*반품|반품\s*\(?파손|출하량|과입고|오배송)/;
+function reclassSub(r){
+  const sub = String(r['유형(소)']||'');
+  if(!/기타/.test(sub)) return sub;
+  const t = `${r['VOC제목']||''} ${r['VOC내용']||''}`;
+  if(RE_EVENT.test(t))  return '행사 반품';
+  if(RE_SIMPLE.test(t)) return '단순 반품';
+  return sub;
+}
+
 function aggregate(month, rows){
   const label = `${month.slice(0,4)}년 ${+month.slice(5)}월`;
+  rows.forEach(r=>{ r._sub = reclassSub(r); });
   const bul = rows.filter(r=>r['요구유형']==='불만');
   const wkKey = d=>{ const s=new Date(d); s.setDate(d.getDate()-((d.getDay()+6)%7));
     return `${String(s.getMonth()+1).padStart(2,'0')}/${String(s.getDate()).padStart(2,'0')}`; };
@@ -635,43 +705,48 @@ function aggregate(month, rows){
     if(LEGAL.test(txt) && issues.length<8 && r['요구유형']==='불만'){
       issues.push({tag:'legal', label:TAGS.legal, title:String(r['VOC제목']||'제목 없음'),
         meta:`${md(r._d)} · ${stripStore(String(r['매장명']||''))}${r['제품명']?' · '+r['제품명']:''}`,
-        body:String(r['VOC내용']||'').replace(/\n+/g,' ').slice(0,160)+'…',
+        body:cleanText(r['VOC내용']),
         act:'사실관계 확인 및 대응 방안 수립 (자동 추출 — 원문 확인 후 수정 필요)'});
     }
   });
   /* 반복 발생 요약: 해당 건들의 유형 구성 + 날짜별 내역을 자동 정리 */
   const summarize = (items, opt) => {
     opt = opt || {};
-    const tys = topN(cnt(items,'유형(소)'),99).map(([k,v])=>v>1?`${k} ${v}건`:k).join(', ');
-    const lines = items.slice().sort((a,b)=>a._d-b._d).slice(0,6)
+    const tys = topN(cnt(items,'_sub'),99).map(([k,v])=>v>1?`${k} ${v}건`:k).join(', ');
+    const lines = items.slice().sort((a,b)=>a._d-b._d)
       .map(r=>{
-        const store = opt.noStore ? '' : ' '+stripStore(String(r['매장명']||''));
-        const prod = (opt.noProd || !r['제품명']) ? '' : '·'+r['제품명'];
-        return `${md(r._d)}${store}${prod} ${String(r['VOC제목']||r['유형(소)']||'').replace(/\n.*/s,'').slice(0,40)}`;
-      }).join(' / ');
-    return {tys, lines, more: items.length>6 ? ` 외 ${items.length-6}건` : ''};
+        const store = opt.noStore ? '' : ' ' + stripStore(String(r['매장명']||''));
+        const prod = (opt.noProd || !r['제품명']) ? '' : '·' + r['제품명'];
+        const ttl = cleanText(r['VOC제목'] || r['유형(소)'] || '').split('\n')[0];
+        return `· ${md(r._d)}${store}${prod} — ${ttl}`;
+      }).join('\n');
+    return {tys, lines};
   };
-  topN(cnt(rows.filter(r=>r['제품명']),'제품명'),3).filter(x=>x[1]>=3).forEach(x=>{
-    const items = rows.filter(r=>r['제품명']===x[0]);
+  /* 행사/단순 반품은 고객 불만이 아니므로 반복 발생 후보에서 제외 */
+  const OPS = ['행사 반품','단순 반품'];
+  const bizRows = rows.filter(r=>!OPS.includes(r._sub));
+  topN(cnt(bizRows.filter(r=>r['제품명']),'제품명'),3).filter(x=>x[1]>=3).forEach(x=>{
+    const items = bizRows.filter(r=>r['제품명']===x[0]);
     const s = summarize(items, {noProd:true});
     const span = `${md(items.reduce((a,b)=>a._d<b._d?a:b)._d)} ~ ${md(items.reduce((a,b)=>a._d>b._d?a:b)._d)}`;
     issues.push({tag:'repeat', label:TAGS.repeat, title:`${x[0]} VOC ${x[1]}건 — 동일 제품 반복`,
       meta:`${span} · ${new Set(items.map(r=>stripStore(String(r['매장명']||'')))).size}개 매장`,
-      body:`발생 유형: ${s.tys}. 내역: ${s.lines}${s.more}`,
+      body:`발생 유형: ${s.tys}\n\n[발생 내역]\n${s.lines}`,
       act:'원재료·생산라인 점검 및 담당 PM 원인 회신 관리'});
   });
-  topN(cnt(rows.map(r=>({s:stripStore(String(r['매장명']||''))})),'s'),3).filter(x=>x[1]>=3).forEach(x=>{
-    const items = rows.filter(r=>stripStore(String(r['매장명']||''))===x[0]);
+  topN(cnt(bizRows.map(r=>({s:stripStore(String(r['매장명']||''))})),'s'),3).filter(x=>x[1]>=3).forEach(x=>{
+    const items = bizRows.filter(r=>stripStore(String(r['매장명']||''))===x[0]);
     const s = summarize(items, {noStore:true});
     const span = `${md(items.reduce((a,b)=>a._d<b._d?a:b)._d)} ~ ${md(items.reduce((a,b)=>a._d>b._d?a:b)._d)}`;
     issues.push({tag:'repeat', label:TAGS.repeat, title:`${x[0]}점 VOC ${x[1]}건 — 단일 매장 다발`,
       meta:`${span} · 매장 반복 발생`,
-      body:`발생 유형: ${s.tys}. 내역: ${s.lines}${s.more}`,
+      body:`발생 유형: ${s.tys}\n\n[발생 내역]\n${s.lines}`,
       act:'담당 SV 현장 점검 및 개선 조치 회신'});
   });
   return { key:month, label, total:rows.length,
     reqtype:cnt(rows,'요구유형'), cat:cnt(rows,'유형(대)'), weekly,
-    subtype_top:topN(cnt(rows,'유형(소)')),
+    subtype_top:topN(cnt(rows,'_sub')),
+    opsReturn:{event:rows.filter(r=>r._sub==='행사 반품').length, simple:rows.filter(r=>r._sub==='단순 반품').length},
     store_top:topN(cnt(rows,'매장명',stripStore)).map(x=>[x[0],x[1],0]),
     prod_top:topN(cnt(rows,'제품명')).map(x=>[x[0],x[1],0]),
     channel:topN(cnt(rows,'접수채널',v=>v.split('>').pop()),99),
