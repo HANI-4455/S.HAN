@@ -251,7 +251,11 @@ const PUB_FILE='kpi_data.json';
    엑셀 헤더명을 그대로 적으면 되고, 없는 이름은 무시됩니다. */
 const METRIC_GROUPS={ '품질점검':['커피품질','케익품질','델리품질'] };
 function groupOf(metric){
-  const k=String(metric==null?'':metric).replace(/\s/g,'');   // 띄어쓰기 차이 무시
+  // 1) 업로드한 엑셀의 대분류 행에서 읽은 그룹을 우선 사용
+  const d=store[curDate];
+  if(d && d.groups && d.groups[metric]) return d.groups[metric];
+  // 2) 그룹 행이 없는 예전 양식 대비 기본값 (띄어쓰기 차이 무시)
+  const k=String(metric==null?'':metric).replace(/\s/g,'');
   for(const g in METRIC_GROUPS){
     if(METRIC_GROUPS[g].some(v=>v.replace(/\s/g,'')===k)) return g;
   }
@@ -327,19 +331,43 @@ function light(metric,row){
 
 /* ---------- 엑셀 파싱 ---------- */
 function parseRows(aoa){
-  // aoa: 배열의 배열. 첫 행 = 헤더
-  const header=aoa[0].map(h=>String(h==null?'':h).trim());
-  const norm=s=>s.replace(/\s/g,'');
-  const idxLevel=header.findIndex(h=>['레벨','level','구분'].includes(norm(h).toLowerCase())||norm(h)==='레벨');
-  const idxName =header.findIndex(h=>['항목명','이름','name'].includes(norm(h).toLowerCase())||norm(h)==='항목명');
-  const idxTeam =header.findIndex(h=>['소속팀','팀','team'].includes(norm(h).toLowerCase())||norm(h)==='소속팀');
+  const norm=s=>String(s==null?'':s).replace(/\s/g,'');
+  /* 헤더 행 찾기: '레벨' 컬럼이 있는 행 (앞 5행 안에서 탐색).
+     헤더 위에 대분류(그룹) 행이 있으면 그 행에서 지표 그룹을 읽는다.
+     예) 1행: (빈)(빈)(빈)|매출| | |제품|위생법규적발| |품질(점검점수)| | |실행력
+         2행: 레벨|항목명|소속팀|매출달성율|점당매출신장|...                        */
+  let hIdx=-1;
+  for(let r=0;r<Math.min(5,aoa.length);r++){
+    const row=aoa[r]||[];
+    if(row.some(c=>norm(c)==='레벨')){ hIdx=r; break; }
+  }
+  if(hIdx<0){ alert('헤더에 "레벨" 컬럼이 필요합니다. 양식을 확인하세요.'); return null; }
+
+  const header=(aoa[hIdx]||[]).map(h=>String(h==null?'':h).trim());
+  const idxLevel=header.findIndex(h=>norm(h)==='레벨'||['level','구분'].includes(norm(h).toLowerCase()));
+  const idxName =header.findIndex(h=>norm(h)==='항목명'||['이름','name'].includes(norm(h).toLowerCase()));
+  const idxTeam =header.findIndex(h=>norm(h)==='소속팀'||['팀','team'].includes(norm(h).toLowerCase()));
   if(idxLevel<0||idxName<0){ alert('헤더에 "레벨"과 "항목명" 컬럼이 필요합니다. 양식을 확인하세요.'); return null; }
+
   // 지표 컬럼 = 고정 3개를 제외한 나머지
   const metricIdx=[];
   header.forEach((h,i)=>{ if(i!==idxLevel&&i!==idxName&&i!==idxTeam&&h!=='') metricIdx.push(i); });
   const metrics=metricIdx.map(i=>header[i]);
+
+  /* 그룹 행(헤더 바로 위) → 지표별 그룹명. 병합셀이라 값이 첫 칸에만 있으므로 앞으로 채움 */
+  const groups={};
+  if(hIdx>0){
+    const grow=aoa[hIdx-1]||[];
+    let cur='';
+    for(let i=0;i<header.length;i++){
+      const g=String(grow[i]==null?'':grow[i]).trim();
+      if(g) cur=g;
+      if(metricIdx.includes(i) && cur && norm(cur)!==norm(header[i])) groups[header[i]]=cur;
+    }
+  }
+
   const rows=[];
-  for(let r=1;r<aoa.length;r++){
+  for(let r=hIdx+1;r<aoa.length;r++){
     const row=aoa[r]; if(!row||row.every(c=>c==null||String(c).trim()==='')) continue;
     const level=String(row[idxLevel]==null?'':row[idxLevel]).trim();
     const name =String(row[idxName]==null?'':row[idxName]).trim();
@@ -349,7 +377,7 @@ function parseRows(aoa){
     metricIdx.forEach(i=>{ vals[header[i]] = row[i]==null?'':row[i]; });
     rows.push({level:normLevel(level),name,team,vals});
   }
-  return {metrics,rows};
+  return {metrics,rows,groups};
 }
 function normLevel(l){
   const s=l.replace(/\s/g,'');
