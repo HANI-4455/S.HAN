@@ -332,34 +332,51 @@ function light(metric,row){
 /* ---------- 엑셀 파싱 ---------- */
 function parseRows(aoa){
   const norm=s=>String(s==null?'':s).replace(/\s/g,'');
-  /* 헤더 행 찾기: '레벨' 컬럼이 있는 행 (앞 5행 안에서 탐색).
-     헤더 위에 대분류(그룹) 행이 있으면 그 행에서 지표 그룹을 읽는다.
-     예) 1행: (빈)(빈)(빈)|매출| | |제품|위생법규적발| |품질(점검점수)| | |실행력
-         2행: 레벨|항목명|소속팀|매출달성율|점당매출신장|...                        */
-  let hIdx=-1;
+  /* 헤더 위치 자동 탐색 (앞 5행). 아래 두 형태를 모두 지원한다.
+     (A) 레벨/항목명/소속팀을 2행에만 적은 형태
+         1행: (빈)(빈)(빈)|매출| | |제품|…            ← 대분류(그룹)
+         2행: 레벨|항목명|소속팀|매출달성율|…          ← 헤더
+     (B) 레벨/항목명/소속팀을 1~2행 세로 병합한 형태 (병합 시 값은 1행에만 저장됨)
+         1행: 레벨|항목명|소속팀|매출|  |  |제품|…      ← 고정열 + 대분류
+         2행: (빈)(빈)(빈)|매출달성율|…                ← 지표명                     */
+  let lIdx=-1;
   for(let r=0;r<Math.min(5,aoa.length);r++){
     const row=aoa[r]||[];
-    if(row.some(c=>norm(c)==='레벨')){ hIdx=r; break; }
+    if(row.some(c=>norm(c)==='레벨')){ lIdx=r; break; }
   }
-  if(hIdx<0){ alert('헤더에 "레벨" 컬럼이 필요합니다. 양식을 확인하세요.'); return null; }
+  if(lIdx<0){ alert('헤더에 "레벨" 컬럼이 필요합니다. 양식을 확인하세요.'); return null; }
 
-  const header=(aoa[hIdx]||[]).map(h=>String(h==null?'':h).trim());
-  const idxLevel=header.findIndex(h=>norm(h)==='레벨'||['level','구분'].includes(norm(h).toLowerCase()));
-  const idxName =header.findIndex(h=>norm(h)==='항목명'||['이름','name'].includes(norm(h).toLowerCase()));
-  const idxTeam =header.findIndex(h=>norm(h)==='소속팀'||['팀','team'].includes(norm(h).toLowerCase()));
+  const lrow=(aoa[lIdx]||[]).map(h=>String(h==null?'':h).trim());
+  const nxt =(aoa[lIdx+1]||[]).map(h=>String(h==null?'':h).trim());
+  /* 고정열은 두 행에 걸쳐 찾는다 — 일부만 병합한 경우(예: 레벨·항목명만 병합)도 지원 */
+  const findCol=(pred)=>{ let i=lrow.findIndex(pred); return i>=0?i:nxt.findIndex(pred); };
+  const idxLevel=findCol(h=>norm(h)==='레벨'||['level','구분'].includes(norm(h).toLowerCase()));
+  const idxName =findCol(h=>norm(h)==='항목명'||['이름','name'].includes(norm(h).toLowerCase()));
+  const idxTeam =findCol(h=>norm(h)==='소속팀'||['팀','team'].includes(norm(h).toLowerCase()));
   if(idxLevel<0||idxName<0){ alert('헤더에 "레벨"과 "항목명" 컬럼이 필요합니다. 양식을 확인하세요.'); return null; }
+
+  /* (B) 판별: 다음 행의 '레벨' 칸이 비어 있고 다른 칸에 값이 있으면
+     그 행이 진짜 지표 헤더이고, 레벨이 있던 행은 대분류 행이다.
+     (데이터 첫 행은 레벨 칸에 '목표' 등이 들어 있으므로 구분된다) */
+  const hasOther = nxt.some((v,i)=>v!=='' && i!==idxLevel && i!==idxName && i!==idxTeam);
+  const merged   = !nxt[idxLevel] && hasOther;
+
+  const hIdx  = merged ? lIdx+1 : lIdx;                 // 지표명이 있는 행
+  const gIdx  = merged ? lIdx   : (lIdx>0 ? lIdx-1 : -1); // 대분류(그룹) 행
+  const header=(aoa[hIdx]||[]).map(h=>String(h==null?'':h).trim());
 
   // 지표 컬럼 = 고정 3개를 제외한 나머지
   const metricIdx=[];
   header.forEach((h,i)=>{ if(i!==idxLevel&&i!==idxName&&i!==idxTeam&&h!=='') metricIdx.push(i); });
   const metrics=metricIdx.map(i=>header[i]);
 
-  /* 그룹 행(헤더 바로 위) → 지표별 그룹명. 병합셀이라 값이 첫 칸에만 있으므로 앞으로 채움 */
+  /* 대분류 행 → 지표별 그룹명. 가로 병합이면 값이 첫 칸에만 있으므로 앞으로 채움 */
   const groups={};
-  if(hIdx>0){
-    const grow=aoa[hIdx-1]||[];
+  if(gIdx>=0){
+    const grow=aoa[gIdx]||[];
     let cur='';
     for(let i=0;i<header.length;i++){
+      if(i===idxLevel||i===idxName||i===idxTeam){ cur=''; continue; }   // 고정열은 그룹 아님
       const g=String(grow[i]==null?'':grow[i]).trim();
       if(g) cur=g;
       if(metricIdx.includes(i) && cur && norm(cur)!==norm(header[i])) groups[header[i]]=cur;
