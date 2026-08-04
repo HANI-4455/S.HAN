@@ -6,6 +6,7 @@
 <title>가맹영업 주요 지표 대시보드</title>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <style>
   :root{
     --primary:#15237A;   /* 다크 블루 */
@@ -144,7 +145,7 @@
     <label>기준일자</label>
     <select id="dateSel" title="업로드된 일자 이력"></select>
     <button class="btn admin-only" id="btnDelDate" title="선택한 기준일자 데이터 삭제" style="border-color:#c94b4b;color:#c94b4b">🗑 일자 삭제</button>
-    <button class="btn" id="btnMd">⬇ MD 다운로드</button>
+    <button class="btn" id="btnPpt">⬇ PPT 다운로드</button>
     <button class="btn admin-only" id="btnData">⬇ 엑셀 다운로드</button>
     <button class="btn admin-only" id="btnThr">⚙ 신호등 기준 설정</button>
     <button class="btn admin-only" id="btnTpl">⬇ 엑셀 양식 받기</button>
@@ -761,69 +762,133 @@ function exportData(){
   XLSX.writeFile(wb,'가맹영업_KPI_데이터_'+String(curDate).replace(/\(예시\)/,'')+'.xlsx');
 }
 
-/* ---------- 마크다운(.md) 다운로드 ---------- */
-const MD_DOT={g:'🟢', y:'🟡', r:'🔴'};   // 초록/노랑/빨강
+/* ---------- PPT 다운로드 (사내 PPT 템플릿 양식) ----------
+   CLAUDE.md PPT 작성 규칙 반영:
+   · 슬라이드 크기 A4 가로 (파워포인트 A4 = 10.83 x 7.5 inch, 템플릿과 동일)
+   · 표지: 흰 배경 + 검은색 타이틀, 우측 상단 골드 로고
+   · 본문: 좌상단 제목 20pt Bold + 하단 검정 구분선, 우측 상단 로고 고정
+   · 폰트 나눔바른고딕 (미설치 PC에서는 맑은 고딕으로 대체 표시)              */
+const PPT_W=10.83, PPT_H=7.5, PPT_MX=0.25;          // 템플릿 규격(inch)
+const PPT_FONT='나눔바른고딕';
+const PPT_BLACK='000000', PPT_BLUE='15237A', PPT_MBLUE='2F497D', PPT_ORANGE='F26300',
+      PPT_HEADBG='DCE3F1', PPT_TARGET='F0F3F9', PPT_TEXT='272727', PPT_LINE='C7D0E4',
+      DOT={g:'2FA84F',y:'F5C518',r:'E23B3B'};
+/* 템플릿에서 추출한 골드 로고 (우측 상단) */
+const PPT_LOGO=[
+  'data:image/png;base64,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',
+  'IAAAAASUVORK5CYII=',
+].join('');
+const LOGO_POS={x:8.97, y:0.15, w:1.74, h:0.27};    // 템플릿 원본 좌표
 
-/* 셀 1개: 값 + 신호등. 목표행은 신호등 없음 */
-function mdCell(metric,row){
+function addLogo(slide){ slide.addImage({data:PPT_LOGO, x:LOGO_POS.x, y:LOGO_POS.y, w:LOGO_POS.w, h:LOGO_POS.h}); }
+
+/* 본문 장표 머리: 로고 + 제목(20pt) + 검정 구분선(y=0.6) + 소제목(16pt) */
+function slideHead(slide,pptx,title,sub){
+  addLogo(slide);
+  slide.addText(title,{x:0.10,y:0.11,w:6.31,h:0.44,fontFace:PPT_FONT,fontSize:20,bold:true,color:PPT_BLACK,valign:'middle'});
+  slide.addShape(pptx.ShapeType.line,{x:0,y:0.60,w:PPT_W,h:0,line:{color:PPT_BLACK,width:1}});
+  if(sub) slide.addText(sub,{x:0.30,y:0.73,w:8.4,h:0.37,fontFace:PPT_FONT,fontSize:16,bold:true,color:PPT_TEXT,valign:'middle'});
+}
+
+/* 한 셀: 값(위) + 신호등 점(아래). 목표행은 점 없음 */
+function pptCell(metric,row){
   const raw=row.vals[metric];
-  const disp=(raw===''||raw==null)?'-':fmt(raw);
+  const disp=(raw===''||raw==null)?'':fmt(raw);
   const cls=(row.level==='목표')?'':light(metric,row);
-  return cls ? (disp+' '+MD_DOT[cls]) : disp;
+  if(cls){
+    return { text:[ {text:disp||'-', options:{breakLine:true}}, {text:'●', options:{color:DOT[cls], fontSize:11, breakLine:false}} ],
+             options:{align:'center', valign:'middle'} };
+  }
+  return { text:disp, options:{align:'center', valign:'middle'} };
 }
-function mdEsc(s){ return String(s==null?'':s).replace(/\|/g,'\|'); }
-/* 지표 머리글: 그룹이 있으면 "품질점검 · 커피품질" */
-function mdHead(metric){ const g=groupOf(metric); return mdEsc(g?g+' · '+metric:metric); }
-
-function mdTable(metrics,rows){
-  let out='| 구분 | '+metrics.map(mdHead).join(' | ')+' |\n';
-  out+='|:---|'+metrics.map(()=>':---:').join('|')+'|\n';
-  rows.forEach(r=>{
-    const label = r.indent ? '&nbsp;&nbsp;'+mdEsc(r.row.name) : '**'+mdEsc(r.row.name)+'**';
-    out+='| '+label+' | '+metrics.map(m=>mdEsc(mdCell(m,r.row))).join(' | ')+' |\n';
+function pptHeaderRow(metrics){
+  const h=v=>{
+    const g=groupOf(v);
+    const txt = g ? [ {text:g, options:{fontSize:7, color:PPT_ORANGE, breakLine:true}}, {text:v, options:{fontSize:9, bold:true, color:PPT_BLUE}} ] : v;
+    return { text:txt, options:{ bold:true, color:PPT_BLUE, fill:{color:PPT_HEADBG}, align:'center', valign:'middle', fontSize:9 } };
+  };
+  return [ {text:'구분', options:{bold:true, color:PPT_BLUE, fill:{color:PPT_HEADBG}, align:'left', valign:'middle', fontSize:9}}, ...metrics.map(h) ];
+}
+function pptDataRow(metrics,row,style){
+  const s=style||{};
+  const label={ text:(s.indent?'    ':'')+row.name, options:{ align:'left', valign:'middle', bold:!!s.bold,
+                 color:s.color||PPT_TEXT, fill:s.fill?{color:s.fill}:undefined, fontSize:9 } };
+  const cells=metrics.map(m=>{ const c=pptCell(m,row); c.options={...c.options, fontSize:9, fill:s.fill?{color:s.fill}:undefined}; return c; });
+  return [label,...cells];
+}
+function addKpiTable(slide,metrics,rows,y,h){
+  const table=[ pptHeaderRow(metrics) ];
+  rows.forEach(r=>table.push(pptDataRow(metrics,r.row,r.style)));
+  const usable=PPT_W-PPT_MX*2, labelW=1.45, colW=Math.max(0.42,(usable-labelW)/metrics.length);
+  slide.addTable(table,{
+    x:PPT_MX, y:y, w:usable, colW:[labelW, ...metrics.map(()=>colW)],
+    border:{type:'solid', color:PPT_LINE, pt:0.5},
+    fontFace:PPT_FONT, fontSize:8, valign:'middle', rowH:h||0.40, autoPage:false
   });
-  return out;
 }
 
-function exportMD(){
+function exportPPT(){
   const data=store[curDate];
   if(!data){ alert('먼저 데이터를 불러오세요.'); return; }
+  if(typeof PptxGenJS==='undefined'){ alert('PPT 라이브러리 로딩 실패. 인터넷 연결을 확인하세요.'); return; }
   const {metrics,rows}=data;
+  const pptx=new PptxGenJS();
+  pptx.defineLayout({name:'A4', width:PPT_W, height:PPT_H});   // A4 가로
+  pptx.layout='A4';
   const dstr=String(curDate).replace(/\(예시\)/,'');
   const teams=[...new Set(rows.filter(r=>r.level==='팀').map(r=>r.name))];
 
-  let md='';
-  md+='# 가맹영업 주요 지표 진행사항\n\n';
-  md+='> 기준일자 **'+dstr+'** · 파리크라상 사업지원팀\n\n';
-  md+='---\n\n';
+  /* 표지: 흰 배경 + 검은색 타이틀 + 우측 상단 골드 로고 */
+  const cv=pptx.addSlide();
+  cv.background={color:'FFFFFF'};
+  addLogo(cv);
+  cv.addText('가맹영업 주요 지표 진행사항',{x:0.8,y:2.9,w:PPT_W-1.6,h:0.9,fontFace:PPT_FONT,fontSize:32,bold:true,color:PPT_BLACK,align:'center'});
+  cv.addShape(pptx.ShapeType.line,{x:PPT_W/2-1.2,y:3.95,w:2.4,h:0,line:{color:PPT_BLACK,width:1.5}});
+  cv.addText('기준일자 '+dstr,{x:0.8,y:4.15,w:PPT_W-1.6,h:0.4,fontFace:PPT_FONT,fontSize:16,color:PPT_TEXT,align:'center'});
+  cv.addText('파리크라상 · 사업지원팀',{x:0.8,y:6.5,w:PPT_W-1.6,h:0.3,fontFace:PPT_FONT,fontSize:12,color:'808080',align:'center'});
 
-  /* 메인: 화면에 보이는 요약 (목표 · 전사 · 팀) */
-  md+='## I. KPI지표와 함께 주요지표 관리\n\n';
+  /* 메인 장표: 화면 요약 (목표·전사·팀) */
+  const s1=pptx.addSlide();
+  slideHead(s1,pptx,'가맹영업 주요 지표 진행사항','I. KPI지표와 함께 주요지표 관리  (기준일자 '+dstr+')');
   const mainRows=[];
-  rows.filter(r=>r.level==='목표' && !r.team && !isSVName(r.name)).forEach(r=>mainRows.push({row:r}));
-  rows.filter(r=>r.level==='전사').forEach(r=>mainRows.push({row:r}));
-  teams.forEach(tm=>{ const tr=rows.find(r=>r.level==='팀'&&r.name===tm); if(tr) mainRows.push({row:tr}); });
-  md+=mdTable(metrics,mainRows);
-  md+='\n신호등: '+MD_DOT.g+' 양호 · '+MD_DOT.y+' 주의 · '+MD_DOT.r+' 미흡 (지표별 기준 적용)\n\n';
+  rows.filter(r=>r.level==='목표' && !r.team && !isSVName(r.name)).forEach(r=>mainRows.push({row:r,style:{bold:true,color:PPT_MBLUE,fill:PPT_TARGET}}));
+  rows.filter(r=>r.level==='전사').forEach(r=>mainRows.push({row:r,style:{bold:true,fill:'F7F9FC'}}));
+  teams.forEach(tm=>{ const tr=rows.find(r=>r.level==='팀'&&r.name===tm); if(tr) mainRows.push({row:tr,style:{bold:true,color:PPT_BLUE}}); });
+  addKpiTable(s1,metrics,mainRows,1.30,0.48);
+  s1.addText('※ 신호등: 초록=양호, 노랑=주의, 빨강=미흡 (지표별 기준 적용)',{x:PPT_MX,y:PPT_H-0.4,w:PPT_W-PPT_MX*2,h:0.3,fontFace:PPT_FONT,fontSize:9,color:'9aa3b2'});
 
-  /* 어펜딕스: 팀별 SV 상세 */
-  md+='---\n\n## Appendix. 사업팀 · SV별 상세\n\n';
+  /* 어펜딕스: 팀별 SV별 상세 (팀당 1장) */
   teams.forEach(tm=>{
     const tr=rows.find(r=>r.level==='팀'&&r.name===tm);
     const svs=rows.filter(r=>r.level==='SV'&&r.team===tm);
-    md+='### '+mdEsc(tm)+'\n\n';
+    const sl=pptx.addSlide();
+    slideHead(sl,pptx,'[Appendix] '+tm,'SV별 상세  (기준일자 '+dstr+')');
     const rws=[];
-    if(tr) rws.push({row:tr});
-    svs.forEach(sv=>rws.push({row:sv,indent:true}));
-    if(!svs.length) rws.push({row:{name:'(등록된 SV 데이터 없음)',level:'SV',vals:{}}});
-    md+=mdTable(metrics,rws);
-    md+='\n';
+    if(tr) rws.push({row:tr,style:{bold:true,color:PPT_BLUE,fill:PPT_TARGET}});
+    svs.forEach(sv=>rws.push({row:sv,style:{indent:true}}));
+    if(!svs.length) rws.push({row:{name:'(등록된 SV 데이터 없음)',level:'SV',vals:{}},style:{color:'9aa3b2'}});
+    addKpiTable(sl,metrics,rws,1.30, rws.length>10?0.32:0.42);
   });
 
-  const blob=new Blob([md],{type:'text/markdown;charset=utf-8'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download='가맹영업_KPI_대시보드_'+dstr+'.md'; a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  pptx.writeFile({fileName:'가맹영업_KPI_대시보드_'+dstr+'.pptx'});
 }
 
 /* ---------- 이벤트 바인딩 ---------- */
@@ -840,7 +905,7 @@ document.getElementById('thrCancel').onclick=()=>document.getElementById('modal'
 document.getElementById('thrSave').onclick=saveThr;
 document.getElementById('btnTpl').onclick=downloadTemplate;
 document.getElementById('btnDemo').onclick=loadDemo;
-document.getElementById('btnMd').onclick=exportMD;
+document.getElementById('btnPpt').onclick=exportPPT;
 document.getElementById('btnData').onclick=exportData;
 document.getElementById('btnDelDate').onclick=deleteDate;
 document.getElementById('btnPublish').onclick=publish;
