@@ -966,21 +966,40 @@ document.getElementById('ghModal').onclick=e=>{ if(e.target.id==='ghModal') e.ta
 /* ---------- 초기화: 발행 파일(kpi_data.json) 우선 로드 ---------- */
 async function init(){
   applyMode();
-  // 1) 발행 파일(모든 열람자 공유)을 기본값으로
+  let loadErr='';
+  // 1) 발행 파일(모든 열람자 공유)을 기본값으로.
+  //    실패 원인을 화면에 남긴다 — 조용히 빈 화면이 되면 원인 파악이 불가하므로.
   try{
-    const r=await fetch(PUB_FILE+'?v='+Date.now(),{cache:'no-store'});
+    const url=PUB_FILE+'?v='+Date.now();
+    const r=await fetch(url,{cache:'no-store'});
     if(r.ok){
-      const j=await r.json();
-      store=j.data||{}; thr=j.thr||{};
+      const txt=await r.text();
+      try{
+        const j=JSON.parse(txt);
+        store=j.data||{}; thr=j.thr||{};
+        if(!Object.keys(store).length) loadErr='발행 파일에 데이터가 없습니다.';
+      }catch(pe){ loadErr='발행 파일 형식 오류: '+pe.message+' (앞부분: '+txt.slice(0,60)+')'; }
+    } else {
+      loadErr=PUB_FILE+' 불러오기 실패 — HTTP '+r.status+' '+r.statusText;
     }
-  }catch(e){ /* 파일 없음(로컬 file:// 등) → 빈 상태 */ }
+  }catch(e){
+    loadErr='네트워크 오류로 '+PUB_FILE+'을 불러오지 못했습니다: '+(e&&e.message?e.message:e);
+  }
   // 2) 이 브라우저에 관리자 초안이 있으면 우선 표시(새로고침해도 유지). 뷰어PC는 초안이 없어 발행본을 봄
   const lsData=loadJSON(LS_DATA,null), lsThr=loadJSON(LS_THR,null);
-  if(lsData && Object.keys(lsData).length){ store=lsData; if(lsThr) thr=lsThr; }
+  if(lsData && Object.keys(lsData).length){ store=lsData; if(lsThr) thr=lsThr; loadErr=''; }
+
   const dates=Object.keys(store).sort().reverse();
   curDate=(localStorage.getItem(LS_DATE) && store[localStorage.getItem(LS_DATE)])
           ? localStorage.getItem(LS_DATE) : (dates[0]||'');
   render();
+
+  if(loadErr && !dates.length){
+    const el=document.getElementById('empty');
+    if(el) el.innerHTML='<b style="color:#c94b4b">데이터를 불러오지 못했습니다.</b><br>'+
+      '<span style="font-size:12px;color:#8a93a6">'+loadErr.replace(/</g,'&lt;')+'</span><br>'+
+      '<button class="btn" style="margin-top:12px" onclick="location.reload()">다시 시도</button>';
+  }
 }
 init();
 </script>
