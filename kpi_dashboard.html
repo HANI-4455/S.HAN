@@ -419,13 +419,32 @@ function handleFile(f){
   const dateStr = prompt('이 데이터의 기준일자를 입력하세요 (YYYY-MM-DD).\n예: 2026-07-31', suggestDate(f.name));
   if(!dateStr) return;
   const rd=new FileReader();
+  rd.onerror=()=>alert('파일을 읽지 못했습니다. 파일이 열려 있거나 손상됐는지 확인하세요.');
   rd.onload=e=>{
+   try{
+    /* 사내 DRM(NASCA 등)이 걸린 파일은 엑셀이 아니라 암호화 파일이므로 반드시 실패한다.
+       원인을 명확히 알려준다. */
+    const head=new Uint8Array(e.target.result.slice(0,64));
+    let sig=''; head.forEach(b=>sig+=String.fromCharCode(b));
+    if(sig.indexOf('DRM')>=0 || sig.indexOf('NASCA')>=0){
+      alert('이 파일은 사내 보안(DRM)이 걸려 있어 읽을 수 없습니다.\n\n엑셀에서 파일을 열고 [다른 이름으로 저장]으로 DRM이 해제된 사본을 만든 뒤 업로드하세요.');
+      return;
+    }
+    if(!(sig.charCodeAt(0)===0x50 && sig.charCodeAt(1)===0x4B)){   // xlsx = ZIP(PK)
+      if(!/\.csv$/i.test(f.name)){
+        alert('엑셀 파일(.xlsx) 형식이 아닙니다.\n파일 형식을 확인하세요. (앞부분: '+sig.slice(0,16).replace(/[^\x20-\x7E]/g,'.')+')');
+        return;
+      }
+    }
     const wb=XLSX.read(e.target.result,{type:'array'});
+    if(!wb.SheetNames || !wb.SheetNames.length){ alert('엑셀에 시트가 없습니다.'); return; }
     const ws=wb.Sheets[wb.SheetNames[0]];
     // raw:false → 엑셀에 "표시된 값 그대로"(%, P 등 서식 포함)를 문자열로 가져옴
     const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
+    if(!aoa.length){ alert('첫 시트('+wb.SheetNames[0]+')가 비어 있습니다.'); return; }
     const parsed=parseRows(aoa);
     if(!parsed) return;
+    if(!parsed.rows.length){ alert('데이터 행을 찾지 못했습니다. 레벨/항목명 열을 확인하세요.'); return; }
     // 업로드 원본 파일을 그대로 보관(다운로드용)
     parsed.file={ name:f.name, b64:abToB64(e.target.result) };
     store[dateStr]=parsed;
@@ -433,7 +452,14 @@ function handleFile(f){
     ensureThr(parsed.metrics);
     persist();
     render();
-    alert('업로드 완료: '+dateStr+' ('+parsed.rows.length+'행, 지표 '+parsed.metrics.length+'개)\n\n※ 다른 사람이 보게 하려면 [발행 파일 저장]을 눌러 '+PUB_FILE+' 을 저장소에 커밋하세요.');
+    const svCnt=parsed.rows.filter(r=>r.level==='SV').length;
+    const teamCnt=[...new Set(parsed.rows.filter(r=>r.level==='팀').map(r=>r.name))].length;
+    alert('업로드 완료: '+dateStr+'\n\n· 지표 '+parsed.metrics.length+'개\n· 팀 '+teamCnt+'개 · SV '+svCnt+'명 (전체 '+parsed.rows.length+'행)'+
+          '\n\n※ 다른 사람이 보게 하려면 반드시 [⬆ 발행]을 누르세요.');
+   }catch(err){
+    alert('엑셀을 읽는 중 오류가 발생했습니다.\n\n'+(err&&err.message?err.message:err)+
+          '\n\n· 사내 DRM이 걸린 파일이면 [다른 이름으로 저장]으로 사본을 만들어 올려주세요.\n· 파일이 엑셀에서 열려 있으면 닫고 다시 시도하세요.');
+   }
   };
   rd.readAsArrayBuffer(f);
 }
