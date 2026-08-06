@@ -750,26 +750,44 @@ const REMOVED_DEFAULT_PATHS = ["orderbudget.html","ordercreator.html","research.
 
 const PRESET_TAGS = ["업무","보고서","대시보드","게임","도구","양식","디자인","여행"];
 
-function getDefaultCards() {
-  const saved = localStorage.getItem("sbt_default_cards");
-  return saved ? JSON.parse(saved) : DEFAULT_CARDS;
+/* ===== 공유 카드 목록 (cards.json — 전 직원 공통) ===== */
+const CARDS_URL = "cards.json";
+let SHARED_CARDS = null;
+async function loadSharedCards() {
+  try {
+    const r = await fetch(CARDS_URL + "?t=" + Date.now(), {cache:"no-store"});
+    if (r.ok) {
+      const j = await r.json();
+      if (Array.isArray(j) && j.length) {
+        SHARED_CARDS = j;
+        localStorage.setItem("sbt_cards_cache", JSON.stringify(j));
+        return SHARED_CARDS;
+      }
+    }
+  } catch(e) {}
+  const c = localStorage.getItem("sbt_cards_cache");
+  SHARED_CARDS = c ? JSON.parse(c) : DEFAULT_CARDS.slice();
+  return SHARED_CARDS;
 }
-
-function loadCards() {
-  const saved = localStorage.getItem("sbt_cards");
-  let cards = saved ? JSON.parse(saved) : getDefaultCards();
-  if (localStorage.getItem("sbt_defaults_version") !== String(DEFAULTS_VERSION)) {
-    cards = cards.filter(c => !REMOVED_DEFAULT_PATHS.includes(c.path));
-    localStorage.removeItem("sbt_default_cards"); /* 코드의 DEFAULT_CARDS가 우선하도록 브라우저별 덮어쓰기 제거 */
-    localStorage.setItem("sbt_defaults_version", String(DEFAULTS_VERSION));
-  }
-  getDefaultCards().forEach(def => {
-    if (!cards.find(c => c.path === def.path)) cards.push(def);
-  });
-  saveCards(cards);
-  return cards;
+/* 관리자 저장: 카드 목록을 저장소 cards.json에 커밋 → 모든 사용자에게 반영 (GitHub 토큰 필요) */
+async function commitCards(list) {
+  const tok = localStorage.getItem("voc_gh_token");
+  if (!tok) throw new Error("GitHub 토큰이 없습니다. VOC 대시보드 07 섹션에서 토큰을 먼저 저장해 주세요.");
+  const url = "https://api.github.com/repos/HANI-4455/S.HAN/contents/cards.json";
+  const hd = {Authorization:"Bearer " + tok, Accept:"application/vnd.github+json"};
+  let sha = null;
+  const cur = await fetch(url, {headers:hd, cache:"no-store"});
+  if (cur.ok) sha = (await cur.json()).sha;
+  else if (cur.status === 401) throw new Error("토큰 인증 실패(401) — 토큰을 다시 저장해 주세요.");
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(list, null, 1))));
+  const body = {message:"허브 카드 목록 업데이트", content, ...(sha?{sha}:{})};
+  const res = await fetch(url, {method:"PUT", headers:hd, body: JSON.stringify(body)});
+  if (!res.ok) throw new Error("저장 실패 (HTTP " + res.status + ") — 토큰 권한(Contents: Read and write)을 확인하세요.");
+  SHARED_CARDS = list;
+  localStorage.setItem("sbt_cards_cache", JSON.stringify(list));
 }
-function saveCards(cards) { localStorage.setItem("sbt_cards", JSON.stringify(cards)); }
+function getDefaultCards() { return SHARED_CARDS || DEFAULT_CARDS; }
+function loadCards() { return SHARED_CARDS || DEFAULT_CARDS; }
 
 function toHref(path) {
   if (!path) return "#";
@@ -826,11 +844,13 @@ function renderCards() {
   }).join("");
 }
 
-function deleteCard(id) {
+async function deleteCard(id) {
   if (!isAdmin) { requireAdmin(() => deleteCard(id)); return; }
-  if (!confirm("삭제할까요?")) return;
+  if (!confirm("삭제할까요? (전 직원에게 반영됩니다)")) return;
   const cards = loadCards().filter(c => c.id !== id);
-  saveCards(cards); renderTagFilter(); renderCards();
+  try { await commitCards(cards); }
+  catch(e) { alert("공유 저장 실패: " + e.message); return; }
+  renderTagFilter(); renderCards();
 }
 
 /* ===== 공유 관리자 인증 (admin_auth.json — 모든 사용자 공통) ===== */
@@ -963,17 +983,19 @@ function closeModal() {
 }
 function closeModalIfBg(e) { if(e.target===document.getElementById("modalOverlay")) closeModal(); }
 
-function saveCard() {
+async function saveCard() {
   const path  = document.getElementById("inputPath").value.trim();
   const title = document.getElementById("inputTitle").value.trim();
   const desc  = document.getElementById("inputDesc").value.trim();
   const emoji = document.getElementById("inputEmoji").value.trim() || "📄";
   const tag   = document.getElementById("inputTag").value.trim() || "기타";
   if (!path || !title) { alert("파일 경로와 제목은 필수입니다."); return; }
-  const cards = loadCards();
-  const newId = cards.length ? Math.max(...cards.map(c=>c.id))+1 : 1;
+  const cards = loadCards().slice();
+  const newId = cards.length ? Math.max(...cards.map(c=>c.id||0))+1 : 1;
   cards.push({ id:newId, path, title, desc, emoji, tag });
-  saveCards(cards); closeModal(); renderTagFilter(); renderCards();
+  try { await commitCards(cards); }
+  catch(e) { alert("공유 저장 실패: " + e.message); return; }
+  closeModal(); renderTagFilter(); renderCards();
 }
 
 function resetDropZone() {
@@ -1055,24 +1077,20 @@ function addDefaultCard() {
   ["dcPath","dcTitle","dcEmoji","dcDesc","dcTag"].forEach(id => document.getElementById(id).value = "");
 }
 
-function saveDefaultsMgr() {
-  localStorage.setItem("sbt_default_cards", JSON.stringify(tempDefaults));
-  /* 현재 카드 목록에도 새 기본카드 중 누락된 항목 추가 */
-  const cards = loadCards();
-  let changed = false;
-  tempDefaults.forEach(def => {
-    if (!cards.find(c => c.path === def.path)) { cards.push(def); changed = true; }
-  });
-  if (changed) saveCards(cards);
+async function saveDefaultsMgr() {
+  const btn = document.querySelector('#defaultsMgrOverlay button[onclick="saveDefaultsMgr()"]');
+  if (btn) { btn.disabled = true; btn.textContent = "저장 중…"; }
+  try { await commitCards(tempDefaults.slice()); }
+  catch(e) { alert("공유 저장 실패: " + e.message); if(btn){btn.disabled=false;btn.textContent="저장";} return; }
+  if (btn) { btn.disabled = false; btn.textContent = "저장"; }
   closeDefaultsMgr();
   renderTagFilter();
   renderCards();
-  alert("✅ 기본 카드 목록이 저장되었습니다.");
+  alert("✅ 전 직원 공유 카드 목록이 저장되었습니다. (다른 기기에는 잠시 후 반영됩니다)");
 }
 
 function resetDefaultCards() {
-  if (!confirm("원래 기본값으로 초기화할까요?")) return;
-  localStorage.removeItem("sbt_default_cards");
+  if (!confirm("코드 기본값으로 되돌릴까요? (저장을 눌러야 전 직원에게 반영됩니다)")) return;
   tempDefaults = JSON.parse(JSON.stringify(DEFAULT_CARDS));
   renderDefaultsList();
 }
@@ -1126,6 +1144,7 @@ async function enterHub(session, kind){
   try{ const data = await loadLoginUsers(); u = data && data.users && data.users[session.id]; }catch(e){}
   if(u && u.admin){ isAdmin = true; document.getElementById("defaultMgrBtn").style.display = ""; }
   document.getElementById("userChipId").textContent = (u && u.label) ? u.label : ("ID " + session.id);
+  await loadSharedCards();
   renderTagFilter(); renderCards();
   logAccess(session.id, kind);
 }
