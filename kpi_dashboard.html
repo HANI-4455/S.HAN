@@ -144,6 +144,7 @@
   <div class="toolbar">
     <label>기준일자</label>
     <select id="dateSel" title="업로드된 일자 이력"></select>
+    <span id="pubAt" style="font-size:11px;color:#9aa3b2;font-weight:400" title="발행 파일이 만들어진 시각"></span>
     <button class="btn admin-only" id="btnDelDate" title="선택한 기준일자 데이터 삭제" style="border-color:#c94b4b;color:#c94b4b">🗑 일자 삭제</button>
     <button class="btn" id="btnPpt">⬇ PPT 다운로드</button>
     <button class="btn admin-only" id="btnData">⬇ 엑셀 다운로드</button>
@@ -267,6 +268,7 @@ let store = {};    // { '2026-07-31': {metrics:[...], rows:[...]} }
 let thr   = {};    // { '매출달성율': {dir:'high', green:100, yellow:95} }
 let curDate = '';
 let isAdmin = false;
+let pubAt = '';     // 발행 파일의 발행 시각(exportedAt)
 let dirty = localStorage.getItem(LS_DIRTY)==='1';  // 발행 안 된 변경 존재 여부
 
 function loadJSON(k,d){try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}}
@@ -274,6 +276,14 @@ function saveJSON(k,v){localStorage.setItem(k,JSON.stringify(v))}
 /* 관리자만 로컬 초안 저장 + '미발행' 표시 */
 function persist(){ if(isAdmin){ saveJSON(LS_DATA,store); saveJSON(LS_THR,thr); dirty=true; localStorage.setItem(LS_DIRTY,'1'); updatePubNote(); } }
 function updatePubNote(){ const n=document.getElementById('pubNote'); if(n) n.style.display=(isAdmin&&dirty)?'block':'none'; }
+/* 발행 시각을 화면에 표시 — 열람자가 최신본인지 바로 확인할 수 있게 */
+function showPubAt(){
+  const el=document.getElementById('pubAt'); if(!el) return;
+  if(!pubAt){ el.textContent=''; return; }
+  const d=new Date(pubAt);
+  const p=n=>String(n).padStart(2,'0');
+  el.textContent='발행: '+d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
 
 /* ---------- 값 파싱: 표시는 원본, 판정은 숫자 ---------- */
 function toNum(v){
@@ -976,7 +986,7 @@ async function init(){
       const txt=await r.text();
       try{
         const j=JSON.parse(txt);
-        store=j.data||{}; thr=j.thr||{};
+        store=j.data||{}; thr=j.thr||{}; pubAt=j.exportedAt||'';
         if(!Object.keys(store).length) loadErr='발행 파일에 데이터가 없습니다.';
       }catch(pe){ loadErr='발행 파일 형식 오류: '+pe.message+' (앞부분: '+txt.slice(0,60)+')'; }
     } else {
@@ -989,10 +999,13 @@ async function init(){
   const lsData=loadJSON(LS_DATA,null), lsThr=loadJSON(LS_THR,null);
   if(lsData && Object.keys(lsData).length){ store=lsData; if(lsThr) thr=lsThr; loadErr=''; }
 
+  /* 페이지를 열면 항상 '가장 최신 일자'를 보여준다.
+     (예전에 본 일자를 기억해 두면 새 데이터를 발행해도 옛 일자에 고정돼 버림) */
   const dates=Object.keys(store).sort().reverse();
-  curDate=(localStorage.getItem(LS_DATE) && store[localStorage.getItem(LS_DATE)])
-          ? localStorage.getItem(LS_DATE) : (dates[0]||'');
+  curDate=dates[0]||'';
+  if(curDate) localStorage.setItem(LS_DATE,curDate);
   render();
+  showPubAt();
 
   if(loadErr && !dates.length){
     const el=document.getElementById('empty');
