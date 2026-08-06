@@ -227,7 +227,7 @@ td.c, th.c{text-align:center}
         </div>
         <div class="card" style="overflow-x:auto">
           <h3>이물질 VOC 상세</h3>
-          <div class="note">현물보유는 회사현물보유여부 기준</div>
+          <div class="note" id="forbNote">현물보유는 회사현물보유여부 기준</div>
           <table id="forbTable">
             <thead><tr><th class="c">등록일</th><th>매장</th><th>제품</th><th>이물 유형</th><th>내용</th><th>현물보유</th><th class="c">담당</th></tr></thead>
             <tbody></tbody>
@@ -471,6 +471,9 @@ function render(m, prev){
   g('forbCap').textContent = prev ? `전월 ${prev.forb.length}건 → 당월 ${m.forb.length}건` : '';
   const ft = {}; m.forb.forEach(r=>{ const k=r[3].replace(/\(.*\)/,'').trim(); ft[k]=(ft[k]||0)+1; });
   hbars(g('forbChart'), Object.entries(ft).sort((a,b)=>b[1]-a[1]), ORANGE);
+  const noBody = m.forb.filter(r=>!r[7]).length;
+  g('forbNote').innerHTML = '현물보유는 회사현물보유여부 기준'
+    + (noBody ? ` · <b style="color:var(--danger)">${noBody}건은 VOC 원문이 없는 구 데이터입니다 — 해당 월 엑셀을 다시 올리면 원문이 채워집니다.</b>` : '');
   document.querySelector('#forbTable tbody').innerHTML = m.forb.map(r=>{
     const star = /신고|식약처|벌레|곤충/.test(r[3]+r[4]);
     const body = r[7] || r[4];
