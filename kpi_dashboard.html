@@ -152,6 +152,7 @@
     <button class="btn admin-only" id="btnTpl">⬇ 엑셀 양식 받기</button>
     <div class="spacer"></div>
     <button class="btn accent admin-only" id="btnUpload">＋ 엑셀 업로드</button>
+    <button class="btn admin-only" id="btnSheet">📊 구글시트 불러오기</button>
     <button class="btn admin-only" id="btnDemo">예시 보기</button>
     <button class="btn primary admin-only" id="btnPublish">⬆ 발행</button>
     <button class="btn admin-only" id="btnGh">🔗 GitHub 연동</button>
@@ -805,6 +806,96 @@ function applyMode(){
 function abToB64(ab){ const u=new Uint8Array(ab); let bin=''; const CH=0x8000; for(let i=0;i<u.length;i+=CH){ bin+=String.fromCharCode.apply(null,u.subarray(i,i+CH)); } return btoa(bin); }
 function b64ToU8(b64){ const bin=atob(b64); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
 
+/* ---------- 구글시트에서 불러오기 (관리자 전용) ----------
+   정적 페이지는 구글 로그인을 할 수 없으므로, 아래 중 하나로 "공개된 CSV"가 필요하다.
+   ① 특정 탭만 웹에 게시: 시트 → 파일 → 공유 → 웹에 게시 → 해당 시트 선택 → CSV
+   ② 링크 공유(보기 권한) 후 일반 시트 URL 붙여넣기 → gviz로 CSV 변환해 읽음
+   ③ Apps Script 웹앱이 CSV를 반환하도록 만들고 그 URL 사용(시트는 비공개 유지)     */
+const LS_SHEET='kpiDash_sheetUrl';
+
+/* 붙여넣은 URL을 실제로 가져올 CSV 주소로 변환 */
+function toCsvUrl(u){
+  u=String(u||'').trim();
+  if(!u) return '';
+  // 이미 CSV를 주는 주소(웹에 게시 / Apps Script / 직접 export)면 그대로 사용
+  if(/output=csv|tqx=out:csv|format=csv|script\.google\.com/i.test(u)) return u;
+  /* 일반 시트 URL → export CSV 로 변환.
+     gviz(tqx=out:csv)는 머리글 행을 라벨로 흡수해 지표명이 사라지므로 쓰지 않는다.
+     export?format=csv 는 시트 격자를 그대로(서식 적용값) 내려준다. */
+  const id=(u.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)||[])[1];
+  if(!id) return '';
+  const gid=(u.match(/[#&?]gid=(\d+)/)||[])[1]||'0';
+  return 'https://docs.google.com/spreadsheets/d/'+id+'/export?format=csv&gid='+gid;
+}
+
+/* CSV → 2차원 배열 (따옴표·줄바꿈·이스케이프 처리) */
+function parseCsv(text){
+  text=String(text).replace(/^﻿/,'');            // BOM 제거
+  const rows=[]; let row=[], cell='', q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){ cell+='"'; i++; } else q=false; }
+      else cell+=c;
+    } else {
+      if(c==='"') q=true;
+      else if(c===','){ row.push(cell); cell=''; }
+      else if(c==='\n'){ row.push(cell); rows.push(row); row=[]; cell=''; }
+      else if(c==='\r'){ /* skip */ }
+      else cell+=c;
+    }
+  }
+  if(cell!=='' || row.length){ row.push(cell); rows.push(row); }
+  return rows;
+}
+
+async function loadFromSheet(){
+  if(!isAdmin){ alert('관리자만 사용할 수 있습니다.'); return; }
+  const saved=localStorage.getItem(LS_SHEET)||'';
+  const input=prompt(
+    '구글시트 주소를 붙여넣으세요.\n\n'+
+    '· 일반 시트 URL (링크 공유가 "보기 권한"으로 열려 있어야 함)\n'+
+    '· 또는 [웹에 게시]로 만든 CSV 주소\n'+
+    '· 또는 CSV를 반환하는 Apps Script 웹앱 주소', saved);
+  if(input==null) return;
+  const csvUrl=toCsvUrl(input);
+  if(!csvUrl){ alert('구글시트 주소를 인식하지 못했습니다.\n스프레드시트 URL 또는 CSV 주소를 확인하세요.'); return; }
+
+  const dateStr=prompt('이 데이터의 기준일자를 입력하세요 (YYYY-MM-DD).','' + new Date().toISOString().slice(0,10));
+  if(!dateStr) return;
+
+  const btn=document.getElementById('btnSheet'); const t0=btn.textContent;
+  btn.textContent='불러오는 중…'; btn.disabled=true;
+  try{
+    const r=await fetch(csvUrl,{cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP '+r.status+' '+r.statusText);
+    const txt=await r.text();
+    if(/^\s*<(!DOCTYPE|html)/i.test(txt)) throw new Error('CSV가 아니라 로그인/오류 페이지가 반환되었습니다. 시트 공개 설정을 확인하세요.');
+    const aoa=parseCsv(txt);
+    if(!aoa.length) throw new Error('시트가 비어 있습니다.');
+    const parsed=parseRows(aoa);
+    if(!parsed) return;
+    if(!parsed.rows.length) throw new Error('데이터 행을 찾지 못했습니다. 레벨/항목명 열을 확인하세요.');
+
+    store[dateStr]=parsed;
+    curDate=dateStr; localStorage.setItem(LS_DATE,curDate);
+    localStorage.setItem(LS_SHEET,input.trim());        // 다음에 다시 입력하지 않도록 기억
+    ensureThr(parsed.metrics);
+    persist(); render();
+    const svCnt=parsed.rows.filter(x=>x.level==='SV').length;
+    const teamCnt=[...new Set(parsed.rows.filter(x=>x.level==='팀').map(x=>x.name))].length;
+    alert('구글시트 불러오기 완료: '+dateStr+'\n\n· 지표 '+parsed.metrics.length+'개\n· 팀 '+teamCnt+'개 · SV '+svCnt+'명 (전체 '+parsed.rows.length+'행)'+
+          '\n\n※ 다른 사람이 보게 하려면 반드시 [⬆ 발행]을 누르세요.');
+  }catch(e){
+    const msg=(e&&e.message?e.message:String(e));
+    alert('구글시트를 불러오지 못했습니다.\n\n'+msg+'\n\n'+
+          '확인할 점\n'+
+          '① 시트 → 파일 → 공유 → [웹에 게시]에서 해당 탭을 CSV로 게시했는지\n'+
+          '②  또는 링크 공유가 "링크가 있는 모든 사용자 · 뷰어"인지\n'+
+          '③ 사내망에서 docs.google.com 접근이 차단되지 않았는지');
+  }finally{ btn.textContent=t0; btn.disabled=false; }
+}
+
 /* ---------- 기준일자 삭제 (관리자 전용) ---------- */
 function deleteDate(){
   if(!isAdmin){ alert('관리자만 삭제할 수 있습니다.'); return; }
@@ -989,6 +1080,7 @@ document.getElementById('btnDemo').onclick=loadDemo;
 document.getElementById('btnPpt').onclick=exportPPT;
 document.getElementById('btnData').onclick=exportData;
 document.getElementById('btnDelDate').onclick=deleteDate;
+document.getElementById('btnSheet').onclick=loadFromSheet;
 document.getElementById('btnPublish').onclick=publish;
 document.getElementById('btnLogin').onclick=toggleAdmin;
 document.getElementById('btnGh').onclick=openGh;
