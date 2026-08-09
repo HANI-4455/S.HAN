@@ -513,20 +513,24 @@ function renderInqPraise(m, prev){
     + ` · 칭찬 ${pr?pr.length:0}건${dnum(pr?pr.length:0, pPr?pPr.length:null)}`;
 
   const gr = (inq && inq.groups) || [];
+  const hasPrev = !!(pInq && pInq.groups);
   const pMap = {}; ((pInq && pInq.groups)||[]).forEach(x=>pMap[x.name]=x.count);
-  const names = gr.map(x=>x.name).concat(Object.keys(pMap).filter(k=>!gr.find(x=>x.name===k)));
-  g('inqChart').innerHTML = names.length ? `<table>
+  /* 당월·전월 유형 합집합 — 전월에만 있던 유형도 행으로 표시 */
+  const rowsInq = [...new Set(gr.map(x=>x.name).concat(Object.keys(pMap)))].map(nm=>{
+    const c0 = (gr.find(x=>x.name===nm)||{count:0}).count;
+    const p0 = hasPrev ? (pMap[nm]||0) : null;
+    return {nm, c0, p0, d: p0==null ? null : c0-p0};
+  }).sort((a,b)=> b.c0-a.c0 || (b.p0||0)-(a.p0||0) || a.nm.localeCompare(b.nm));
+  g('inqChart').innerHTML = rowsInq.length ? `<table>
     <tr><th>유형</th><th class="c">당월</th><th class="c">전월</th><th class="c">증감</th></tr>` +
-    names.map(nm=>{
-      const c0 = (gr.find(x=>x.name===nm)||{count:0}).count;
-      const p0 = pMap[nm];
-      const d = p0==null ? null : c0-p0;
-      const rep = c0>=2;
+    rowsInq.map(r=>{
+      const rep = r.c0>=2;
       return `<tr>
-        <td>${rep?'<span style="color:var(--accent);font-weight:600">★</span> ':''}${escHtml(nm)}</td>
-        <td class="c"${rep?' style="font-weight:600;color:var(--accent)"':''}>${c0}</td>
-        <td class="c">${p0==null?'-':p0}</td>
-        <td class="c" style="color:${d>0?'var(--accent)':'#6B7280'}">${d==null?'-':d>0?'▲'+d:d<0?'▼'+(-d):'—'}</td>
+        <td>${rep?'<span style="color:var(--accent)">★</span> ':''}${escHtml(r.nm)}</td>
+        <td class="c"${rep?' style="font-weight:600;color:var(--accent)"':''}>${r.c0}</td>
+        <td class="c">${r.p0==null?'-':r.p0}</td>
+        <td class="c" style="color:${r.d>0?'var(--accent)':r.d<0?'var(--secondary)':'#6B7280'}">${
+          r.d==null?'-':r.d>0?'▲'+r.d:r.d<0?'▼'+(-r.d):'—'}</td>
       </tr>`;
     }).join('') + '</table>' : '<div class="note">등록된 문의가 없습니다.</div>';
 
@@ -884,17 +888,23 @@ g('pptBtn').onclick = ()=>{
     slideTitle(s, '07', `문의 현황 ${inq.total}건`);
     sub('문의 유형별 (2건 이상 반복 ★)', ML, 1.3);
     const pInq = prev && prev.inquiry;
+    const hasPrev = !!(pInq && pInq.groups);
     const pMap = {}; ((pInq && pInq.groups)||[]).forEach(x=>pMap[x.name]=x.count);
+    const rowsInq = [...new Set(inq.groups.map(x=>x.name).concat(Object.keys(pMap)))].map(nm=>{
+      const gp = inq.groups.find(x=>x.name===nm) || {name:nm, count:0, items:[]};
+      const p0 = hasPrev ? (pMap[nm]||0) : null;
+      return {gp, c0:gp.count, p0, d: p0==null ? null : gp.count-p0};
+    }).sort((a,b)=> b.c0-a.c0 || (b.p0||0)-(a.p0||0) || a.gp.name.localeCompare(b.gp.name));
     s.addText(`당월 ${inq.total}건` + (pInq ? `  ·  전월 ${pInq.total}건  ·  증감 ${inq.total>pInq.total?'▲'+(inq.total-pInq.total):inq.total<pInq.total?'▼'+(pInq.total-inq.total):'—'}` : ''),
       {x:ML,y:1.13,w:CW,h:0.26,fontFace:F,fontSize:10,color:GRAY,margin:0});
     const gRows=[[hcell('유형'),hcell('당월'),hcell('전월'),hcell('증감'),hcell('발생')]];
-    inq.groups.forEach(gp=>{
-      const rep = gp.count>=2, p0 = pMap[gp.name], d = (p0==null)?null:gp.count-p0;
+    rowsInq.forEach(r=>{
+      const gp = r.gp, rep = r.c0>=2, d = r.d;
       gRows.push([
         {text:(rep?'★ ':'')+gp.name,options:{fontFace:F,fontSize:10,bold:rep,color:rep?A:T,valign:'middle'}},
-        {text:String(gp.count),options:{fontFace:F,fontSize:10,bold:rep,color:rep?A:T,align:'center',valign:'middle'}},
-        {text:p0==null?'-':String(p0),options:{fontFace:F,fontSize:10,color:GRAY,align:'center',valign:'middle'}},
-        {text:d==null?'-':d>0?`▲${d}`:d<0?`▼${-d}`:'—',options:{fontFace:F,fontSize:10,color:d>0?A:GRAY,align:'center',valign:'middle'}},
+        {text:String(r.c0),options:{fontFace:F,fontSize:10,bold:rep,color:rep?A:T,align:'center',valign:'middle'}},
+        {text:r.p0==null?'-':String(r.p0),options:{fontFace:F,fontSize:10,color:GRAY,align:'center',valign:'middle'}},
+        {text:d==null?'-':d>0?`▲${d}`:d<0?`▼${-d}`:'—',options:{fontFace:F,fontSize:10,color:d>0?A:d<0?S:GRAY,align:'center',valign:'middle'}},
         {text:gp.items.map(it=>`${it.d} ${it.store}`).join(', '),options:{fontFace:F,fontSize:9,color:GRAY,valign:'middle'}}
       ]);
     });
