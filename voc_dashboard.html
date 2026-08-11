@@ -51,6 +51,22 @@ body{font-family:'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif;ba
 .sec-rule .o{width:40px;background:var(--accent)}
 .sec-rule .b{flex:1;background:var(--line)}
 
+/* 섹션 이동 내비게이션 */
+.snav{position:fixed;right:16px;top:50%;transform:translateY(-50%);z-index:40;
+  display:flex;flex-direction:column;gap:5px}
+.snav button{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);
+  border-radius:18px;padding:5px 9px;cursor:pointer;font-family:inherit;line-height:1;
+  box-shadow:0 1px 5px rgba(21,35,122,.10);transition:border-color .15s,background .15s}
+.snav button:hover{border-color:var(--secondary)}
+.snav .n{font-size:11px;font-weight:600;color:var(--accent)}
+.snav .l{font-size:12px;color:var(--secondary);max-width:0;overflow:hidden;white-space:nowrap;
+  transition:max-width .18s ease}
+.snav button:hover .l,.snav button.on .l{max-width:110px}
+.snav button.on{background:var(--primary);border-color:var(--primary)}
+.snav button.on .n,.snav button.on .l{color:#fff}
+.snav .top{justify-content:center}
+.snav .top .n{color:var(--secondary)}
+@media(max-width:1100px){.snav{display:none}}
 .brief{background:#FBFCFE;border:1px solid var(--secondary);border-left:4px solid var(--accent);
   border-radius:6px;padding:13px 16px;margin-bottom:12px}
 .brief .bl{display:flex;gap:9px;align-items:baseline;margin:3px 0;font-size:13px;line-height:1.6}
@@ -154,6 +170,7 @@ td.c, th.c{text-align:center}
 </style>
 </head>
 <body>
+<nav class="snav" id="snav" aria-label="섹션 이동"></nav>
 <div class="wrap">
 
   <div class="hd">
@@ -473,6 +490,52 @@ function buildBrief(m, prev){
   return out;
 }
 
+/* 부드러운 스크롤 — 브라우저 smooth 지원 여부와 무관하게 동작 */
+function smoothTo(y){
+  const max = document.documentElement.scrollHeight - window.innerHeight;
+  const to = Math.max(0, Math.min(y, max)), from = window.scrollY, d = to - from;
+  if(Math.abs(d) < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    window.scrollTo(0, to); markNav(); return;
+  }
+  const dur = Math.min(600, 220 + Math.abs(d) * 0.22), t0 = performance.now();
+  let done = false;
+  (function step(now){
+    const k = Math.min(1, (now - t0) / dur);
+    window.scrollTo(0, from + d * (k < .5 ? 2*k*k : 1 - Math.pow(-2*k+2, 2)/2));
+    if(k < 1) requestAnimationFrame(step); else { done = true; markNav(); }
+  })(t0);
+  /* 배경 탭 등 rAF가 멈춘 환경에서도 목적지에 도달하도록 보정 */
+  setTimeout(()=>{ if(!done){ window.scrollTo(0, to); markNav(); } }, dur + 140);
+}
+
+/* ───── 섹션 이동 내비게이션 ───── */
+let navSecs = [];
+function buildNav(){
+  navSecs = [...document.querySelectorAll('.sec')].map(el=>{
+    const no = el.querySelector('.sec-h .no'), h2 = el.querySelector('.sec-h h2');
+    return no && h2 ? {el, no:no.textContent.trim(), label:h2.textContent.replace(/\s*—.*$/,'').trim()} : null;
+  }).filter(x => x && +x.no >= 1 && +x.no <= 7 && x.el.offsetParent !== null);
+  const nv = document.getElementById('snav');
+  if(!navSecs.length){ nv.innerHTML=''; return; }
+  nv.innerHTML = navSecs.map((x,i)=>
+    `<button data-i="${i}" title="${x.no} ${x.label}"><span class="n">${x.no}</span><span class="l">${x.label}</span></button>`
+  ).join('') + '<button class="top" title="맨 위로"><span class="n">↑</span></button>';
+  nv.querySelectorAll('button[data-i]').forEach(b => b.onclick = ()=>{
+    smoothTo(navSecs[+b.dataset.i].el.getBoundingClientRect().top + window.scrollY - 14);
+  });
+  nv.querySelector('.top').onclick = ()=> smoothTo(0);
+  markNav();
+}
+function markNav(){
+  if(!navSecs.length) return;
+  const y = window.scrollY + 90;
+  let act = 0;
+  navSecs.forEach((x,i)=>{ if(x.el.getBoundingClientRect().top + window.scrollY <= y) act = i; });
+  document.querySelectorAll('#snav button[data-i]').forEach(b=>
+    b.classList.toggle('on', +b.dataset.i === act));
+}
+window.addEventListener('scroll', ()=>{ if(!window._navT) window._navT = setTimeout(()=>{ window._navT=null; markNav(); }, 80); });
+
 const CSSV = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const BLUE = CSSV('--chart-blue'), ORANGE = CSSV('--accent'), MUTED = CSSV('--chart-muted');
 const TAGS = {legal:'리스크', repeat:'반복 발생', hyg:'위생 리스크', impr:'개선 사항'};
@@ -510,6 +573,7 @@ function init(){
   } else { curYear = null; yt.style.display = 'none'; }
   renderMonthTabs();
   select(DATA.months.length-1);
+  setTimeout(buildNav, 0);
   renderMonthAdmin();
   document.getElementById('foot').textContent =
     `출처: VOC 조회 리스트 엑셀 (서비스 / 제품·이물질) · 데이터 기준일 ${DATA.updated} · 전월비는 직전 월 등록 건과 비교`;
