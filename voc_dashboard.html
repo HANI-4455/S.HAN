@@ -201,7 +201,7 @@ td.c, th.c{text-align:center}
     </div>
 
     <div class="sec">
-      <div class="sec-h"><span class="no">04</span><h2>반복 발생 매장 · 제품</h2><span class="cap">불만 VOC 기준 · ★ 주목 이슈 연관</span></div>
+      <div class="sec-h"><span class="no">04</span><h2>반복 발생 매장 · 제품</h2><span class="cap">불만 VOC 기준 (행사·단순 반품 제외) · ★ 주목 이슈 연관</span></div>
       <div class="sec-rule"><div class="o"></div><div class="b"></div></div>
       <div class="grid2">
         <div class="card">
@@ -713,7 +713,7 @@ g('pptBtn').onclick = ()=>{
   /* ─────────── S5 04 반복 발생 매장·제품 ─────────── */
   s = pres.addSlide(); s.background={color:'FFFFFF'};
   slideTitle(s, '04', '반복 발생 매장 · 제품');
-  s.addText('불만 VOC 기준',{x:ML,y:1.13,w:CW,h:0.26,fontFace:F,fontSize:10,color:GRAY,margin:0});
+  s.addText('불만 VOC 기준 (행사·단순 반품 제외)',{x:ML,y:1.13,w:CW,h:0.26,fontFace:F,fontSize:10,color:GRAY,margin:0});
   sub('VOC 다발 매장 TOP 10', ML, 1.42);
   s.addChart(pres.ChartType.bar, [{name:'건수', labels:m.store_top.map(r=>r[0]), values:m.store_top.map(r=>r[1])}],
     opt({x:ML, y:1.75, w:half, h:5.05, barDir:'bar', chartColors:[BLUE_C],
@@ -1046,6 +1046,9 @@ function aggregate(month, rows){
   const label = `${month.slice(0,4)}년 ${+month.slice(5)}월`;
   rows.forEach(r=>{ r._sub = reclassSub(r); });
   const bul = rows.filter(r=>r['요구유형']==='불만');
+  /* 행사/단순 반품은 고객 불만이 아니므로 반복 발생 집계에서 제외 */
+  const OPS = ['행사 반품','단순 반품'];
+  const bizRows = bul.filter(r=>!OPS.includes(r._sub));
   const wkKey = d=>{ const s=new Date(d); s.setDate(d.getDate()-((d.getDay()+6)%7));
     return `${String(s.getMonth()+1).padStart(2,'0')}/${String(s.getDate()).padStart(2,'0')}`; };
   const wA=cnt(rows.map(r=>({k:wkKey(r._d)})),'k'), wB=cnt(bul.map(r=>({k:wkKey(r._d)})),'k');
@@ -1082,9 +1085,6 @@ function aggregate(month, rows){
       }).join('\n');
     return {tys, lines};
   };
-  /* 행사/단순 반품은 고객 불만이 아니므로 반복 발생 후보에서 제외 */
-  const OPS = ['행사 반품','단순 반품'];
-  const bizRows = rows.filter(r=>!OPS.includes(r._sub));
   topN(cnt(bizRows.filter(r=>r['제품명']),'제품명'),3).filter(x=>x[1]>=3).forEach(x=>{
     const items = bizRows.filter(r=>r['제품명']===x[0]);
     const s = summarize(items, {noProd:true});
@@ -1140,8 +1140,8 @@ function aggregate(month, rows){
     cat:cnt(bul,'유형(대)'),
     subtype_top:topN(cnt(bul,'_sub')),
     opsReturn:{event:bul.filter(r=>r._sub==='행사 반품').length, simple:bul.filter(r=>r._sub==='단순 반품').length},
-    store_top:topN(cnt(bul,'매장명',stripStore)).map(x=>[x[0],x[1],0]),
-    prod_top:topN(cnt(bul,'제품명')).map(x=>[x[0],x[1],0]),
+    store_top:topN(cnt(bizRows,'매장명',stripStore)).map(x=>[x[0],x[1],0]),
+    prod_top:topN(cnt(bizRows,'제품명')).map(x=>[x[0],x[1],0]),
     channel:topN(cnt(bul,'접수채널',v=>v.split('>').pop()),99),
     bulTotal:bul.length,
     inquiry:{total:inq.length, groups:inqGroups, hq:inqHq},
