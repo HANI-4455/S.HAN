@@ -51,6 +51,14 @@ body{font-family:'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif;ba
 .sec-rule .o{width:40px;background:var(--accent)}
 .sec-rule .b{flex:1;background:var(--line)}
 
+.brief{background:#FBFCFE;border:1px solid var(--secondary);border-left:4px solid var(--accent);
+  border-radius:6px;padding:13px 16px;margin-bottom:12px}
+.brief .bl{display:flex;gap:9px;align-items:baseline;margin:3px 0;font-size:13px;line-height:1.6}
+.brief .bt{flex:0 0 62px;font-size:11.5px;font-weight:600;color:#fff;background:var(--secondary);
+  border-radius:3px;text-align:center;padding:1px 0}
+.brief .bt.hot{background:var(--accent)}
+.brief .bd2{flex:1;color:var(--text)}
+.brief .bd2 b{color:var(--primary);font-weight:600}
 .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
 .kpi{background:var(--card);border:1px solid var(--secondary);border-radius:6px;padding:14px 16px}
 .kpi .t{font-size:12px;color:#6B7280;font-weight:400}
@@ -171,6 +179,7 @@ td.c, th.c{text-align:center}
     <div class="sec" style="margin-top:20px">
       <div class="sec-h"><span class="no">01</span><h2>종합 현황</h2><span class="cap" id="cap01">단위: 건</span></div>
       <div class="sec-rule"><div class="o"></div><div class="b"></div></div>
+      <div class="brief" id="brief"></div>
       <div class="kpis" id="kpis"></div>
     </div>
 
@@ -398,6 +407,72 @@ function richRuns(text, base, kwColor, words, re){
   return runs.length ? runs : [{text:' ', options:Object.assign({}, base)}];
 }
 
+/* ───── 당월 특수 상황 브리핑 자동 생성 (전월·전년 동월 비교 + 주목 포인트) ───── */
+function yoyOf(m){
+  if(!DATA || !DATA.months) return null;
+  const y = String(+m.key.slice(0,4) - 1) + m.key.slice(4);
+  return DATA.months.find(x => x.key === y) || null;
+}
+function diffTxt(n0, p0, unit){
+  const d = n0 - p0;
+  return d > 0 ? `${d}${unit||'건'} 증가` : d < 0 ? `${-d}${unit||'건'} 감소` : '동일';
+}
+function buildBrief(m, prev){
+  const yoy = yoyOf(m), out = [];
+
+  /* 1) 총 발생 — 전월 / 전년 동월 */
+  const vol = [];
+  if(prev) vol.push(`전월 대비 <b>${diffTxt(m.total, prev.total)}</b> (${prev.total} → ${m.total}건)`);
+  if(yoy)  vol.push(`전년 동월 대비 <b>${diffTxt(m.total, yoy.total)}</b> (${yoy.total} → ${m.total}건)`);
+  if(vol.length) out.push(['총 발생', vol.join(' · ')]);
+  else out.push(['총 발생', `${m.total}건 (비교 가능한 전월·전년 데이터 없음)`]);
+
+  /* 2) 증감 기여 요인 — 유형(대) */
+  if(prev){
+    const cats = [...new Set([...Object.keys(m.cat||{}), ...Object.keys(prev.cat||{})])];
+    const dd = cats.map(c=>({c, d:(m.cat[c]||0)-(prev.cat[c]||0)}))
+      .filter(x=>x.d!==0).sort((a,b)=>Math.abs(b.d)-Math.abs(a.d)).slice(0,3);
+    if(dd.length) out.push(['주요 사유',
+      dd.map(x=>`${x.c} <b>${x.d>0?'▲'+x.d:'▼'+(-x.d)}건</b>`).join(' · ')]);
+
+    /* 세부유형 중 2건 이상 늘어난 항목 */
+    const sm = {}, sp = {};
+    (m.subtype_top||[]).forEach(r=>sm[r[0]]=r[1]);
+    (prev.subtype_top||[]).forEach(r=>sp[r[0]]=r[1]);
+    const sd = [...new Set([...Object.keys(sm), ...Object.keys(sp)])]
+      .map(k=>({k, d:(sm[k]||0)-(sp[k]||0)})).filter(x=>x.d>=2)
+      .sort((a,b)=>b.d-a.d).slice(0,3);
+    if(sd.length) out.push(['증가 항목', sd.map(x=>`${x.k} <b>▲${x.d}건</b>`).join(' · ')]);
+  }
+
+  /* 3) 문의 급증·급감 */
+  if(prev && m.inquiry && prev.inquiry){
+    const d = m.inquiry.total - prev.inquiry.total;
+    if(Math.abs(d) >= 3){
+      const top = (m.inquiry.groups||[]).filter(g=>g.count>=2).slice(0,3)
+        .map(g=>`${g.name} ${g.count}건`).join(', ');
+      out.push(['문의', `전월 대비 <b>${d>0?'▲'+d:'▼'+(-d)}건</b>${top?` — ${top}`:''}`]);
+    }
+  }
+
+  /* 4) 주목해야 할 것들 */
+  const w = [];
+  if(m.forb && m.forb.length) w.push(`이물질 <b>${m.forb.length}건</b>`);
+  if(m.issues && m.issues.length){
+    const legal = m.issues.filter(x=>x.tag==='legal'||x.tag==='hyg').length;
+    w.push(`주요 이슈 <b>${m.issues.length}건</b>${legal?` (리스크 ${legal}건)`:''}`);
+  }
+  const st = (m.store_top||[])[0];
+  if(st && st[1] >= 3) w.push(`${st[0]}점 <b>${st[1]}건</b> 다발`);
+  const pd = (m.prod_top||[])[0];
+  if(pd && pd[1] >= 3) w.push(`${pd[0]} <b>${pd[1]}건</b> 반복`);
+  const orn = m.opsReturn || {}, ops = (orn.event||0) + (orn.simple||0);
+  if(ops) w.push(`행사·단순 반품 ${ops}건 포함 (고객 불만 아님)`);
+  if(w.length) out.push(['주목', w.join(' · ')]);
+
+  return out;
+}
+
 const CSSV = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const BLUE = CSSV('--chart-blue'), ORANGE = CSSV('--accent'), MUTED = CSSV('--chart-muted');
 const TAGS = {legal:'리스크', repeat:'반복 발생', hyg:'위생 리스크', impr:'개선 사항'};
@@ -473,6 +548,8 @@ function render(m, prev){
     ['칭찬', rq['칭찬']||0, delta(rq['칭찬']||0, prq?prq['칭찬']||0:null)],
     ['제안', rq['제안']||0, delta(rq['제안']||0, prq?prq['제안']||0:null)],
   ];
+  g('brief').innerHTML = buildBrief(m, prev).map(([t,b])=>
+    `<div class="bl"><span class="bt${t==='주목'?' hot':''}">${t}</span><span class="bd2">${b}</span></div>`).join('');
   let html = kp.map(k=>`<div class="kpi"><div class="t">${k[0]}</div><div class="v">${k[1]}</div><div class="d">${k[2]}</div></div>`).join('');
   const ic = {}; m.issues.forEach(x=>ic[x.tag]=(ic[x.tag]||0)+1);
   const ics = Object.entries(ic).map(([t,c])=>`${TAGS[t].slice(0,2)} ${c}`).join(' · ');
@@ -671,6 +748,16 @@ g('pptBtn').onclick = ()=>{
   /* ─────────── S2 01 종합 현황 ─────────── */
   s = pres.addSlide(); s.background={color:'FFFFFF'};
   slideTitle(s, '01', '종합 현황');
+  /* 당월 특수 상황 브리핑 */
+  const brief = buildBrief(m, prev);
+  const strip = t => String(t).replace(/<\/?b>/g,'');
+  s.addShape('roundRect',{x:ML,y:1.2,w:CW,h:1.28,rectRadius:0.05,
+    fill:{color:'FBFCFE'},line:{color:S,width:1}});
+  s.addText(brief.map((it,i)=>[
+      {text:`[${it[0]}] `, options:{bold:true, color:it[0]==='주목'?A:S}},
+      {text:strip(it[1]), options:{color:T, breakLine:true}}
+    ]).reduce((a,b)=>a.concat(b), []),
+    {x:ML+0.15,y:1.26,w:CW-0.3,h:1.16,fontFace:F,fontSize:9.5,margin:0,valign:'top',lineSpacingMultiple:1.15});
   const rq=m.reqtype, prq=prev?prev.reqtype:null, bul=rq['불만']||0;
   const kpis=[
     ['총 발생 VOC', m.total, dlt(prev?prev.total:null, m.total)],
@@ -683,34 +770,34 @@ g('pptBtn').onclick = ()=>{
   const kw=(CW-0.15*5)/6;
   kpis.forEach((k,j)=>{
     const x=ML+j*(kw+0.15), red=(j===5);
-    s.addShape('roundRect',{x, y:1.35, w:kw, h:1.35, rectRadius:0.06,
+    s.addShape('roundRect',{x, y:2.6, w:kw, h:1.3, rectRadius:0.06,
       fill:{color:'FFFFFF'}, line:{color:red?A:S, width:1}});
-    s.addText(String(k[0]),{x,y:1.44,w:kw,h:0.28,fontFace:F,fontSize:10.5,color:GRAY,align:'center',margin:0});
-    s.addText(String(k[1]),{x,y:1.70,w:kw,h:0.52,fontFace:F,fontSize:20,bold:true,color:red?A:P,align:'center',margin:0});
-    s.addText(String(k[2]),{x,y:2.24,w:kw,h:0.34,fontFace:F,fontSize:9.5,
+    s.addText(String(k[0]),{x,y:2.68,w:kw,h:0.28,fontFace:F,fontSize:10.5,color:GRAY,align:'center',margin:0});
+    s.addText(String(k[1]),{x,y:2.93,w:kw,h:0.5,fontFace:F,fontSize:19,bold:true,color:red?A:P,align:'center',margin:0});
+    s.addText(String(k[2]),{x,y:3.44,w:kw,h:0.34,fontFace:F,fontSize:9.5,
       color:/▲/.test(String(k[2]))?A:GRAY, align:'center', margin:0});
   });
   /* 유형(대) 전월 비교 — 차트 + 표 */
   const CATS=['제품','판매서비스','인적서비스','점포서비스','이벤트','이물질'];
   const curV=CATS.map(c=>m.cat[c]||0), prvV=CATS.map(c=>prev?(prev.cat[c]||0):0);
-  s.addText('발생 유형(대) 전월 비교',{x:ML,y:2.95,w:5.6,h:0.32,fontFace:F,fontSize:13,bold:true,color:P,margin:0});
+  s.addText('발생 유형(대) 전월 비교',{x:ML,y:4.08,w:5.6,h:0.32,fontFace:F,fontSize:13,bold:true,color:P,margin:0});
   const catSeries = prev
     ? [{name:prev.label, labels:CATS, values:prvV},{name:m.label, labels:CATS, values:curV}]
     : [{name:m.label, labels:CATS, values:curV}];
   s.addChart(pres.ChartType.bar, catSeries, opt({
-    x:ML, y:3.3, w:5.6, h:3.7, barDir:'bar', barGrouping:'clustered',
+    x:ML, y:4.4, w:5.6, h:2.6, barDir:'bar', barGrouping:'clustered',
     chartColors: prev?[MUTED_C, BLUE_C]:[BLUE_C],
     showLegend:!!prev, legendPos:'b', showValue:true, dataLabelPosition:'outEnd'
   }));
   /* 세부유형 TOP 6 표 */
   const subRows=[[hcell('세부유형(소)'),hcell('건수')]];
   m.subtype_top.slice(0,6).forEach(r=>subRows.push([cell(r[0],true),cell(r[1])]));
-  s.addText('세부유형 TOP 6',{x:ML+5.9,y:2.95,w:3.93,h:0.32,fontFace:F,fontSize:13,bold:true,color:P,margin:0});
-  s.addTable(subRows,{x:ML+5.9,y:3.3,w:3.93,rowH:0.3,border:{type:'solid',color:'D9DEE8',pt:0.5}});
+  s.addText('세부유형 TOP 6',{x:ML+5.9,y:4.08,w:3.93,h:0.32,fontFace:F,fontSize:13,bold:true,color:P,margin:0});
+  s.addTable(subRows,{x:ML+5.9,y:4.4,w:3.93,rowH:0.3,border:{type:'solid',color:'D9DEE8',pt:0.5}});
   const orn=m.opsReturn||{};
   if((orn.event||0)+(orn.simple||0) > 0){
     s.addText(`※ 이 중 행사 반품 ${orn.event||0}건 · 단순 반품 ${orn.simple||0}건은 고객 불만이 아닌 운영성 반품`,
-      {x:ML+5.9,y:3.35+0.3*subRows.length,w:3.93,h:0.5,fontFace:F,fontSize:9,color:GRAY,margin:0});
+      {x:ML+5.9,y:4.45+0.3*subRows.length,w:3.93,h:0.5,fontFace:F,fontSize:9,color:GRAY,margin:0});
   }
 
   /* ─────────── S3 02 주간 발생 추이 ─────────── */
