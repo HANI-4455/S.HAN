@@ -30,6 +30,8 @@ body{font-family:'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif;ba
 .tabs{display:flex;gap:6px;flex-wrap:wrap}
 .tab{border:1px solid var(--secondary);background:#fff;color:var(--secondary);font-family:inherit;font-size:13px;font-weight:500;padding:7px 16px;border-radius:5px;cursor:pointer}
 .tab.on{background:var(--primary);border-color:var(--primary);color:#fff}
+#yearTabs .tab{font-size:12px;padding:4px 12px;border-color:var(--line);color:#6B7280}
+#yearTabs .tab.on{background:var(--secondary);border-color:var(--secondary);color:#fff}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
 .btn{border:none;font-family:inherit;font-size:13px;font-weight:600;padding:8px 16px;border-radius:5px;cursor:pointer;background:var(--accent);color:#fff}
 .btn.line{background:#fff;color:var(--secondary);border:1px solid var(--secondary);font-weight:500}
@@ -156,7 +158,10 @@ td.c, th.c{text-align:center}
   <div class="rule"><div class="o"></div><div class="b"></div></div>
 
   <div class="toolbar">
-    <div class="tabs" id="monthTabs"></div>
+    <div>
+      <div class="tabs" id="yearTabs" style="display:none;margin-bottom:6px"></div>
+      <div class="tabs" id="monthTabs"></div>
+    </div>
     <div class="actions">
       <button class="btn" id="pptBtn">PPT로 추출</button>
     </div>
@@ -291,8 +296,9 @@ td.c, th.c{text-align:center}
 
     <div class="card admin" id="adminPanel" style="display:none">
       <div class="step"><div class="sn">1</div><div>
-        <label class="fld">대상 월 선택</label>
+        <label class="fld">대상 월 <b>(비워두면 파일에 있는 모든 월을 자동으로 분리)</b></label>
         <input type="month" id="upMonth">
+        <div class="hint">과거 수년치를 한 번에 올릴 때는 비워두세요. 월별로 나눠 각각 집계합니다.</div>
       </div></div>
       <div class="step"><div class="sn">2</div><div style="flex:1">
         <label class="fld">VOC 조회 리스트 엑셀 업로드 (서비스 + 제품·이물질, 여러 개 선택 가능)</label>
@@ -305,9 +311,14 @@ td.c, th.c{text-align:center}
       </div></div>
       <div id="upResult" style="display:none">
         <div class="step"><div class="sn">4</div><div style="flex:1">
-          <label class="fld">주목 이슈 검토 (자동 추출된 후보를 수정·삭제하거나 추가하세요)</label>
-          <div id="issEditor"></div>
-          <button class="btn line" id="issAdd" style="margin-top:6px">+ 이슈 카드 추가</button>
+          <label class="fld">월별 집계 결과</label>
+          <div id="upMonths"></div>
+          <div id="issWrap" style="margin-top:14px">
+            <label class="fld">주목 이슈 검토 (자동 추출된 후보를 수정·삭제하거나 추가하세요)</label>
+            <div id="issEditor"></div>
+            <button class="btn line" id="issAdd" style="margin-top:6px">+ 이슈 카드 추가</button>
+          </div>
+          <div class="hint" id="bulkHint" style="margin-top:8px"></div>
         </div></div>
         <div class="step"><div class="sn">5</div><div style="flex:1">
           <label class="fld">원클릭 배포 — GitHub에 자동 반영 (1~2분 후 대시보드 갱신)</label>
@@ -398,11 +409,31 @@ fetch('voc_data.json', {cache:'no-store'})
   .then(j => { DATA = j; init(); })
   .catch(() => { document.getElementById('loadErr').style.display='block'; });
 
-function init(){
+let curYear = null;
+function renderMonthTabs(){
   const tabs = document.getElementById('monthTabs');
-  tabs.innerHTML = DATA.months.map((m,i) =>
-    `<button class="tab" data-i="${i}">${m.label}</button>`).join('');
+  tabs.innerHTML = DATA.months.map((m,i) => ({m,i}))
+    .filter(({m}) => !curYear || m.key.slice(0,4) === curYear)
+    .map(({m,i}) => `<button class="tab" data-i="${i}">${
+      curYear ? (+m.key.slice(5)) + '월' : m.label}</button>`).join('');
   tabs.querySelectorAll('.tab').forEach(b => b.onclick = () => select(+b.dataset.i));
+}
+function init(){
+  const years = [...new Set(DATA.months.map(m => m.key.slice(0,4)))].sort();
+  const yt = document.getElementById('yearTabs');
+  if(years.length > 1){
+    curYear = DATA.months[DATA.months.length-1].key.slice(0,4);
+    yt.style.display = 'flex';
+    yt.innerHTML = years.map(y => `<button class="tab" data-y="${y}">${y}년</button>`).join('');
+    yt.querySelectorAll('.tab').forEach(b => b.onclick = ()=>{
+      curYear = b.dataset.y;
+      renderMonthTabs();
+      const first = DATA.months.findIndex(m => m.key.slice(0,4) === curYear);
+      const last = DATA.months.map(m=>m.key.slice(0,4)).lastIndexOf(curYear);
+      select(last >= 0 ? last : first);
+    });
+  } else { curYear = null; yt.style.display = 'none'; }
+  renderMonthTabs();
   select(DATA.months.length-1);
   renderMonthAdmin();
   document.getElementById('foot').textContent =
@@ -412,7 +443,10 @@ function init(){
 
 function select(i){
   cur = DATA.months[i];
-  document.querySelectorAll('#monthTabs .tab').forEach((b,j)=>b.classList.toggle('on', j===i));
+  const y = cur.key.slice(0,4);
+  if(curYear && curYear !== y){ curYear = y; renderMonthTabs(); }
+  document.querySelectorAll('#yearTabs .tab').forEach(b=>b.classList.toggle('on', b.dataset.y===curYear));
+  document.querySelectorAll('#monthTabs .tab').forEach(b=>b.classList.toggle('on', +b.dataset.i===i));
   render(cur, DATA.months[i-1] || null);
 }
 
@@ -979,14 +1013,14 @@ g('pptBtn').onclick = ()=>{
 };
 
 /* ---------- 월별 업데이트(관리자) ---------- */
-let upBlock = null, upFilesMeta = [];
+let upBlocks = [], upFilesMeta = [];
 g('upRun').onclick = async ()=>{
   const st = g('upStatus'); st.className=''; st.textContent='';
-  const month = g('upMonth').value;
+  const month = g('upMonth').value;            /* 비어 있으면 전체 월 자동 분리 */
   const files = g('upFiles').files;
-  if(!month){ st.className='err'; st.textContent='대상 월을 선택하세요.'; return; }
   if(!files.length){ st.className='err'; st.textContent='엑셀 파일을 선택하세요.'; return; }
   try{
+    st.textContent = '파일 읽는 중...';
     let rows = []; upFilesMeta = [];
     for(const f of files){
       const wb = XLSX.read(await f.arrayBuffer(), {cellDates:true});
@@ -1000,14 +1034,45 @@ g('upRun').onclick = async ()=>{
     rows = rows.filter(r=>r['등록일']);
     rows.forEach(r=>{ r._d = toDate(r['등록일']); });
     const ym = d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-    rows = rows.filter(r=>r._d && ym(r._d)===month);
-    if(!rows.length){ st.className='err'; st.textContent=`선택한 파일에 ${month} 등록 건이 없습니다. 추출 기간을 확인하세요.`; return; }
-    upBlock = aggregate(month, rows);
+    rows = rows.filter(r=>r._d);
+    if(month) rows = rows.filter(r=>ym(r._d)===month);
+    if(!rows.length){
+      st.className='err';
+      st.textContent = month ? `선택한 파일에 ${month} 등록 건이 없습니다. 추출 기간을 확인하세요.`
+                             : '파일에서 등록일을 읽을 수 있는 행이 없습니다.';
+      return;
+    }
+    /* 월별로 나눠 각각 집계 */
+    const byMonth = {};
+    rows.forEach(r=>{ const k = ym(r._d); (byMonth[k] = byMonth[k] || []).push(r); });
+    const keys = Object.keys(byMonth).sort();
+    st.textContent = `${keys.length}개월 집계 중...`;
+    await new Promise(r=>setTimeout(r,0));
+    upBlocks = keys.map(k => aggregate(k, byMonth[k]));
+
     const kindTxt = upFilesMeta.map(x=>`${x.file.name}→${x.kind==='prod'?'제품·이물질':'서비스'}`).join(' · ');
-    st.textContent = `집계 완료: ${month} 총 ${upBlock.total}건 (이물질 ${upBlock.forb.length}건) · 이슈 후보 ${upBlock.issues.length}건 · 파일 구분: ${kindTxt}`;
-    renderIssueEditor(upBlock.issues);
+    const totAll = upBlocks.reduce((a,b)=>a+b.total,0);
+    st.textContent = `집계 완료: ${keys.length}개월 (${keys[0]} ~ ${keys[keys.length-1]}) · 총 ${totAll}건 · 파일 구분: ${kindTxt}`;
+
+    /* 월별 요약 */
+    g('upMonths').innerHTML = `<table>
+      <tr><th>월</th><th class="c">전체</th><th class="c">불만</th><th class="c">이물질</th><th class="c">문의</th><th class="c">칭찬</th><th class="c">이슈 후보</th></tr>` +
+      upBlocks.map(b=>`<tr><td><b>${b.label}</b></td>
+        <td class="c">${b.total}</td><td class="c">${b.bulTotal}</td>
+        <td class="c">${b.forb.length}</td><td class="c">${b.inquiry?b.inquiry.total:0}</td>
+        <td class="c">${b.praise?b.praise.length:0}</td>
+        <td class="c" style="color:var(--accent);font-weight:600">${b.issues.length}</td></tr>`).join('') + '</table>';
+
+    /* 단일 월일 때만 이슈 문구 편집 제공 */
+    if(upBlocks.length === 1){
+      g('issWrap').style.display = 'block';
+      renderIssueEditor(upBlocks[0].issues);
+    } else {
+      g('issWrap').style.display = 'none';
+      g('issEditor').innerHTML = '';
+    }
     g('upResult').style.display='block';
-    g('pubHint').innerHTML = pubHintText(month);
+    g('pubHint').innerHTML = pubHintText(keys.length===1 ? keys[0] : `${keys[0]}~${keys[keys.length-1]}`);
   }catch(err){ st.className='err'; st.textContent='파일 처리 중 오류: '+err.message; }
 };
 
@@ -1185,13 +1250,15 @@ function pubHintText(month){
   <b>업로드한 원본 엑셀은 저장소에 올라가지 않으며, 집계 결과만 반영됩니다.</b>`;
 }
 function buildMerged(){
-  upBlock.issues = collectIssues();
+  if(upBlocks.length === 1) upBlocks[0].issues = collectIssues();
   const base = DATA || {updated:'', months:[]};
-  const months = base.months.filter(x=>x.key!==upBlock.key).concat([upBlock]).sort((a,b)=>a.key<b.key?-1:1);
+  const keys = upBlocks.map(b=>b.key);
+  const months = base.months.filter(x=>!keys.includes(x.key)).concat(upBlocks)
+    .sort((a,b)=>a.key<b.key?-1:1);
   return {updated:new Date().toISOString().slice(0,10), months};
 }
 g('upPublish').onclick = ()=>{
-  if(!upBlock) return;
+  if(!upBlocks.length) return;
   const out = buildMerged();
   const blob = new Blob([JSON.stringify(out,null,1)], {type:'application/json'});
   const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='voc_data.json'; a.click();
@@ -1347,14 +1414,15 @@ g('upDeploy').onclick = async ()=>{
   const lg = g('deployLog');
   const log = s=>{ lg.innerHTML += s+'<br>'; };
   lg.innerHTML='';
-  if(!upBlock){ lg.innerHTML='먼저 3단계 [집계 실행]을 눌러 주세요.'; return; }
+  if(!upBlocks.length){ lg.innerHTML='먼저 3단계 [집계 실행]을 눌러 주세요.'; return; }
   if(!ghToken()){ lg.innerHTML='GitHub 토큰이 없습니다. 아래 안내대로 토큰을 만들어 저장한 뒤 다시 눌러 주세요.'; g('ghToken').focus(); return; }
-  const month = upBlock.key;
+  const keys = upBlocks.map(b=>b.key);
+  const month = keys.length===1 ? keys[0] : `${keys[0]}~${keys[keys.length-1]}`;
   const btn = g('upDeploy'); btn.disabled = true;
   try{
-    log(`배포 시작 — ${month} (총 ${upBlock.total}건)`);
+    log(`배포 시작 — ${month} (${keys.length}개월 / 총 ${upBlocks.reduce((a,b)=>a+b.total,0)}건)`);
     const out = buildMerged();
-    const msg = `VOC ${month} 월간 업데이트 (대시보드 원클릭 배포)`;
+    const msg = `VOC ${month} 업데이트 (대시보드 원클릭 배포)`;
     await ghPut('voc_data.json', b64utf8(JSON.stringify(out,null,1)), msg, log);
     log('· 원본 엑셀은 개인정보 보호를 위해 저장소에 업로드하지 않습니다 (집계 결과만 반영)');
     DATA = out;
