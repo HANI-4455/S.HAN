@@ -106,6 +106,36 @@
   .btn-export:hover { background: #EEF1FB; }
   .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  /* 04 법령상 산정 방식 */
+  .law-src { font-size: 12px; color: #555; line-height: 1.9; }
+  .law-src b { color: #2F497D; font-weight: 600; display: block; font-size: 11px; margin-bottom: 3px; }
+  .law-hr { height: 1px; background: #e8ecf4; margin: 18px 0; }
+  .law-item { display: flex; gap: 12px; margin-bottom: 20px; }
+  .law-item:last-of-type { margin-bottom: 0; }
+  .law-num {
+    flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+    background: #F26300; color: #fff; font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; margin-top: 1px;
+  }
+  .law-body { flex: 1; min-width: 0; }
+  .law-head { font-size: 14px; font-weight: 600; color: #15237A; margin-bottom: 5px; }
+  .law-head em { font-style: normal; font-size: 11px; font-weight: 300; color: #999; margin-left: 7px; }
+  .law-text { font-size: 13px; color: #272727; }
+  .law-list { counter-reset: lawc; list-style: none; margin-top: 9px; }
+  .law-list li { font-size: 13px; color: #272727; padding: 5px 0 5px 27px; position: relative; }
+  .law-list li::before {
+    counter-increment: lawc; content: counter(lawc);
+    position: absolute; left: 0; top: 6px; width: 17px; height: 17px;
+    border: 1px solid #2F497D; border-radius: 50%; color: #2F497D;
+    font-size: 10px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .formula { background: #FAFBFF; border: 1px solid #dde2ef; border-radius: 4px; padding: 6px 16px; margin-top: 10px; }
+  .formula-row { display: flex; gap: 14px; align-items: baseline; padding: 9px 0; flex-wrap: wrap; }
+  .formula-row + .formula-row { border-top: 1px dashed #e3e8f3; }
+  .formula-label { font-size: 11px; font-weight: 600; color: #2F497D; min-width: 152px; }
+  .formula-eq { font-size: 12.5px; color: #272727; font-variant-numeric: tabular-nums; }
+  .law-foot { font-size: 11px; color: #aaa; line-height: 1.8; margin-top: 18px; padding-top: 13px; border-top: 1px solid #f0f0f0; }
   .footer { text-align: center; color: #ccc; font-size: 11px; padding: 32px 0 0; }
 </style>
 </head>
@@ -171,6 +201,74 @@
         ※ 점포 예정지에서 가장 인접한 가맹점 5개 선정 → 직전 사업연도 매출환산액 최고 1개·최저 1개 제외 → 나머지 3개의 최저액~최고액을 예상 매출액 범위로 산정합니다.<br>
         ※ 예상매출액 최고액은 최저액의 1.7배를 초과할 수 없습니다. (시행령 제9조 제3항)<br>
         ※ 본 산정서는 내부 참고용이며 공식 정보공개서 상의 예상매출액 산정서를 대체하지 않습니다.
+      </div>
+    </div>
+
+    <div class="sec-title">
+      <div class="sec-title-row"><span class="sec-num">04&nbsp;</span><span class="sec-name">법령상 예상매출액 산정 방식</span></div>
+      <div class="underline"><div class="ul-orange"></div><div class="ul-blue"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="law-src">
+        <b>근거 법령</b>
+        가맹사업거래의 공정화에 관한 법률 제9조 제5항<br>
+        같은 법 시행령 제9조 제3항 · 제4항, 별표 1의3
+      </div>
+
+      <div class="law-hr"></div>
+
+      <div class="law-item">
+        <div class="law-num">1</div>
+        <div class="law-body">
+          <div class="law-head">예상매출액의 범위<em>시행령 제9조 제3항</em></div>
+          <div class="law-text">
+            가맹희망자의 점포 예정지에서 영업개시일부터 1년간 발생할 것으로 예상되는
+            매출액의 <b>최저액과 최고액</b>으로 획정된 범위로 한다.
+            이 경우 최고액은 최저액의 <b>1.7배를 초과할 수 없다.</b>
+          </div>
+        </div>
+      </div>
+
+      <div class="law-item">
+        <div class="law-num">2</div>
+        <div class="law-body">
+          <div class="law-head">인접 가맹점에 따른 산정<em>시행령 제9조 제4항</em></div>
+          <div class="law-text">
+            점포 예정지가 속한 <b>광역지방자치단체</b>(특별시 · 광역시 · 특별자치시 · 도 · 특별자치도)에
+            직전 사업연도의 영업기간이 <b>6개월 이상</b>인 해당 가맹본부의 가맹점이 <b>5개 이상</b> 있는 경우,
+            아래 방식으로 산정한 범위로 제1항의 범위를 갈음할 수 있다.
+          </div>
+          <ol class="law-list">
+            <li>점포 예정지에서 <b>가장 인접한 가맹점 5개</b>를 선정한다.</li>
+            <li>5개 중 직전 사업연도 매출환산액이 <b>가장 큰 1개와 가장 작은 1개를 제외</b>한다.</li>
+            <li>남은 <b>3개 가맹점</b>의 매출환산액 중 최저액과 최고액을 예상매출액의 범위로 한다.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="law-item">
+        <div class="law-num">3</div>
+        <div class="law-body">
+          <div class="law-head">매출환산액의 계산<em>시행령 별표 1의3</em></div>
+          <div class="law-text">직전 사업연도의 영업기간에 따라 아래와 같이 산정한다.</div>
+          <div class="formula">
+            <div class="formula-row">
+              <span class="formula-label">영업기간 1년</span>
+              <span class="formula-eq">매출환산액 = 직전 사업연도 매출액 ÷ 점포 전용면적(㎡)</span>
+            </div>
+            <div class="formula-row">
+              <span class="formula-label">6개월 이상 ~ 1년 미만</span>
+              <span class="formula-eq">매출환산액 = (직전 사업연도 매출액 ÷ 점포 전용면적(㎡)) × (365 ÷ 직전 사업연도 영업일수)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="law-foot">
+        ※ 본 산정서는 위 <b>2</b>의 인접 가맹점 방식에 따라 작성되었습니다.<br>
+        ※ 거리는 점포 예정지와 각 가맹점 좌표 간 직선거리 기준입니다.<br>
+        ※ 내부 참고용이며 공식 정보공개서 상의 예상매출액 산정서를 대체하지 않습니다.
       </div>
     </div>
 
@@ -365,6 +463,26 @@ ${capWarn}
 <p style="font-size:11pt;margin-bottom:16px;">
   ㅇ 최저액 : 전용면적 1㎡ 당 <b style="color:#2F497D;">${fmtN(d.lowStore.perArea)}</b> 천원<br>
   &nbsp;&nbsp;&nbsp;[직전 사업연도에 발생한 매출액 <b>${fmtN(d.rMin)}</b> 천원, VAT포함]
+</p>
+
+<p style="font-size:12pt;font-weight:bold;color:#15237A;margin:20px 0 8px;">■ 04 법령상 예상매출액 산정 방식</p>
+<p style="font-size:9pt;color:#555;margin-bottom:8px;">
+  근거 : 가맹사업거래의 공정화에 관한 법률 제9조 제5항 / 같은 법 시행령 제9조 제3항·제4항, 별표 1의3
+</p>
+<p style="font-size:10pt;margin-bottom:6px;">
+  <b>1. 예상매출액의 범위</b> (시행령 제9조 제3항)<br>
+  &nbsp;&nbsp;&nbsp;점포 예정지에서 영업개시일부터 1년간 발생할 것으로 예상되는 매출액의 최저액과 최고액으로 획정된 범위.<br>
+  &nbsp;&nbsp;&nbsp;최고액은 최저액의 1.7배를 초과할 수 없다.
+</p>
+<p style="font-size:10pt;margin-bottom:6px;">
+  <b>2. 인접 가맹점에 따른 산정</b> (시행령 제9조 제4항)<br>
+  &nbsp;&nbsp;&nbsp;점포 예정지가 속한 광역지방자치단체에 직전 사업연도 영업기간 6개월 이상인 가맹점이 5개 이상 있는 경우,<br>
+  &nbsp;&nbsp;&nbsp;① 가장 인접한 가맹점 5개 선정 → ② 매출환산액 최고 1개·최저 1개 제외 → ③ 남은 3개의 최저액~최고액을 범위로 함
+</p>
+<p style="font-size:10pt;margin-bottom:16px;">
+  <b>3. 매출환산액의 계산</b> (시행령 별표 1의3)<br>
+  &nbsp;&nbsp;&nbsp;영업기간 1년 : 직전 사업연도 매출액 ÷ 점포 전용면적(㎡)<br>
+  &nbsp;&nbsp;&nbsp;6개월 이상 1년 미만 : (직전 사업연도 매출액 ÷ 점포 전용면적(㎡)) × (365 ÷ 직전 사업연도 영업일수)
 </p>
 
 <p style="font-size:9pt;color:#aaa;">
