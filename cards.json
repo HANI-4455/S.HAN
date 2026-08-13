@@ -128,6 +128,14 @@
   "tag": "기타"
  },
  {
+  "id": 20,
+  "path": "https://hani-4455.github.io/S.HAN/food_checklist.html",
+  "title": "FOOD 생산 체크리스트",
+  "desc": "제품 해동·품질기한 자동 계산, 점포별 계정과 사용 이력",
+  "emoji": "🥐",
+  "tag": "업무"
+ },
+ {
   "id": 21,
   "path": "https://store-survey-production.up.railway.app/dashboard",
   "title": "매장 만족도 조사",
