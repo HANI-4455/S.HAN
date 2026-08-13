@@ -741,12 +741,13 @@ const DEFAULT_CARDS = [
   { id:16, path:"https://docs.google.com/spreadsheets/d/1nAuSSnqUnOvkDkxRJa1U3mzJr5ZM75r0U92fN0hlyAs/edit?gid=1043220538#gid=1043220538", title:"코칭매니저 스케줄", desc:"사업지원팀 코칭매니저 월별 근무 일정 (구글 시트, 25년 8월~)", emoji:"📅", tag:"업무" },
   { id:17, path:"voc_dashboard.html",                                 title:"파스쿠찌 VOC 대시보드",   desc:"월별 VOC 현황 · 이물질 · 경영진 주목 이슈, PPT 추출 지원",     emoji:"📢", tag:"대시보드" },
   { id:18, path:"chat.html",                                          title:"회의록 AI 챗봇",          desc:"저장된 회의록 기반 질의응답 — 요약·검색·액션 정리",            emoji:"💬", tag:"업무" },
-  { id:19, path:"food_checklist.html",                                title:"FOOD 생산 체크리스트",    desc:"제품 해동·품질기한 관리, 점포별 계정과 사용 이력 데이터",       emoji:"🥐", tag:"업무" }
+  { id:19, path:"food_checklist.html",                                title:"FOOD 생산 체크리스트",    desc:"제품 해동·품질기한 관리, 점포별 계정과 사용 이력 데이터",       emoji:"🥐", tag:"업무" },
+  { id:21, path:"https://store-survey-production.up.railway.app/dashboard", title:"매장 만족도 조사",  desc:"코칭매니저 교육 만족도 조사 결과 대시보드 (관리자 로그인 포함)", emoji:"⭐", tag:"대시보드" }
 ];
 
 /* 기본 카드 구성을 코드에서 바꿀 때 버전을 올리면, 이미 접속했던 브라우저에서도
    아래 삭제 목록의 카드가 정리되고 브라우저별 기본카드 덮어쓰기가 초기화된다 */
-const DEFAULTS_VERSION = 6; /* v6: FOOD 생산 체크리스트 기본카드 추가 */
+const DEFAULTS_VERSION = 7; /* v7: 매장 만족도 조사 대시보드 기본카드 추가 */
 const REMOVED_DEFAULT_PATHS = ["orderbudget.html","ordercreator.html","research.html","조직도.html"];
 
 const PRESET_TAGS = ["업무","보고서","대시보드","게임","도구","양식","디자인","여행"];

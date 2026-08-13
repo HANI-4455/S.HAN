@@ -134,5 +134,13 @@
   "desc": "",
   "emoji": "📄",
   "tag": "기타"
+ },
+ {
+  "id": 21,
+  "path": "https://store-survey-production.up.railway.app/dashboard",
+  "title": "매장 만족도 조사",
+  "desc": "코칭매니저 교육 만족도 조사 결과 대시보드 (관리자 로그인 포함)",
+  "emoji": "⭐",
+  "tag": "대시보드"
  }
 ]
