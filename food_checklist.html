@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>FOOD 제품 생산 Check-list</title>
+<meta name="theme-color" content="#15237A">
+<meta name="description" content="제품 해동 · 품질기한 관리 체크리스트">
+<link rel="manifest" href="food_checklist.webmanifest">
+<link rel="apple-touch-icon" href="food_checklist_icon_180.png">
+<link rel="icon" href="food_checklist_icon_192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="FOOD 체크">
 <link rel="stylesheet" as="style" crossorigin
       href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
@@ -244,11 +253,6 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
     <p class="sub">제품 판매를 위한 해동 · 품질기한 관리 시스템</p>
 
     <div class="grid" style="margin-top:26px;gap:14px">
-      <div class="field" id="apiField">
-        <label>서버 주소 (Apps Script 웹 앱 URL)</label>
-        <input id="inApi" type="url" placeholder="https://script.google.com/macros/s/.../exec">
-        <span class="hint">최초 1회만 입력하면 이 기기에 저장됩니다.</span>
-      </div>
       <div class="field">
         <label>아이디</label>
         <input id="inId" type="text" autocomplete="username" autocapitalize="off" spellcheck="false">
@@ -258,7 +262,24 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
         <input id="inPw" type="password" autocomplete="current-password">
       </div>
       <button class="btn primary" style="margin-top:4px" onclick="doLogin()">로그인</button>
-      <button class="btn ghost sm" id="btnApiToggle" onclick="toggleApi()">서버 주소 변경</button>
+
+      <div id="installTip" style="display:none;background:#F2F5FB;border:1px solid #C6D0E4;
+           border-radius:6px;padding:13px 15px;font-size:13px;color:var(--secondary);line-height:1.6">
+        <b style="color:var(--primary)">앱처럼 쓰시려면</b><br>
+        <span id="installHow"></span>
+      </div>
+
+      <div class="field" id="apiField" style="display:none">
+        <label>서버 주소 (Apps Script 웹 앱 URL) — 관리자용</label>
+        <input id="inApi" type="url" placeholder="https://script.google.com/macros/s/.../exec">
+        <span class="hint">비워두고 저장하면 기본 서버 주소로 돌아갑니다. 점포에서는 건드릴 필요가 없습니다.</span>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="btn sm" onclick="saveApi()">서버 주소 저장</button>
+          <button class="btn ghost sm" onclick="resetApi()">기본값으로</button>
+        </div>
+      </div>
+      <button class="btn ghost sm" id="btnApiToggle" onclick="toggleApi()"
+              style="opacity:.6;font-weight:400">서버 주소 설정 (관리자)</button>
     </div>
   </div>
 </section>
@@ -620,7 +641,12 @@ const HOUR = 3600000;
 const SOON_MS = 2 * HOUR;          // '임박' 기준
 const ROLE_LABEL = { super: '전체 관리자', region: '지역 관리자', store: '점포' };
 
-let API = localStorage.getItem('fcl_api') || '';
+/* 서버 주소는 코드에 넣어 둔다 — 점포에서는 입력할 필요가 없다.
+   Apps Script 를 새로 배포해 URL 이 바뀌면 이 값만 고치면 된다.
+   기기별로 다른 서버를 붙여야 할 때만 로그인 화면의 '서버 주소 설정'으로 덮어쓴다. */
+const DEFAULT_API = 'https://script.google.com/macros/s/AKfycbyLo6e1SgquQHTZpNKC4BQYYHkJeNOrTfYIr4DCkB5EqW6u71of8z-yUuuT0EbAgaMb9w/exec';
+
+let API = localStorage.getItem('fcl_api') || DEFAULT_API;
 let TOKEN = localStorage.getItem('fcl_token') || '';
 let ME = null;
 let REGIONS = [], PRODUCTS = [], USERS = [], RECORDS = [];
@@ -725,12 +751,25 @@ function lotState(r, now) {
    ===================================================================== */
 function toggleApi() {
   const f = document.getElementById('apiField');
-  f.style.display = f.style.display === 'none' ? 'flex' : 'none';
+  const open = f.style.display === 'none';
+  f.style.display = open ? 'flex' : 'none';
+  if (open) document.getElementById('inApi').value = (API === DEFAULT_API ? '' : API);
+}
+function saveApi() {
+  const v = document.getElementById('inApi').value.trim();
+  if (!v) { resetApi(); return; }
+  API = v;
+  localStorage.setItem('fcl_api', API);
+  toast('이 기기의 서버 주소를 저장했습니다.');
+}
+function resetApi() {
+  API = DEFAULT_API;
+  localStorage.removeItem('fcl_api');
+  document.getElementById('inApi').value = '';
+  toast('기본 서버 주소로 돌아갔습니다.');
 }
 async function doLogin() {
-  const apiIn = document.getElementById('inApi').value.trim();
-  if (apiIn) { API = apiIn; localStorage.setItem('fcl_api', API); }
-  if (!API) { toast('서버 주소를 입력해 주세요.', true); return; }
+  if (!API) { toast('서버 주소가 설정되지 않았습니다.', true); return; }
 
   const userId = document.getElementById('inId').value.trim();
   const pw = document.getElementById('inPw').value;
@@ -1706,9 +1745,35 @@ function printSheet() {
 /* =====================================================================
    시작
    ===================================================================== */
+/* 홈 화면에 추가 안내 — 아직 앱으로 설치하지 않은 모바일에서만 보여준다 */
+function showInstallTip() {
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  if (standalone) return;
+  const ua = navigator.userAgent;
+  const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const android = /Android/.test(ua);
+  if (!ios && !android) return;
+  document.getElementById('installHow').innerHTML = ios
+    ? '사파리 하단 <b>공유</b> 버튼 → <b>홈 화면에 추가</b> 를 누르세요.<br>주소창 없이 앱처럼 열립니다.'
+    : '브라우저 메뉴(⋮) → <b>홈 화면에 추가</b> 를 누르세요.<br>주소창 없이 앱처럼 열립니다.';
+  document.getElementById('installTip').style.display = 'block';
+}
+
 (async function init() {
-  document.getElementById('inApi').value = API;
-  if (API) document.getElementById('apiField').style.display = 'none';
+  showInstallTip();
+
+  // 오프라인·느린 회선에서도 화면이 뜨도록 캐시해 둔다.
+  // 캐시 때문에 문제가 생기면 주소 끝에 ?nosw=1 을 붙여 한 번 열면 전부 해제된다.
+  if ('serviceWorker' in navigator) {
+    if (new URLSearchParams(location.search).has('nosw')) {
+      const regs = await navigator.serviceWorker.getRegistrations().catch(() => []);
+      await Promise.all(regs.map(r => r.unregister()));
+      if (window.caches) (await caches.keys()).forEach(k => caches.delete(k));
+      toast('오프라인 캐시를 해제했습니다.');
+    } else if (window.isSecureContext) {
+      navigator.serviceWorker.register('food_checklist_sw.js').catch(() => {});
+    }
+  }
 
   document.getElementById('inPw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
   document.getElementById('inId').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });

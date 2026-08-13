@@ -1,0 +1,19 @@
+{
+  "name": "FOOD 제품 생산 Check-list",
+  "short_name": "FOOD 체크",
+  "description": "제품 해동 · 품질기한 관리 체크리스트",
+  "lang": "ko",
+  "dir": "ltr",
+  "start_url": "food_checklist.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#FFFFFF",
+  "theme_color": "#15237A",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "food_checklist_icon_192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "food_checklist_icon_512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "food_checklist_icon_maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
