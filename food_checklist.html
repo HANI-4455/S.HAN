@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FOOD 제품 생산 Check-list</title>
+<link rel="stylesheet" as="style" crossorigin
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+:root{
+  --primary:#15237A;
+  --secondary:#2F497D;
+  --accent:#F26300;
+  --text:#272727;
+  --line:#DFE3EC;
+  --bg:#FFFFFF;
+  --soft:#F7F8FB;
+  --danger:#C62828;
+  --radius:6px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Pretendard Variable',Pretendard,'Noto Sans KR','Apple SD Gothic Neo','맑은 고딕',sans-serif;
+  color:var(--text);background:var(--soft);font-size:15px;line-height:1.5;
+  -webkit-text-size-adjust:100%;
+}
+h1,h2,h3,h4{margin:0;font-weight:600;color:var(--primary)}
+button{font-family:inherit;font-size:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:16px;color:var(--text)}
+a{color:var(--secondary)}
+
+/* ---------- 공통 컴포넌트 ---------- */
+.btn{
+  border:1px solid var(--secondary);background:#fff;color:var(--secondary);
+  border-radius:var(--radius);padding:10px 16px;font-weight:600;
+  min-height:44px;transition:.15s;
+}
+.btn:hover{background:#EEF1F8}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.primary:hover{background:#1B2E96}
+.btn.accent{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.accent:hover{filter:brightness(1.08)}
+.btn.ghost{border-color:var(--line);color:#6A7183}
+.btn.ghost:hover{background:#F1F3F8}
+.btn.danger{border-color:var(--danger);color:var(--danger)}
+.btn.danger:hover{background:#FDF0F0}
+.btn.sm{padding:6px 12px;min-height:36px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+.field{display:flex;flex-direction:column;gap:6px}
+.field > label{font-size:12px;font-weight:600;color:var(--secondary)}
+.field input,.field select,.field textarea{
+  border:1px solid var(--line);border-radius:var(--radius);padding:11px 12px;
+  background:#fff;min-height:44px;width:100%;
+}
+.field input:focus,.field select:focus,.field textarea:focus{
+  outline:none;border-color:var(--secondary);box-shadow:0 0 0 3px rgba(47,73,125,.12)
+}
+.hint{font-size:12px;color:#8A90A0;font-weight:300}
+
+.card{background:#fff;border:1px solid var(--secondary);border-radius:var(--radius);padding:20px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+
+/* 타이틀 하단 오렌지 + 블루 구분선 */
+.rule{display:flex;gap:4px;margin:10px 0 18px}
+.rule i{display:block;height:2px;border-radius:2px}
+.rule i:first-child{width:34px;background:var(--accent)}
+.rule i:last-child{flex:1;max-width:220px;background:var(--secondary);opacity:.35}
+
+.sec-no{color:var(--accent);font-weight:600;margin-right:8px;letter-spacing:.02em}
+
+.badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:600;border:1px solid}
+.badge.blue{color:var(--secondary);border-color:#C6D0E4;background:#F2F5FB}
+.badge.orange{color:var(--accent);border-color:#FBD4B4;background:#FFF4EC}
+.badge.red{color:var(--danger);border-color:#F0C3C3;background:#FDF1F1}
+.badge.gray{color:#79808F;border-color:var(--line);background:#F5F6F9}
+.badge.navy{color:#fff;border-color:var(--primary);background:var(--primary)}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{border:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:middle}
+th{background:#F2F5FB;color:var(--secondary);font-weight:600;font-size:12px;white-space:nowrap}
+tbody tr:hover{background:#FAFBFE}
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+  background:var(--primary);color:#fff;padding:13px 22px;border-radius:var(--radius);
+  font-size:14px;font-weight:500;opacity:0;pointer-events:none;transition:.22s;z-index:9999;
+  max-width:90vw;box-shadow:0 6px 24px rgba(21,35,122,.25);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--danger)}
+
+.modal-bg{
+  position:fixed;inset:0;background:rgba(20,26,48,.45);display:none;
+  align-items:center;justify-content:center;padding:16px;z-index:900;
+}
+.modal-bg.show{display:flex}
+.modal{
+  background:#fff;border-radius:8px;width:100%;max-width:520px;
+  max-height:90vh;overflow-y:auto;padding:24px;
+}
+
+/* ---------- 로그인 ---------- */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:#fff}
+#login .box{width:100%;max-width:400px}
+#login .brand{font-size:11px;font-weight:300;color:#9AA0AE;letter-spacing:.08em;text-align:right;margin-bottom:26px}
+#login h1{font-size:26px}
+#login .sub{font-size:13px;font-weight:300;color:#7B8291;margin-top:6px}
+
+/* ---------- 앱 셸 ---------- */
+#app{display:none;min-height:100vh;flex-direction:column}
+header.top{
+  background:#fff;border-bottom:1px solid var(--line);
+  padding:12px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  position:sticky;top:0;z-index:80;
+}
+header.top .ttl{font-size:17px;font-weight:600;color:var(--primary);white-space:nowrap}
+header.top .who{font-size:12px;color:#6A7183;font-weight:300}
+header.top .who b{color:var(--secondary);font-weight:600}
+header.top .sp{flex:1}
+header.top .brand{font-size:11px;color:#9AA0AE;font-weight:300;letter-spacing:.06em}
+
+nav.tabs{
+  background:#fff;border-bottom:1px solid var(--line);display:flex;gap:2px;
+  padding:0 12px;overflow-x:auto;position:sticky;top:0;z-index:70;
+}
+nav.tabs button{
+  border:none;background:none;padding:13px 16px;font-size:14px;font-weight:600;
+  color:#7B8291;border-bottom:2px solid transparent;white-space:nowrap;min-height:48px;
+}
+nav.tabs button.on{color:var(--primary);border-bottom-color:var(--accent)}
+
+main{flex:1;padding:20px;max-width:1280px;width:100%;margin:0 auto}
+.view{display:none}
+.view.on{display:block}
+
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:900px){.g3,.g4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.g2,.g3,.g4{grid-template-columns:1fr}}
+
+.stat{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.stat .k{font-size:12px;color:#7B8291;font-weight:300}
+.stat .v{font-size:26px;font-weight:600;color:var(--primary);margin-top:4px;line-height:1.1}
+.stat .v.warn{color:var(--accent)}
+.stat .v.bad{color:var(--danger)}
+
+/* ---------- 진행 카드 ---------- */
+.lot{
+  background:#fff;border:1px solid var(--secondary);border-left:5px solid var(--secondary);
+  border-radius:var(--radius);padding:15px 16px;
+}
+.lot.warn{border-color:var(--accent);border-left-color:var(--accent)}
+.lot.bad{border-color:var(--danger);border-left-color:var(--danger)}
+.lot.done{border-color:var(--line);border-left-color:#C3C8D4;opacity:.72}
+.lot .hd{display:flex;align-items:flex-start;gap:8px;margin-bottom:10px}
+.lot .nm{font-size:16px;font-weight:600;color:var(--primary);flex:1;word-break:keep-all}
+.lot dl{margin:0;display:grid;grid-template-columns:78px 1fr;gap:5px 10px;font-size:13px}
+.lot dt{color:#8A90A0;font-weight:300}
+.lot dd{margin:0;font-weight:500}
+.lot .left{margin-top:11px;padding-top:10px;border-top:1px dashed var(--line);font-size:13px;font-weight:600}
+.lot .acts{display:flex;gap:6px;margin-top:11px;flex-wrap:wrap}
+
+.empty{text-align:center;padding:48px 20px;color:#9AA0AE;font-weight:300;font-size:14px}
+
+.warnbox{
+  margin-top:11px;padding:10px 13px;border-radius:var(--radius);font-size:13px;font-weight:600;
+  background:#FFF4EC;border:1px solid #FBD4B4;color:var(--accent);
+}
+.warnbox.bad{background:#FDF1F1;border-color:#F0C3C3;color:var(--danger)}
+
+/* ---------- 인쇄 양식 ---------- */
+#printArea{display:none}
+@media print{
+  body{background:#fff}
+  #login,#app{display:none !important}
+  #printArea{display:block !important;padding:0}
+  @page{size:A4 landscape;margin:8mm}
+}
+#printArea table{font-size:10px}
+#printArea th,#printArea td{padding:4px 5px;border:1px solid #555}
+#printArea .ph{font-size:14px;font-weight:600;color:#000;margin-bottom:6px}
+#printArea .pf{font-size:9px;color:#333;margin-top:8px;line-height:1.6}
+</style>
+</head>
+<body>
+
+<!-- ============ 로그인 ============ -->
+<section id="login">
+  <div class="box">
+    <div class="brand">파리크라상</div>
+    <h1>FOOD 제품 생산 Check-list</h1>
+    <div class="rule"><i></i><i></i></div>
+    <p class="sub">제품 판매를 위한 해동 · 품질기한 관리 시스템</p>
+
+    <div class="grid" style="margin-top:26px;gap:14px">
+      <div class="field" id="apiField">
+        <label>서버 주소 (Apps Script 웹 앱 URL)</label>
+        <input id="inApi" type="url" placeholder="https://script.google.com/macros/s/.../exec">
+        <span class="hint">최초 1회만 입력하면 이 기기에 저장됩니다.</span>
+      </div>
+      <div class="field">
+        <label>아이디</label>
+        <input id="inId" type="text" autocomplete="username" autocapitalize="off" spellcheck="false">
+      </div>
+      <div class="field">
+        <label>비밀번호</label>
+        <input id="inPw" type="password" autocomplete="current-password">
+      </div>
+      <button class="btn primary" style="margin-top:4px" onclick="doLogin()">로그인</button>
+      <button class="btn ghost sm" id="btnApiToggle" onclick="toggleApi()">서버 주소 변경</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 앱 ============ -->
+<div id="app">
+  <header class="top">
+    <span class="ttl">FOOD 제품 생산 Check-list</span>
+    <span class="who"><b id="whoName"></b> <span id="whoRole"></span></span>
+    <span class="sp"></span>
+    <span class="brand">파리크라상</span>
+    <button class="btn ghost sm" onclick="openPw()">비밀번호</button>
+    <button class="btn ghost sm" onclick="doLogout()">로그아웃</button>
+  </header>
+
+  <nav class="tabs" id="tabs"></nav>
+
+  <main>
+    <!-- ===== 점포: 등록 ===== -->
+    <section class="view" id="v-entry">
+      <h2><span class="sec-no">01</span>제품 등록</h2>
+      <div class="rule"><i></i><i></i></div>
+
+      <div class="card">
+        <div class="grid g2">
+          <div class="field" id="entryStoreWrap" style="display:none">
+            <label>점포</label>
+            <select id="eStore"></select>
+          </div>
+          <div class="field">
+            <label>제품명</label>
+            <select id="eProduct" onchange="onProductChange()"><option value="">선택하세요</option></select>
+          </div>
+          <div class="field">
+            <label>수량</label>
+            <input id="eQty" type="text" inputmode="numeric" placeholder="예: 6">
+          </div>
+          <div class="field">
+            <label>제조일자 (제조 시작시간)</label>
+            <input id="eMfg" type="datetime-local" onchange="renderCalc()">
+          </div>
+          <div class="field" id="eMethodWrap">
+            <label>보관방법</label>
+            <select id="eMethod" onchange="renderCalc()"></select>
+          </div>
+          <div class="field">
+            <label>메모 <span style="font-weight:300;color:#9AA0AE">(선택)</span></label>
+            <input id="eMemo" type="text" placeholder="예: 오전 진열분">
+          </div>
+        </div>
+
+        <div id="calcBox" style="margin-top:18px;display:none">
+          <div style="background:#F2F5FB;border:1px solid #C6D0E4;border-radius:6px;padding:15px">
+            <div style="font-size:12px;font-weight:600;color:var(--secondary);margin-bottom:10px">자동 계산 결과</div>
+            <div class="grid g3" id="calcOut"></div>
+            <div class="hint" id="calcNote" style="margin-top:10px"></div>
+            <div id="calcWarn" class="warnbox" style="display:none"></div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">
+          <button class="btn primary" onclick="submitRecord()">등록하기</button>
+          <button class="btn ghost" onclick="resetEntry()">초기화</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 점포: 진행 현황 ===== -->
+    <section class="view" id="v-live">
+      <h2><span class="sec-no">02</span>진행 현황</h2>
+      <div class="rule"><i></i><i></i></div>
+
+      <div class="grid g4" style="margin-bottom:16px">
+        <div class="stat"><div class="k">해동중</div><div class="v" id="sThaw">0</div></div>
+        <div class="stat"><div class="k">판매 가능</div><div class="v" id="sSale">0</div></div>
+        <div class="stat"><div class="k">기한 임박 (2시간 내)</div><div class="v warn" id="sSoon">0</div></div>
+        <div class="stat"><div class="k">기한 초과 · 폐기 대상</div><div class="v bad" id="sOver">0</div></div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+        <select id="liveFilter" class="btn" style="max-width:200px" onchange="renderLive()">
+          <option value="active">진행중만 보기</option>
+          <option value="all">오늘 전체 보기</option>
+        </select>
+        <span class="sp" style="flex:1"></span>
+        <button class="btn ghost sm" onclick="loadRecords()">새로고침</button>
+        <button class="btn accent sm" onclick="printSheet()">체크리스트 인쇄</button>
+      </div>
+
+      <div class="grid g3" id="liveList"></div>
+    </section>
+
+    <!-- ===== 관리자: 점포 현황 ===== -->
+    <section class="view" id="v-stores">
+      <h2><span class="sec-no">01</span>점포별 현황</h2>
+      <div class="rule"><i></i><i></i></div>
+
+      <div class="grid g4" style="margin-bottom:16px">
+        <div class="stat"><div class="k">관리 점포</div><div class="v" id="mStores">0</div></div>
+        <div class="stat"><div class="k">오늘 등록 건수</div><div class="v" id="mToday">0</div></div>
+        <div class="stat"><div class="k">기한 임박</div><div class="v warn" id="mSoon">0</div></div>
+        <div class="stat"><div class="k">기한 초과</div><div class="v bad" id="mOver">0</div></div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+        <select id="storeRegion" class="btn" style="max-width:220px" onchange="renderStores()"></select>
+        <span style="flex:1"></span>
+        <button class="btn ghost sm" onclick="loadRecords()">새로고침</button>
+      </div>
+
+      <div class="tbl-wrap panel" style="padding:0">
+        <table id="storeTbl">
+          <thead><tr>
+            <th>지역</th><th>점포명</th><th>아이디</th><th>오늘 등록</th>
+            <th>해동중</th><th>판매가능</th><th>임박</th><th>초과</th><th>최근 입력</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== 이력 ===== -->
+    <section class="view" id="v-history">
+      <h2><span class="sec-no">03</span>사용 이력</h2>
+      <div class="rule"><i></i><i></i></div>
+
+      <div class="panel">
+        <div class="grid g4">
+          <div class="field"><label>시작일</label><input id="hFrom" type="date" onchange="loadRecords()"></div>
+          <div class="field"><label>종료일</label><input id="hTo" type="date" onchange="loadRecords()"></div>
+          <div class="field" id="hStoreWrap"><label>점포</label><select id="hStore" onchange="renderHistory()"></select></div>
+          <div class="field"><label>제품</label><select id="hProduct" onchange="renderHistory()"></select></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+          <button class="btn ghost sm" onclick="quickRange(0)">오늘</button>
+          <button class="btn ghost sm" onclick="quickRange(6)">최근 7일</button>
+          <button class="btn ghost sm" onclick="quickRange(29)">최근 30일</button>
+          <span style="flex:1"></span>
+          <button class="btn accent sm" onclick="exportCsv()">엑셀(CSV) 내려받기</button>
+        </div>
+      </div>
+
+      <div class="grid g4" style="margin-bottom:16px">
+        <div class="stat"><div class="k">총 등록</div><div class="v" id="hTotal">0</div></div>
+        <div class="stat"><div class="k">사용 완료</div><div class="v" id="hDone">0</div></div>
+        <div class="stat"><div class="k">폐기</div><div class="v bad" id="hWaste">0</div></div>
+        <div class="stat"><div class="k">폐기율</div><div class="v bad" id="hRate">0%</div></div>
+      </div>
+
+      <div class="panel">
+        <h4 style="font-size:14px">제품별 등록 순위</h4>
+        <div class="rule"><i></i><i></i></div>
+        <div class="tbl-wrap"><table id="prodRank">
+          <thead><tr><th>제품명</th><th>등록</th><th>사용완료</th><th>폐기</th><th>폐기율</th><th>비중</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+
+      <div class="panel" style="padding:0">
+        <div class="tbl-wrap"><table id="histTbl">
+          <thead><tr>
+            <th>제조일자</th><th>지역</th><th>점포</th><th>제품명</th><th>수량</th>
+            <th>보관</th><th>해동사용일</th><th>점포사용일</th><th>상태</th><th></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table></div>
+        <div class="hint" id="histNote" style="padding:12px 14px"></div>
+      </div>
+    </section>
+
+    <!-- ===== 계정 관리 ===== -->
+    <section class="view" id="v-users">
+      <h2><span class="sec-no">04</span>계정 관리</h2>
+      <div class="rule"><i></i><i></i></div>
+
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <button class="btn primary" onclick="openUser(null,'store')">＋ 점포 계정 추가</button>
+        <button class="btn accent" id="btnAddRegionUser" onclick="openUser(null,'region')" style="display:none">＋ 지역 관리자 추가</button>
+        <span style="flex:1"></span>
+        <button class="btn ghost sm" onclick="loadBootstrap()">새로고침</button>
+      </div>
+
+      <div class="panel" style="padding:0">
+        <div class="tbl-wrap"><table id="userTbl">
+          <thead><tr>
+            <th>구분</th><th>아이디</th><th>이름 / 점포명</th><th>지역</th><th>점포코드</th>
+            <th>연락처</th><th>상태</th><th></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+      <p class="hint" style="margin-top:10px">
+        지역 관리자는 본인 지역의 점포 계정만 만들고 수정할 수 있습니다.
+        비밀번호를 새로 입력해 저장하면 해당 계정의 비밀번호가 초기화됩니다.
+      </p>
+    </section>
+
+    <!-- ===== 제품 기준값 ===== -->
+    <section class="view" id="v-products">
+      <h2><span class="sec-no">05</span>제품 기준값 설정</h2>
+      <div class="rule"><i></i><i></i></div>
+
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <button class="btn primary" onclick="openProduct(null)">＋ 제품 추가</button>
+        <span style="flex:1"></span>
+        <button class="btn ghost sm" onclick="loadBootstrap()">새로고침</button>
+      </div>
+
+      <div class="panel" style="padding:0">
+        <div class="tbl-wrap"><table id="prodTbl">
+          <thead><tr><th>순서</th><th>제품명</th><th>해동시간 (보관방법)</th><th>품질기한</th><th>비고</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+      <p class="hint" style="margin-top:10px">
+        품질기한은 판매가 가능한 총 시간이며 해동시간을 포함합니다. 0시간으로 두면 '당일'(제조 당일 24시)로 계산됩니다.<br>
+        보관기준 — 실온 1~35℃, 상온 15~25℃, 냉장 0~10℃, 냉동 -18℃ 이하
+      </p>
+    </section>
+
+    <!-- ===== 지역 관리 ===== -->
+    <section class="view" id="v-regions">
+      <h2><span class="sec-no">06</span>지역 관리</h2>
+      <div class="rule"><i></i><i></i></div>
+
+      <div class="card" style="max-width:520px">
+        <div class="field">
+          <label>지역명 추가</label>
+          <div style="display:flex;gap:8px">
+            <input id="rNew" type="text" placeholder="예: 수도권">
+            <button class="btn primary" onclick="addRegion()">추가</button>
+          </div>
+        </div>
+        <div style="margin-top:18px" id="regionList"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ============ 모달 ============ -->
+<div class="modal-bg" id="mUser">
+  <div class="modal">
+    <h3 id="uTitle">계정 추가</h3>
+    <div class="rule"><i></i><i></i></div>
+    <div class="grid" style="gap:13px">
+      <div class="field"><label>구분</label><select id="uRole" onchange="onRoleChange()">
+        <option value="store">점포</option><option value="region">지역 관리자</option><option value="super">전체 관리자</option>
+      </select></div>
+      <div class="field"><label>아이디</label><input id="uId" type="text" autocapitalize="off" spellcheck="false"></div>
+      <div class="field"><label>이름 / 점포명</label><input id="uName" type="text"></div>
+      <div class="field" id="uRegionWrap"><label>지역</label><select id="uRegion"></select></div>
+      <div class="field"><label>점포코드 <span style="font-weight:300;color:#9AA0AE">(선택)</span></label><input id="uCode" type="text"></div>
+      <div class="field"><label>연락처 <span style="font-weight:300;color:#9AA0AE">(선택)</span></label><input id="uPhone" type="text" inputmode="tel"></div>
+      <div class="field"><label>비밀번호</label><input id="uPw" type="text" placeholder="새 계정은 필수 · 기존 계정은 변경할 때만"></div>
+      <div class="field"><label>상태</label><select id="uActive"><option value="Y">사용</option><option value="N">사용 중지</option></select></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:20px">
+      <button class="btn primary" onclick="saveUser()">저장</button>
+      <button class="btn ghost" onclick="closeModal('mUser')">취소</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="mProd">
+  <div class="modal">
+    <h3 id="pTitle">제품 추가</h3>
+    <div class="rule"><i></i><i></i></div>
+    <div class="grid" style="gap:13px">
+      <div class="field"><label>제품명</label><input id="pName" type="text"></div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--secondary)">해동 조건</label>
+        <div id="pMethods" style="margin-top:8px;display:grid;gap:8px"></div>
+        <button class="btn ghost sm" style="margin-top:8px" onclick="addMethodRow()">＋ 보관방법 추가</button>
+        <div class="hint" style="margin-top:5px">해동시간이 범위면 최소~최대를 다르게 입력하세요 (예: 2~3시간). 범위가 아니면 같은 값을 넣습니다.</div>
+      </div>
+      <div class="field"><label>품질기한 (시간)</label>
+        <input id="pQuality" type="number" min="0" step="1" placeholder="0 = 당일">
+        <span class="hint">해동시간을 포함한 판매 가능 총 시간</span>
+      </div>
+      <div class="field"><label>품질기한 표기</label><input id="pQLabel" type="text" placeholder="예: 48시간 / 2일 / 당일"></div>
+      <div class="field"><label>비고 <span style="font-weight:300;color:#9AA0AE">(선택)</span></label><input id="pNote" type="text"></div>
+      <div class="field"><label>정렬 순서</label><input id="pSort" type="number" min="1" step="1"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:20px">
+      <button class="btn primary" onclick="saveProduct()">저장</button>
+      <button class="btn ghost" onclick="closeModal('mProd')">취소</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="mPw">
+  <div class="modal" style="max-width:420px">
+    <h3>비밀번호 변경</h3>
+    <div class="rule"><i></i><i></i></div>
+    <div class="grid" style="gap:13px">
+      <div class="field"><label>현재 비밀번호</label><input id="pwOld" type="password"></div>
+      <div class="field"><label>새 비밀번호</label><input id="pwNew" type="password"></div>
+      <div class="field"><label>새 비밀번호 확인</label><input id="pwNew2" type="password"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:20px">
+      <button class="btn primary" onclick="savePw()">변경</button>
+      <button class="btn ghost" onclick="closeModal('mPw')">취소</button>
+    </div>
+  </div>
+</div>
+
+<div id="printArea"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =====================================================================
+   상태
+   ===================================================================== */
+const HOUR = 3600000;
+const SOON_MS = 2 * HOUR;          // '임박' 기준
+const ROLE_LABEL = { super: '전체 관리자', region: '지역 관리자', store: '점포' };
+
+let API = localStorage.getItem('fcl_api') || '';
+let TOKEN = localStorage.getItem('fcl_token') || '';
+let ME = null;
+let REGIONS = [], PRODUCTS = [], USERS = [], RECORDS = [];
+let tickTimer = null;
+
+/* =====================================================================
+   통신
+   ===================================================================== */
+async function api(action, payload) {
+  if (!API) throw new Error('서버 주소가 설정되지 않았습니다.');
+  const body = Object.assign({ action, token: TOKEN }, payload || {});
+  let res;
+  try {
+    res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(body),
+      redirect: 'follow'
+    });
+  } catch (e) {
+    throw new Error('서버에 연결할 수 없습니다. 인터넷 연결과 서버 주소를 확인해 주세요.');
+  }
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); }
+  catch (e) { throw new Error('서버 응답을 읽을 수 없습니다. 웹 앱 액세스 권한이 "모든 사용자"인지 확인해 주세요.'); }
+  if (!data.ok) {
+    if (/로그인/.test(data.error || '')) forceLogout();
+    throw new Error(data.error || '알 수 없는 오류');
+  }
+  return data;
+}
+
+/* =====================================================================
+   공통 UI
+   ===================================================================== */
+function toast(msg, isErr) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isErr ? ' err' : '');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => { t.className = 'toast'; }, 3200);
+}
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* =====================================================================
+   날짜 유틸 (모두 로컬 시간 기준)
+   ===================================================================== */
+function fmtDT(ms) {
+  if (!ms) return '-';
+  const d = new Date(Number(ms));
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}
+function fmtFull(ms) {
+  if (!ms) return '';
+  const d = new Date(Number(ms));
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}
+function p2(n) { return String(n).padStart(2, '0'); }
+function toLocalInput(d) {
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}
+function dayStart(ms) { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); }
+function dayEnd(ms) { const d = new Date(ms); d.setHours(23, 59, 59, 999); return d.getTime(); }
+function durText(ms) {
+  const neg = ms < 0;
+  let s = Math.abs(ms) / 1000;
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  const txt = h >= 24 ? `${Math.floor(h / 24)}일 ${h % 24}시간` : (h > 0 ? `${h}시간 ${m}분` : `${m}분`);
+  return neg ? txt + ' 초과' : txt + ' 남음';
+}
+
+/* =====================================================================
+   핵심 계산 — 제품 + 제조일시 → 해동사용일 / 점포사용일
+   ===================================================================== */
+function calcTimes(product, methodIdx, mfgMs) {
+  const m = (product.methods || [])[methodIdx] || { storage: '', min: 0, max: 0 };
+  const thawMs = mfgMs + Number(m.min || 0) * HOUR;      // 해동 후 판매 가능 시작
+  const thawMaxMs = mfgMs + Number(m.max || 0) * HOUR;   // 해동 완료 한계
+  const qh = Number(product.qualityHours || 0);
+  const expireMs = qh > 0 ? mfgMs + qh * HOUR : dayEnd(mfgMs);  // 0 = 당일
+  return { thawMs, thawMaxMs, expireMs, storage: m.storage, method: m };
+}
+
+/* 진행 상태 판정 */
+function lotState(r, now) {
+  if (r.status && r.status !== '진행중') return { key: 'done', label: r.status, cls: 'done', badge: 'gray' };
+  const thaw = Number(r.thawMs), exp = Number(r.expireMs);
+  if (now < thaw) return { key: 'thaw', label: '해동중', cls: '', badge: 'blue', left: thaw - now };
+  if (now >= exp) return { key: 'over', label: '기한 초과', cls: 'bad', badge: 'red', left: exp - now };
+  if (exp - now <= SOON_MS) return { key: 'soon', label: '기한 임박', cls: 'warn', badge: 'orange', left: exp - now };
+  return { key: 'sale', label: '판매 가능', cls: '', badge: 'navy', left: exp - now };
+}
+
+/* =====================================================================
+   로그인 / 로그아웃
+   ===================================================================== */
+function toggleApi() {
+  const f = document.getElementById('apiField');
+  f.style.display = f.style.display === 'none' ? 'flex' : 'none';
+}
+async function doLogin() {
+  const apiIn = document.getElementById('inApi').value.trim();
+  if (apiIn) { API = apiIn; localStorage.setItem('fcl_api', API); }
+  if (!API) { toast('서버 주소를 입력해 주세요.', true); return; }
+
+  const userId = document.getElementById('inId').value.trim();
+  const pw = document.getElementById('inPw').value;
+  if (!userId || !pw) { toast('아이디와 비밀번호를 입력해 주세요.', true); return; }
+
+  try {
+    TOKEN = '';
+    const d = await api('login', { userId, pw });
+    TOKEN = d.token;
+    localStorage.setItem('fcl_token', TOKEN);
+    ME = d.user;
+    await startApp();
+    if (ME.mustChangePw) { toast('초기 비밀번호입니다. 비밀번호를 변경해 주세요.'); openPw(); }
+  } catch (e) { toast(e.message, true); }
+}
+function forceLogout() {
+  TOKEN = ''; ME = null;
+  localStorage.removeItem('fcl_token');
+  clearInterval(tickTimer);
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login').style.display = 'flex';
+}
+async function doLogout() {
+  try { await api('logout', {}); } catch (e) {}
+  forceLogout();
+}
+
+/* =====================================================================
+   앱 기동
+   ===================================================================== */
+const TABS = {
+  store:  [['v-entry', '제품 등록'], ['v-live', '진행 현황'], ['v-history', '사용 이력']],
+  region: [['v-stores', '점포 현황'], ['v-live', '진행 현황'], ['v-history', '사용 이력'], ['v-users', '계정 관리'], ['v-products', '제품 기준값']],
+  super:  [['v-stores', '점포 현황'], ['v-live', '진행 현황'], ['v-history', '사용 이력'], ['v-users', '계정 관리'], ['v-products', '제품 기준값'], ['v-regions', '지역 관리']]
+};
+
+async function startApp() {
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  const nav = document.getElementById('tabs');
+  nav.innerHTML = TABS[ME.role].map(([id, label], i) =>
+    `<button data-v="${id}" class="${i === 0 ? 'on' : ''}" onclick="showView('${id}',this)">${label}</button>`).join('');
+
+  // 지역 관리자는 제품 기준값을 읽기만 한다
+  document.getElementById('btnAddRegionUser').style.display = ME.role === 'super' ? '' : 'none';
+
+  setRange(6);                 // 기본 조회 기간 — loadBootstrap 전에 정해둔다
+  await loadBootstrap();
+
+  // 헤더는 지역 목록을 받은 뒤에 그려야 지역명이 코드(R1)로 나오지 않는다
+  document.getElementById('whoName').textContent = ME.name;
+  document.getElementById('whoRole').textContent = '· ' + ROLE_LABEL[ME.role] +
+    (ME.regionId ? ' · ' + regionName(ME.regionId) : '');
+
+  showView(TABS[ME.role][0][0], nav.querySelector('button'));
+
+  clearInterval(tickTimer);
+  tickTimer = setInterval(() => {
+    if (document.getElementById('v-live').classList.contains('on')) renderLive();
+    if (document.getElementById('v-stores').classList.contains('on')) renderStores();
+  }, 30000);
+}
+
+function showView(id, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === id));
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b === btn));
+  if (id === 'v-live') renderLive();
+  if (id === 'v-stores') renderStores();
+  if (id === 'v-history') renderHistory();
+  if (id === 'v-users') renderUsers();
+  if (id === 'v-products') renderProducts();
+  if (id === 'v-regions') renderRegions();
+  window.scrollTo(0, 0);
+}
+
+async function loadBootstrap() {
+  try {
+    const d = await api('bootstrap', {});
+    ME = d.user; REGIONS = d.regions || []; PRODUCTS = d.products || []; USERS = d.users || [];
+    fillSelects();
+    await loadRecords();
+  } catch (e) { toast(e.message, true); }
+}
+
+function regionName(id) {
+  const r = REGIONS.find(x => x.regionId === id);
+  return r ? r.regionName : (id || '-');
+}
+function storeUsers() {
+  return USERS.filter(u => u.role === 'store');
+}
+
+function fillSelects() {
+  // 제품 선택
+  const ep = document.getElementById('eProduct');
+  ep.innerHTML = '<option value="">선택하세요</option>' +
+    PRODUCTS.map(p => `<option value="${esc(p.productId)}">${esc(p.name)}</option>`).join('');
+
+  // 이력 필터 — 제품
+  const hp = document.getElementById('hProduct');
+  hp.innerHTML = '<option value="">전체 제품</option>' +
+    PRODUCTS.map(p => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('');
+
+  // 점포 선택 (관리자만)
+  const isAdmin = ME.role !== 'store';
+  document.getElementById('entryStoreWrap').style.display = isAdmin ? 'flex' : 'none';
+  document.getElementById('hStoreWrap').style.display = isAdmin ? 'flex' : 'none';
+  if (isAdmin) {
+    const opts = storeUsers().map(u =>
+      `<option value="${esc(u.userId)}">${esc(u.name)} (${esc(regionName(u.regionId))})</option>`).join('');
+    document.getElementById('eStore').innerHTML = '<option value="">점포 선택</option>' + opts;
+    document.getElementById('hStore').innerHTML = '<option value="">전체 점포</option>' + opts;
+    document.getElementById('storeRegion').innerHTML = '<option value="">전체 지역</option>' +
+      REGIONS.map(r => `<option value="${esc(r.regionId)}">${esc(r.regionName)}</option>`).join('');
+  }
+
+  // 계정 모달 지역
+  document.getElementById('uRegion').innerHTML =
+    REGIONS.map(r => `<option value="${esc(r.regionId)}">${esc(r.regionName)}</option>`).join('');
+
+  if (!document.getElementById('eMfg').value) {
+    document.getElementById('eMfg').value = toLocalInput(new Date());
+  }
+}
+
+/* =====================================================================
+   01 제품 등록
+   ===================================================================== */
+function curProduct() {
+  return PRODUCTS.find(p => p.productId === document.getElementById('eProduct').value) || null;
+}
+function onProductChange() {
+  const p = curProduct();
+  const sel = document.getElementById('eMethod');
+  if (!p) { sel.innerHTML = ''; renderCalc(); return; }
+  sel.innerHTML = (p.methods || []).map((m, i) => {
+    const range = m.min === m.max ? `${m.min}시간` : `${m.min}~${m.max}시간`;
+    return `<option value="${i}">${esc(m.storage)} ${Number(m.max) === 0 ? '해동 불필요' : range}</option>`;
+  }).join('');
+  renderCalc();
+}
+function renderCalc() {
+  const p = curProduct();
+  const box = document.getElementById('calcBox');
+  const mfgVal = document.getElementById('eMfg').value;
+  if (!p || !mfgVal) { box.style.display = 'none'; return; }
+
+  const mfgMs = new Date(mfgVal).getTime();
+  const idx = Number(document.getElementById('eMethod').value || 0);
+  const c = calcTimes(p, idx, mfgMs);
+  const m = c.method;
+  const thawTxt = m.min === m.max ? fmtFull(c.thawMs)
+    : `${fmtFull(c.thawMs)} ~ ${fmtFull(c.thawMaxMs)}`;
+
+  document.getElementById('calcOut').innerHTML = `
+    <div><div class="k" style="font-size:12px;color:#7B8291">제조일자</div>
+         <div style="font-weight:600;color:var(--primary);margin-top:3px">${fmtFull(mfgMs)}</div></div>
+    <div><div class="k" style="font-size:12px;color:#7B8291">해동사용일 <span style="font-weight:300">(판매 가능 시작)</span></div>
+         <div style="font-weight:600;color:var(--primary);margin-top:3px">${thawTxt}</div></div>
+    <div><div class="k" style="font-size:12px;color:#7B8291">점포사용일 <span style="font-weight:300">(품질기한)</span></div>
+         <div style="font-weight:600;color:var(--accent);margin-top:3px">${fmtFull(c.expireMs)}</div></div>`;
+  document.getElementById('calcNote').innerHTML =
+    `보관방법 <b>${esc(c.storage)}</b> · 품질기한 <b>${esc(p.qualityLabel)}</b>` +
+    (Number(p.qualityHours) ? ' (해동시간 포함 총 판매 가능 시간)' : ' — 제조 당일 24시까지') +
+    (p.note ? ` · ${esc(p.note)}` : '');
+
+  // 해동이 끝나기도 전에 품질기한이 닿거나, 판매 가능 시간이 2시간도 안 되는 경우 경고
+  // (해동 12시간 + 품질기한 '당일' 제품을 늦게 제조하면 실제로 발생한다)
+  const sellable = c.expireMs - c.thawMaxMs;
+  const warn = document.getElementById('calcWarn');
+  if (sellable <= 0) {
+    warn.style.display = 'block';
+    warn.className = 'warnbox bad';
+    warn.innerHTML = `해동이 끝나기 전에 품질기한이 지납니다. 제조일시를 앞당겨 주세요.
+      <span style="font-weight:400">(해동 완료 ${fmtFull(c.thawMaxMs)} · 품질기한 ${fmtFull(c.expireMs)})</span>`;
+  } else if (sellable < 2 * HOUR) {
+    warn.style.display = 'block';
+    warn.className = 'warnbox';
+    warn.innerHTML = `판매 가능 시간이 <b>${durText(sellable).replace(' 남음', '')}</b>뿐입니다. 제조일시를 확인해 주세요.`;
+  } else {
+    warn.style.display = 'none';
+    warn.className = 'warnbox';
+    warn.innerHTML = '';
+  }
+  box.style.display = 'block';
+}
+function resetEntry() {
+  document.getElementById('eProduct').value = '';
+  document.getElementById('eQty').value = '';
+  document.getElementById('eMemo').value = '';
+  document.getElementById('eMfg').value = toLocalInput(new Date());
+  onProductChange();
+}
+async function submitRecord() {
+  const p = curProduct();
+  if (!p) { toast('제품을 선택해 주세요.', true); return; }
+  const mfgVal = document.getElementById('eMfg').value;
+  if (!mfgVal) { toast('제조일시를 입력해 주세요.', true); return; }
+
+  let storeId = '';
+  if (ME.role !== 'store') {
+    storeId = document.getElementById('eStore').value;
+    if (!storeId) { toast('점포를 선택해 주세요.', true); return; }
+  }
+
+  const mfgMs = new Date(mfgVal).getTime();
+  const idx = Number(document.getElementById('eMethod').value || 0);
+  const c = calcTimes(p, idx, mfgMs);
+
+  try {
+    await api('saveRecord', {
+      record: {
+        storeId, productName: p.name,
+        qty: document.getElementById('eQty').value.trim(),
+        mfgMs, thawMs: c.thawMs, thawMaxMs: c.thawMaxMs, expireMs: c.expireMs,
+        storage: c.storage, status: '진행중',
+        memo: document.getElementById('eMemo').value.trim()
+      }
+    });
+    toast('등록되었습니다.');
+    resetEntry();
+    await loadRecords();
+  } catch (e) { toast(e.message, true); }
+}
+
+/* =====================================================================
+   이력 로드
+   ===================================================================== */
+/* 이력 탭의 기간 필터 (없으면 최근 7일) */
+function historyRange() {
+  const f = document.getElementById('hFrom').value;
+  const t = document.getElementById('hTo').value;
+  return {
+    fromMs: f ? new Date(f + 'T00:00').getTime() : dayStart(Date.now() - 6 * 86400000),
+    toMs: t ? new Date(t + 'T23:59:59').getTime() : dayEnd(Date.now())
+  };
+}
+async function loadRecords() {
+  // 진행 현황은 기간 필터와 무관하게 항상 최근 7일치가 필요하다
+  // (품질기한 72시간 제품이 기간을 좁혔다고 화면에서 사라지면 안 된다)
+  const h = historyRange();
+  const fromMs = Math.min(h.fromMs, dayStart(Date.now() - 6 * 86400000));
+  const toMs = Math.max(h.toMs, dayEnd(Date.now()));
+  try {
+    const d = await api('listRecords', { fromMs, toMs });
+    RECORDS = d.records || [];
+    document.getElementById('histNote').textContent =
+      d.truncated ? `조회 결과가 ${d.total}건으로 많아 최근 ${RECORDS.length}건만 표시합니다. 기간을 좁혀 주세요.` : '';
+    renderLive(); renderStores(); renderHistory();
+  } catch (e) { toast(e.message, true); }
+}
+function setRange(daysBack) {
+  const to = new Date(), from = new Date(Date.now() - daysBack * 86400000);
+  document.getElementById('hFrom').value = `${from.getFullYear()}-${p2(from.getMonth() + 1)}-${p2(from.getDate())}`;
+  document.getElementById('hTo').value = `${to.getFullYear()}-${p2(to.getMonth() + 1)}-${p2(to.getDate())}`;
+}
+function quickRange(daysBack) {
+  setRange(daysBack);
+  loadRecords();
+}
+
+/* =====================================================================
+   02 진행 현황
+   ===================================================================== */
+function liveScope() {
+  // 점포는 본인 것, 관리자는 관할 전체
+  return RECORDS;
+}
+function renderLive() {
+  const now = Date.now();
+  const mode = document.getElementById('liveFilter').value;
+  const all = liveScope();
+
+  let list = all.filter(r => {
+    const st = lotState(r, now);
+    if (mode === 'active') return st.key !== 'done';
+    return Number(r.mfgMs) >= dayStart(now);
+  });
+  list.sort((a, b) => Number(a.expireMs) - Number(b.expireMs));
+
+  const act = all.filter(r => lotState(r, now).key !== 'done');
+  const cnt = { thaw: 0, sale: 0, soon: 0, over: 0 };
+  act.forEach(r => { cnt[lotState(r, now).key]++; });
+  document.getElementById('sThaw').textContent = cnt.thaw;
+  document.getElementById('sSale').textContent = cnt.sale;
+  document.getElementById('sSoon').textContent = cnt.soon;
+  document.getElementById('sOver').textContent = cnt.over;
+
+  const box = document.getElementById('liveList');
+  if (!list.length) {
+    box.innerHTML = '<div class="empty" style="grid-column:1/-1">표시할 항목이 없습니다.</div>';
+    return;
+  }
+  box.innerHTML = list.map(r => {
+    const st = lotState(r, now);
+    const showStore = ME.role !== 'store';
+    return `<div class="lot ${st.cls}">
+      <div class="hd">
+        <div class="nm">${esc(r.productName)}${r.qty ? ` <span style="font-weight:300;color:#7B8291;font-size:13px">${esc(r.qty)}</span>` : ''}</div>
+        <span class="badge ${st.badge}">${esc(st.label)}</span>
+      </div>
+      ${showStore ? `<div style="font-size:12px;color:#7B8291;margin-bottom:8px">${esc(r.regionName || '')} · ${esc(r.storeName)}</div>` : ''}
+      <dl>
+        <dt>제조일자</dt><dd>${fmtDT(r.mfgMs)}</dd>
+        <dt>해동사용일</dt><dd>${fmtDT(r.thawMs)}</dd>
+        <dt>점포사용일</dt><dd>${fmtDT(r.expireMs)}</dd>
+        <dt>보관방법</dt><dd>${esc(r.storage || '-')}</dd>
+      </dl>
+      ${st.left !== undefined ? `<div class="left" style="color:${st.key === 'over' ? 'var(--danger)' : st.key === 'soon' ? 'var(--accent)' : 'var(--secondary)'}">
+        ${st.key === 'thaw' ? '해동 완료까지 ' : '품질기한 '}${durText(st.left)}</div>` : ''}
+      ${r.memo ? `<div class="hint" style="margin-top:6px">${esc(r.memo)}</div>` : ''}
+      <div class="acts">
+        ${st.key !== 'done' ? `
+          <button class="btn sm" onclick="setStatus('${r.recordId}','사용완료')">사용 완료</button>
+          <button class="btn sm danger" onclick="setStatus('${r.recordId}','폐기')">폐기</button>` : `
+          <button class="btn sm ghost" onclick="setStatus('${r.recordId}','진행중')">되돌리기</button>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+async function setStatus(recordId, status) {
+  if (status === '폐기' && !confirm('폐기 처리하시겠습니까?')) return;
+  try {
+    await api('setRecordStatus', { recordId, status });
+    const r = RECORDS.find(x => x.recordId === recordId);
+    if (r) r.status = status;
+    renderLive(); renderStores(); renderHistory();
+    toast(status + ' 처리되었습니다.');
+  } catch (e) { toast(e.message, true); }
+}
+
+/* =====================================================================
+   점포별 현황 (관리자)
+   ===================================================================== */
+function renderStores() {
+  if (ME.role === 'store') return;
+  const now = Date.now();
+  const filt = document.getElementById('storeRegion').value;
+  const stores = storeUsers().filter(u => !filt || u.regionId === filt);
+
+  const rows = stores.map(u => {
+    const rs = RECORDS.filter(r => r.storeId === u.userId);
+    const today = rs.filter(r => Number(r.mfgMs) >= dayStart(now)).length;
+    const c = { thaw: 0, sale: 0, soon: 0, over: 0 };
+    rs.forEach(r => { const k = lotState(r, now).key; if (k !== 'done') c[k]++; });
+    const last = rs.reduce((a, r) => Math.max(a, Number(r.mfgMs) || 0), 0);
+    return { u, today, c, last };
+  });
+
+  document.getElementById('mStores').textContent = stores.length;
+  document.getElementById('mToday').textContent = rows.reduce((a, r) => a + r.today, 0);
+  document.getElementById('mSoon').textContent = rows.reduce((a, r) => a + r.c.soon, 0);
+  document.getElementById('mOver').textContent = rows.reduce((a, r) => a + r.c.over, 0);
+
+  const tb = document.querySelector('#storeTbl tbody');
+  if (!rows.length) {
+    tb.innerHTML = '<tr><td colspan="9" class="empty">등록된 점포가 없습니다. 계정 관리에서 점포를 추가해 주세요.</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map(({ u, today, c, last }) => `<tr>
+    <td>${esc(regionName(u.regionId))}</td>
+    <td><b>${esc(u.name)}</b>${u.active ? '' : ' <span class="badge gray">중지</span>'}</td>
+    <td style="color:#7B8291">${esc(u.userId)}</td>
+    <td>${today}</td>
+    <td>${c.thaw}</td>
+    <td>${c.sale}</td>
+    <td>${c.soon ? `<span class="badge orange">${c.soon}</span>` : 0}</td>
+    <td>${c.over ? `<span class="badge red">${c.over}</span>` : 0}</td>
+    <td style="color:#7B8291">${last ? fmtFull(last) : '-'}</td>
+  </tr>`).join('');
+}
+
+/* =====================================================================
+   03 사용 이력
+   ===================================================================== */
+function filteredHistory() {
+  const s = ME.role !== 'store' ? document.getElementById('hStore').value : '';
+  const p = document.getElementById('hProduct').value;
+  const { fromMs, toMs } = historyRange();
+  return RECORDS.filter(r => {
+    const m = Number(r.mfgMs) || 0;
+    return m >= fromMs && m <= toMs && (!s || r.storeId === s) && (!p || r.productName === p);
+  });
+}
+function renderHistory() {
+  const list = filteredHistory();
+  const done = list.filter(r => r.status === '사용완료').length;
+  const waste = list.filter(r => r.status === '폐기').length;
+  document.getElementById('hTotal').textContent = list.length;
+  document.getElementById('hDone').textContent = done;
+  document.getElementById('hWaste').textContent = waste;
+  document.getElementById('hRate').textContent =
+    list.length ? (waste / list.length * 100).toFixed(1) + '%' : '0%';
+
+  // 제품별 순위
+  const map = {};
+  list.forEach(r => {
+    const k = r.productName;
+    map[k] = map[k] || { n: 0, done: 0, waste: 0 };
+    map[k].n++;
+    if (r.status === '사용완료') map[k].done++;
+    if (r.status === '폐기') map[k].waste++;
+  });
+  const ranked = Object.entries(map).sort((a, b) => b[1].n - a[1].n);
+  const max = ranked.length ? ranked[0][1].n : 1;
+  document.querySelector('#prodRank tbody').innerHTML = ranked.length
+    ? ranked.map(([name, v]) => `<tr>
+        <td>${esc(name)}</td><td>${v.n}</td><td>${v.done}</td>
+        <td>${v.waste ? `<span style="color:var(--danger);font-weight:600">${v.waste}</span>` : 0}</td>
+        <td>${v.n ? (v.waste / v.n * 100).toFixed(1) + '%' : '-'}</td>
+        <td><span style="display:inline-block;height:8px;border-radius:4px;background:var(--secondary);width:${Math.round(v.n / max * 100)}%;min-width:3px"></span></td>
+      </tr>`).join('')
+    : '<tr><td colspan="6" class="empty">데이터가 없습니다.</td></tr>';
+
+  // 상세 표
+  const now = Date.now();
+  const canDelete = ME.role !== 'store';
+  document.querySelector('#histTbl tbody').innerHTML = list.length
+    ? list.map(r => {
+        const st = lotState(r, now);
+        return `<tr>
+          <td style="white-space:nowrap">${fmtFull(r.mfgMs)}</td>
+          <td>${esc(r.regionName || '')}</td>
+          <td>${esc(r.storeName)}</td>
+          <td>${esc(r.productName)}</td>
+          <td>${esc(r.qty || '')}</td>
+          <td>${esc(r.storage || '')}</td>
+          <td style="white-space:nowrap">${fmtFull(r.thawMs)}</td>
+          <td style="white-space:nowrap">${fmtFull(r.expireMs)}</td>
+          <td><span class="badge ${st.badge}">${esc(st.label)}</span></td>
+          <td>${canDelete ? `<button class="btn sm ghost" onclick="delRecord('${r.recordId}')">삭제</button>` : ''}</td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="10" class="empty">조회된 이력이 없습니다.</td></tr>';
+}
+async function delRecord(recordId) {
+  if (!confirm('이 이력을 삭제하시겠습니까?')) return;
+  try {
+    await api('deleteRecord', { recordId });
+    RECORDS = RECORDS.filter(r => r.recordId !== recordId);
+    renderLive(); renderStores(); renderHistory();
+    toast('삭제되었습니다.');
+  } catch (e) { toast(e.message, true); }
+}
+function exportCsv() {
+  const list = filteredHistory();
+  if (!list.length) { toast('내려받을 데이터가 없습니다.', true); return; }
+  const head = ['제조일자', '지역', '점포명', '제품명', '수량', '보관방법', '해동사용일', '점포사용일', '상태', '메모', '등록시각'];
+  const rows = list.map(r => [
+    fmtFull(r.mfgMs), r.regionName || '', r.storeName, r.productName, r.qty || '',
+    r.storage || '', fmtFull(r.thawMs), fmtFull(r.expireMs), r.status || '', r.memo || '', r.createdAt || ''
+  ]);
+  const csv = [head, ...rows]
+    .map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `FOOD체크리스트_${document.getElementById('hFrom').value}_${document.getElementById('hTo').value}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* =====================================================================
+   04 계정 관리
+   ===================================================================== */
+function renderUsers() {
+  const list = USERS.slice().sort((a, b) => {
+    const o = { super: 0, region: 1, store: 2 };
+    return (o[a.role] - o[b.role]) || String(a.regionId).localeCompare(String(b.regionId)) || a.name.localeCompare(b.name);
+  });
+  document.querySelector('#userTbl tbody').innerHTML = list.length
+    ? list.map(u => {
+        const editable = ME.role === 'super' || (u.role === 'store' && u.regionId === ME.regionId);
+        return `<tr>
+          <td><span class="badge ${u.role === 'super' ? 'navy' : u.role === 'region' ? 'blue' : 'gray'}">${ROLE_LABEL[u.role]}</span></td>
+          <td>${esc(u.userId)}</td>
+          <td><b>${esc(u.name)}</b></td>
+          <td>${u.regionId ? esc(regionName(u.regionId)) : '-'}</td>
+          <td>${esc(u.storeCode || '-')}</td>
+          <td>${esc(u.phone || '-')}</td>
+          <td>${u.active ? '<span class="badge blue">사용</span>' : '<span class="badge gray">중지</span>'}${u.mustChangePw ? ' <span class="badge orange">초기비번</span>' : ''}</td>
+          <td style="white-space:nowrap">${editable ? `
+            <button class="btn sm ghost" onclick='openUser(${JSON.stringify(u.userId)})'>수정</button>
+            <button class="btn sm ghost" onclick='delUser(${JSON.stringify(u.userId)})'>삭제</button>` : ''}</td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="8" class="empty">계정이 없습니다.</td></tr>';
+}
+function onRoleChange() {
+  const role = document.getElementById('uRole').value;
+  document.getElementById('uRegionWrap').style.display = role === 'super' ? 'none' : 'flex';
+}
+function openUser(userId, presetRole) {
+  const u = userId ? USERS.find(x => x.userId === userId) : null;
+  document.getElementById('uTitle').textContent = u ? '계정 수정' : '계정 추가';
+  document.getElementById('uId').value = u ? u.userId : '';
+  document.getElementById('uId').readOnly = !!u;
+  document.getElementById('uName').value = u ? u.name : '';
+  document.getElementById('uCode').value = u ? (u.storeCode || '') : '';
+  document.getElementById('uPhone').value = u ? (u.phone || '') : '';
+  document.getElementById('uPw').value = '';
+  document.getElementById('uActive').value = u ? (u.active ? 'Y' : 'N') : 'Y';
+
+  const roleSel = document.getElementById('uRole');
+  roleSel.value = u ? u.role : (presetRole || 'store');
+  // 지역 관리자는 점포 계정만 만들 수 있다
+  roleSel.disabled = ME.role !== 'super';
+  document.getElementById('uRegion').value = u ? u.regionId : (ME.role === 'region' ? ME.regionId : (REGIONS[0] || {}).regionId);
+  document.getElementById('uRegion').disabled = ME.role !== 'super';
+  onRoleChange();
+  openModal('mUser');
+}
+async function saveUser() {
+  const role = document.getElementById('uRole').value;
+  const user = {
+    userId: document.getElementById('uId').value.trim(),
+    name: document.getElementById('uName').value.trim(),
+    role,
+    regionId: role === 'super' ? '' : document.getElementById('uRegion').value,
+    storeCode: document.getElementById('uCode').value.trim(),
+    phone: document.getElementById('uPhone').value.trim(),
+    pw: document.getElementById('uPw').value,
+    active: document.getElementById('uActive').value === 'Y'
+  };
+  try {
+    const d = await api('saveUser', { user });
+    USERS = d.users || USERS;
+    fillSelects(); renderUsers(); renderStores();
+    closeModal('mUser');
+    toast('저장되었습니다.');
+  } catch (e) { toast(e.message, true); }
+}
+async function delUser(userId) {
+  if (!confirm(`'${userId}' 계정을 삭제하시겠습니까?\n등록된 사용 이력은 그대로 남습니다.`)) return;
+  try {
+    const d = await api('deleteUser', { userId });
+    USERS = d.users || USERS;
+    fillSelects(); renderUsers(); renderStores();
+    toast('삭제되었습니다.');
+  } catch (e) { toast(e.message, true); }
+}
+
+/* =====================================================================
+   05 제품 기준값
+   ===================================================================== */
+function methodText(p) {
+  return (p.methods || []).map(m => {
+    if (Number(m.max) === 0) return `${m.storage} 해동 불필요`;
+    return `${m.storage} ${m.min === m.max ? m.min : m.min + '~' + m.max}시간`;
+  }).join(' / ');
+}
+function renderProducts() {
+  const canEdit = ME.role === 'super';
+  document.querySelector('#v-products button.primary').style.display = canEdit ? '' : 'none';
+  document.querySelector('#prodTbl tbody').innerHTML = PRODUCTS.map(p => `<tr>
+    <td>${p.sortOrder}</td>
+    <td><b>${esc(p.name)}</b></td>
+    <td>${esc(methodText(p))}</td>
+    <td>${esc(p.qualityLabel)}${Number(p.qualityHours) ? ` <span style="color:#9AA0AE">(${p.qualityHours}h)</span>` : ''}</td>
+    <td style="color:#7B8291">${esc(p.note || '')}</td>
+    <td style="white-space:nowrap">${canEdit ? `
+      <button class="btn sm ghost" onclick='openProduct(${JSON.stringify(p.productId)})'>수정</button>
+      <button class="btn sm ghost" onclick='delProduct(${JSON.stringify(p.productId)})'>삭제</button>` : ''}</td>
+  </tr>`).join('') || '<tr><td colspan="6" class="empty">등록된 제품이 없습니다.</td></tr>';
+}
+let editingProductId = null;
+function methodRowHtml(m) {
+  m = m || { storage: '냉장', min: 1, max: 1 };
+  return `<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;align-items:center">
+    <select class="mStorage" style="border:1px solid var(--line);border-radius:6px;padding:9px;min-height:42px">
+      ${['실온', '상온', '냉장', '냉동'].map(s => `<option ${s === m.storage ? 'selected' : ''}>${s}</option>`).join('')}
+    </select>
+    <input class="mMin" type="number" min="0" step="0.5" value="${m.min}" placeholder="최소"
+           style="border:1px solid var(--line);border-radius:6px;padding:9px;min-height:42px">
+    <input class="mMax" type="number" min="0" step="0.5" value="${m.max}" placeholder="최대"
+           style="border:1px solid var(--line);border-radius:6px;padding:9px;min-height:42px">
+    <button class="btn sm ghost" onclick="this.parentNode.remove()">✕</button>
+  </div>`;
+}
+function addMethodRow() {
+  document.getElementById('pMethods').insertAdjacentHTML('beforeend', methodRowHtml());
+}
+function openProduct(productId) {
+  const p = productId ? PRODUCTS.find(x => x.productId === productId) : null;
+  editingProductId = productId || null;
+  document.getElementById('pTitle').textContent = p ? '제품 수정' : '제품 추가';
+  document.getElementById('pName').value = p ? p.name : '';
+  document.getElementById('pQuality').value = p ? p.qualityHours : 48;
+  document.getElementById('pQLabel').value = p ? p.qualityLabel : '';
+  document.getElementById('pNote').value = p ? (p.note || '') : '';
+  document.getElementById('pSort').value = p ? p.sortOrder : PRODUCTS.length + 1;
+  document.getElementById('pMethods').innerHTML =
+    (p && p.methods && p.methods.length ? p.methods : [null]).map(methodRowHtml).join('');
+  openModal('mProd');
+}
+async function saveProduct() {
+  const methods = [...document.querySelectorAll('#pMethods > div')].map(d => ({
+    storage: d.querySelector('.mStorage').value,
+    min: Number(d.querySelector('.mMin').value) || 0,
+    max: Number(d.querySelector('.mMax').value) || 0
+  }));
+  const qh = Number(document.getElementById('pQuality').value) || 0;
+  const product = {
+    productId: editingProductId,
+    name: document.getElementById('pName').value.trim(),
+    methods,
+    qualityHours: qh,
+    qualityLabel: document.getElementById('pQLabel').value.trim() || (qh ? qh + '시간' : '당일'),
+    note: document.getElementById('pNote').value.trim(),
+    sortOrder: Number(document.getElementById('pSort').value) || PRODUCTS.length + 1
+  };
+  try {
+    await api('saveProduct', { product });
+    closeModal('mProd');
+    toast('저장되었습니다.');
+    await loadBootstrap();
+    renderProducts();
+  } catch (e) { toast(e.message, true); }
+}
+async function delProduct(productId) {
+  if (!confirm('이 제품 기준값을 삭제하시겠습니까?')) return;
+  try {
+    await api('deleteProduct', { productId });
+    toast('삭제되었습니다.');
+    await loadBootstrap();
+    renderProducts();
+  } catch (e) { toast(e.message, true); }
+}
+
+/* =====================================================================
+   06 지역 관리
+   ===================================================================== */
+function renderRegions() {
+  document.getElementById('regionList').innerHTML = REGIONS.map(r => `
+    <div style="display:flex;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)">
+      <input value="${esc(r.regionName)}" data-rid="${esc(r.regionId)}"
+             style="flex:1;border:1px solid var(--line);border-radius:6px;padding:9px;min-height:42px">
+      <button class="btn sm" onclick="saveRegion(this)">저장</button>
+      <button class="btn sm ghost" onclick="delRegion('${esc(r.regionId)}')">삭제</button>
+    </div>`).join('') || '<div class="empty">지역이 없습니다.</div>';
+}
+async function addRegion() {
+  const name = document.getElementById('rNew').value.trim();
+  if (!name) { toast('지역명을 입력해 주세요.', true); return; }
+  try {
+    const d = await api('saveRegion', { region: { regionName: name } });
+    REGIONS = d.regions || REGIONS;
+    document.getElementById('rNew').value = '';
+    fillSelects(); renderRegions();
+    toast('추가되었습니다.');
+  } catch (e) { toast(e.message, true); }
+}
+async function saveRegion(btn) {
+  const input = btn.parentNode.querySelector('input');
+  try {
+    const d = await api('saveRegion', { region: { regionId: input.dataset.rid, regionName: input.value.trim() } });
+    REGIONS = d.regions || REGIONS;
+    fillSelects(); renderRegions();
+    toast('저장되었습니다.');
+  } catch (e) { toast(e.message, true); }
+}
+async function delRegion(regionId) {
+  if (!confirm('이 지역을 삭제하시겠습니까?')) return;
+  try {
+    const d = await api('deleteRegion', { regionId });
+    REGIONS = d.regions || REGIONS;
+    fillSelects(); renderRegions();
+    toast('삭제되었습니다.');
+  } catch (e) { toast(e.message, true); }
+}
+
+/* =====================================================================
+   비밀번호 변경
+   ===================================================================== */
+function openPw() {
+  ['pwOld', 'pwNew', 'pwNew2'].forEach(id => document.getElementById(id).value = '');
+  openModal('mPw');
+}
+async function savePw() {
+  const oldPw = document.getElementById('pwOld').value;
+  const newPw = document.getElementById('pwNew').value;
+  if (newPw !== document.getElementById('pwNew2').value) { toast('새 비밀번호가 일치하지 않습니다.', true); return; }
+  try {
+    await api('changePw', { oldPw, newPw });
+    ME.mustChangePw = false;
+    closeModal('mPw');
+    toast('비밀번호가 변경되었습니다.');
+  } catch (e) { toast(e.message, true); }
+}
+
+/* =====================================================================
+   인쇄 — 첨부된 종이 양식과 동일한 배치 (5칸 × 4블록)
+   ===================================================================== */
+function printSheet() {
+  const now = Date.now();
+  const list = RECORDS.filter(r => lotState(r, now).key !== 'done')
+    .sort((a, b) => Number(a.expireMs) - Number(b.expireMs));
+
+  const STORAGES = ['실온', '상온', '냉장', '냉동'];
+  const COLS = 5;
+  const blocks = Math.max(4, Math.ceil(list.length / COLS));
+  const cell = ms => ms ? `${new Date(+ms).getMonth() + 1} 월 &nbsp; ${new Date(+ms).getDate()} 일 &nbsp; ${p2(new Date(+ms).getHours())} 시` : '월&nbsp;&nbsp;&nbsp;일&nbsp;&nbsp;&nbsp;시';
+
+  let body = '';
+  for (let b = 0; b < blocks; b++) {
+    const items = list.slice(b * COLS, b * COLS + COLS);
+    const get = i => items[i] || null;
+    const row = (label, fn) => `<tr><th style="width:90px">${label}</th>` +
+      Array.from({ length: COLS }, (_, i) => `<td colspan="4">${fn(get(i))}</td>`).join('') + '</tr>';
+
+    body += `
+      ${row('제품명/ 수량', r => r ? `<b>${esc(r.productName)}</b>${r.qty ? ' / ' + esc(r.qty) : ''}` : '&nbsp;')}
+      ${row('제조일자', r => cell(r && r.mfgMs))}
+      ${row('해동사용일', r => cell(r && r.thawMs))}
+      ${row('점포사용일', r => cell(r && r.expireMs))}
+      <tr><th>보관방법</th>${Array.from({ length: COLS }, (_, i) => {
+        const r = get(i);
+        return STORAGES.map(s =>
+          `<td style="text-align:center;${r && r.storage === s ? 'background:#15237A;color:#fff;font-weight:700' : ''}">${s}</td>`).join('');
+      }).join('')}</tr>
+      <tr><td colspan="${1 + COLS * 4}" style="border:none;height:6px;padding:0"></td></tr>`;
+  }
+
+  const products = PRODUCTS.map(p =>
+    `<tr><td>${esc(p.name)}</td><td>${esc(methodText(p))}</td><td>${esc(p.qualityLabel)}</td></tr>`).join('');
+
+  document.getElementById('printArea').innerHTML = `
+    <div class="ph">FOOD 제품 생산 Check-list &nbsp;[ 제품 판매를 위한 해동중 입니다 ]</div>
+    <div style="font-size:10px;margin-bottom:6px">
+      ${esc(ME.name)} &nbsp;·&nbsp; 출력 ${fmtFull(now)}
+    </div>
+    <div style="display:flex;gap:8px;align-items:flex-start">
+      <table style="flex:1">${body}</table>
+      <table style="width:210px">
+        <thead><tr><th>제품명</th><th>해동시간</th><th>품질기한</th></tr></thead>
+        <tbody>${products}</tbody>
+      </table>
+    </div>
+    <div class="pf">
+      제조일자: 제조시작시간, 해동사용일: 해동 후 판매가능시간, 점포사용일: 판매가능시간(품질기한)<br>
+      품질기한 내 해동시간 포함 [ 품질기한은 판매가 가능한 총 시간입니다 ]<br>
+      ※ 제조 매뉴얼 및 보관방법을 준수합니다. [보관기준 실온: 1~35℃, 상온: 15~25℃, 냉장: 0~10℃, 냉동: -18℃이하]
+    </div>`;
+  window.print();
+}
+
+/* =====================================================================
+   시작
+   ===================================================================== */
+(async function init() {
+  document.getElementById('inApi').value = API;
+  if (API) document.getElementById('apiField').style.display = 'none';
+
+  document.getElementById('inPw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  document.getElementById('inId').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  document.querySelectorAll('.modal-bg').forEach(bg => {
+    bg.addEventListener('click', e => { if (e.target === bg) bg.classList.remove('show'); });
+  });
+
+  if (API && TOKEN) {
+    try {
+      const d = await api('me', {});
+      ME = d.user;
+      await startApp();
+      return;
+    } catch (e) { forceLogout(); }
+  }
+  document.getElementById('login').style.display = 'flex';
+})();
+</script>
+</body>
+</html>
