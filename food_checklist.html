@@ -140,6 +140,26 @@ nav.tabs button{
   color:#7B8291;border-bottom:2px solid transparent;white-space:nowrap;min-height:48px;
 }
 nav.tabs button.on{color:var(--primary);border-bottom-color:var(--accent)}
+.tabbadge{display:none;margin-left:6px;padding:1px 7px;border-radius:99px;
+  font-size:11px;font-weight:700;color:#fff;background:var(--danger);vertical-align:middle}
+.tabbadge.on{display:inline-block}
+.tabbadge.soon{background:var(--accent)}
+
+/* 점포사용일(품질기한) 초과 경고 — 화면 어디에 있어도 보이도록 상단 고정 */
+.alertbar{
+  position:sticky;top:0;z-index:75;cursor:pointer;
+  background:var(--danger);color:#fff;padding:13px 20px;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  font-size:14px;font-weight:600;border-bottom:1px solid rgba(0,0,0,.12);
+  animation:alertpulse 2.4s ease-in-out infinite;
+}
+.alertbar.soon{background:var(--accent);animation:none}
+.alertbar .mark{font-size:17px;line-height:1}
+.alertbar .go{margin-left:auto;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.5);
+  color:#fff;border-radius:var(--radius);padding:6px 13px;font-size:13px;font-weight:600;white-space:nowrap}
+.alertbar .detail{font-weight:400;opacity:.9;font-size:13px;width:100%}
+@keyframes alertpulse{0%,100%{background:var(--danger)}50%{background:#A81F1F}}
+@media(prefers-reduced-motion:reduce){.alertbar{animation:none}}
 
 main{flex:1;padding:20px;max-width:1280px;width:100%;margin:0 auto}
 .view{display:none}
@@ -207,6 +227,7 @@ table.sheet col.selcol,table.sheet td.selcol{background:#FFF6EF}
 table.sheet td.selcol.stor.on{background:var(--primary)}
 table.sheet td.warn{box-shadow:inset 0 0 0 2px var(--accent)}
 table.sheet td.bad{box-shadow:inset 0 0 0 2px var(--danger)}
+table.sheet td.over{background:var(--danger) !important;color:#fff !important;font-weight:700}
 .slot-badge{display:inline-block;font-size:10px;padding:1px 5px;border-radius:99px;border:1px solid;margin-left:4px;vertical-align:middle}
 
 .std-box{width:270px;flex:none}
@@ -296,6 +317,7 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
   </header>
 
   <nav class="tabs" id="tabs"></nav>
+  <div class="alertbar" id="alertBar" style="display:none" onclick="gotoOver()"></div>
 
   <main>
     <!-- ===== 점포: 등록 ===== -->
@@ -351,8 +373,10 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
       </div>
 
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-        <select id="liveFilter" class="btn" style="max-width:200px" onchange="renderLive()">
+        <select id="liveFilter" class="btn" style="max-width:220px" onchange="renderLive()">
           <option value="active">진행중만 보기</option>
+          <option value="over">기한 초과만 보기</option>
+          <option value="soon">기한 임박만 보기</option>
           <option value="all">오늘 전체 보기</option>
         </select>
         <span class="sp" style="flex:1"></span>
@@ -787,8 +811,11 @@ async function doLogin() {
 }
 function forceLogout() {
   TOKEN = ''; ME = null;
+  RECORDS = []; SLOTS = [];
   localStorage.removeItem('fcl_token');
   clearInterval(tickTimer);
+  document.title = BASE_TITLE;
+  document.getElementById('alertBar').style.display = 'none';
   document.getElementById('app').style.display = 'none';
   document.getElementById('login').style.display = 'flex';
 }
@@ -811,7 +838,7 @@ async function startApp() {
   document.getElementById('app').style.display = 'flex';
   const nav = document.getElementById('tabs');
   nav.innerHTML = TABS[ME.role].map(([id, label], i) =>
-    `<button data-v="${id}" class="${i === 0 ? 'on' : ''}" onclick="showView('${id}',this)">${label}</button>`).join('');
+    `<button data-v="${id}" class="${i === 0 ? 'on' : ''}" onclick="showView('${id}',this)">${label}<span class="tabbadge" id="badge-${id}"></span></button>`).join('');
 
   // 지역 관리자는 제품 기준값을 읽기만 한다
   document.getElementById('btnAddRegionUser').style.display = ME.role === 'super' ? '' : 'none';
@@ -828,6 +855,8 @@ async function startApp() {
 
   clearInterval(tickTimer);
   tickTimer = setInterval(() => {
+    renderAlert();   // 기한은 시간이 흐르면 지나므로 화면을 보고 있지 않아도 갱신한다
+    if (document.getElementById('v-entry').classList.contains('on')) renderSheet();
     if (document.getElementById('v-live').classList.contains('on')) renderLive();
     if (document.getElementById('v-stores').classList.contains('on')) renderStores();
   }, 30000);
@@ -965,9 +994,15 @@ function renderSheet() {
     html += row('해동사용일', 'auto', (s) => ({ html: cellDT(s && s.thawMs), warn: '' }));
     html += row('점포사용일', 'exp', (s) => {
       if (!s) return { html: cellDT(null), warn: '' };
-      const bad = s.expireMs <= s.thawMaxMs;
-      const soon = !bad && (s.expireMs - s.thawMaxMs) < 2 * HOUR;
-      return { html: cellDT(s.expireMs), warn: bad ? ' bad' : soon ? ' warn' : '' };
+      const st = lotState(s, now);
+      // 이미 기한이 지난 칸은 빨갛게 채워 한눈에 보이게 한다
+      if (st.key === 'over') {
+        return { html: `<span style="color:#fff">${cellDT(s.expireMs)}</span>
+                        <div style="font-size:10px;color:#fff;font-weight:700">기한 초과</div>`, warn: ' over' };
+      }
+      if (st.key === 'soon') return { html: cellDT(s.expireMs), warn: ' warn' };
+      const bad = s.expireMs <= s.thawMaxMs;   // 제조일자 오입력으로 판매 시간이 없는 경우
+      return { html: cellDT(s.expireMs), warn: bad ? ' bad' : '' };
     });
 
     html += '<tr><th class="rh">보관방법</th>' +
@@ -986,6 +1021,67 @@ function renderSheet() {
   }
   tbl.innerHTML = html;
   updateDirtyNote();
+}
+
+/* =====================================================================
+   점포사용일(품질기한) 초과 경고
+   화면 상단에 고정으로 띄우고, 탭에 건수를 표시하고, 브라우저 탭 제목에도 남긴다.
+   ===================================================================== */
+const BASE_TITLE = 'FOOD 제품 생산 Check-list';
+
+function renderAlert() {
+  const bar = document.getElementById('alertBar');
+  if (!bar || !ME) return;
+  const now = Date.now();
+
+  const over = RECORDS.filter(r => lotState(r, now).key === 'over');
+  const soon = RECORDS.filter(r => lotState(r, now).key === 'soon');
+
+  // 탭 배지
+  const badge = document.getElementById('badge-v-live');
+  if (badge) {
+    const n = over.length || soon.length;
+    badge.textContent = n || '';
+    badge.className = 'tabbadge' + (n ? ' on' : '') + (!over.length && soon.length ? ' soon' : '');
+  }
+
+  // 브라우저 탭 제목
+  document.title = over.length ? `(${over.length}) 기한 초과 — ${BASE_TITLE}` : BASE_TITLE;
+
+  if (!over.length && !soon.length) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+
+  const names = list => {
+    const seen = [];
+    list.forEach(r => {
+      const label = (ME.role === 'store' ? '' : r.storeName + ' ') + r.productName;
+      if (!seen.includes(label)) seen.push(label);
+    });
+    return seen.slice(0, 4).join(', ') + (seen.length > 4 ? ` 외 ${seen.length - 4}건` : '');
+  };
+
+  if (over.length) {
+    bar.className = 'alertbar';
+    bar.innerHTML = `<span class="mark">⚠</span>
+      <span>점포사용일이 지난 제품이 <b>${over.length}건</b> 있습니다 — 즉시 폐기 처리하세요</span>
+      <span class="go">확인하기</span>
+      <span class="detail">${esc(names(over))}</span>`;
+  } else {
+    bar.className = 'alertbar soon';
+    bar.innerHTML = `<span class="mark">!</span>
+      <span>2시간 안에 품질기한이 끝나는 제품이 <b>${soon.length}건</b> 있습니다</span>
+      <span class="go">확인하기</span>
+      <span class="detail">${esc(names(soon))}</span>`;
+  }
+  bar.style.display = 'flex';
+}
+
+/* 경고 막대를 누르면 해당 항목만 걸러서 보여준다 */
+function gotoOver() {
+  const now = Date.now();
+  const hasOver = RECORDS.some(r => lotState(r, now).key === 'over');
+  document.getElementById('liveFilter').value = hasOver ? 'over' : 'soon';
+  const btn = [...document.querySelectorAll('#tabs button')].find(b => b.dataset.v === 'v-live');
+  if (btn) showView('v-live', btn);
 }
 
 function slotBadge(s, now) {
@@ -1248,7 +1344,7 @@ async function loadRecords() {
     document.getElementById('histNote').textContent =
       d.truncated ? `조회 결과가 ${d.total}건으로 많아 최근 ${RECORDS.length}건만 표시합니다. 기간을 좁혀 주세요.` : '';
     rebuildSlots();
-    renderSheet(); renderLive(); renderStores(); renderHistory();
+    renderSheet(); renderLive(); renderStores(); renderHistory(); renderAlert();
   } catch (e) { toast(e.message, true); }
 }
 function setRange(daysBack) {
@@ -1276,6 +1372,8 @@ function renderLive() {
   let list = all.filter(r => {
     const st = lotState(r, now);
     if (mode === 'active') return st.key !== 'done';
+    if (mode === 'over') return st.key === 'over';
+    if (mode === 'soon') return st.key === 'soon';
     return Number(r.mfgMs) >= dayStart(now);
   });
   list.sort((a, b) => Number(a.expireMs) - Number(b.expireMs));
@@ -1326,7 +1424,8 @@ async function setStatus(recordId, status) {
     await api('setRecordStatus', { recordId, status });
     const r = RECORDS.find(x => x.recordId === recordId);
     if (r) r.status = status;
-    renderLive(); renderStores(); renderHistory();
+    rebuildSlots();
+    renderSheet(); renderLive(); renderStores(); renderHistory(); renderAlert();
     toast(status + ' 처리되었습니다.');
   } catch (e) { toast(e.message, true); }
 }
