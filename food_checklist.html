@@ -173,6 +173,52 @@ main{flex:1;padding:20px;max-width:1280px;width:100%;margin:0 auto}
 }
 .warnbox.bad{background:#FDF1F1;border-color:#F0C3C3;color:var(--danger)}
 
+/* ---------- 체크리스트 양식(종이 양식과 동일 배치) ---------- */
+.sheet-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.dirty-note{font-size:13px;font-weight:600;color:var(--accent)}
+.sheet-wrap{display:flex;gap:12px;align-items:flex-start}
+.sheet-scroll{flex:1;overflow-x:auto;-webkit-overflow-scrolling:touch;background:#fff;border:1px solid var(--secondary);border-radius:var(--radius)}
+@media(max-width:1000px){.sheet-wrap{flex-direction:column}.std-box{width:100%}}
+
+table.sheet{border-collapse:collapse;table-layout:fixed;width:100%;min-width:900px;font-size:12px}
+table.sheet th,table.sheet td{border:1px solid #C9D0DE;padding:0;height:38px;text-align:center;vertical-align:middle}
+table.sheet th.rh{width:88px;background:#F2F5FB;color:var(--secondary);font-size:11px;font-weight:600}
+table.sheet td.slot{cursor:pointer;font-size:12px;padding:2px 4px;line-height:1.35;transition:background .12s}
+table.sheet td.slot:hover{background:#EEF3FC}
+table.sheet tr.gap td{border:none;height:9px;background:var(--soft)}
+table.sheet .ph{color:#B9BFCC;font-weight:300}
+table.sheet .pname{font-weight:600;color:var(--primary)}
+table.sheet .pqty{font-weight:300;color:#6A7183}
+table.sheet td.auto{background:#FAFBFE;color:var(--secondary)}
+table.sheet td.exp{background:#FFF9F4;color:var(--accent);font-weight:600}
+table.sheet td.stor{cursor:pointer;font-size:11px;color:#8A90A0}
+table.sheet td.stor.on{background:var(--primary);color:#fff;font-weight:700}
+table.sheet td.stor.able:hover{background:#DDE4F3;color:var(--primary)}
+table.sheet col.selcol,table.sheet td.selcol{background:#FFF6EF}
+table.sheet td.selcol.stor.on{background:var(--primary)}
+table.sheet td.warn{box-shadow:inset 0 0 0 2px var(--accent)}
+table.sheet td.bad{box-shadow:inset 0 0 0 2px var(--danger)}
+.slot-badge{display:inline-block;font-size:10px;padding:1px 5px;border-radius:99px;border:1px solid;margin-left:4px;vertical-align:middle}
+
+.std-box{width:270px;flex:none}
+table.stdtbl{border-collapse:collapse;width:100%;font-size:11px;background:#fff}
+table.stdtbl th,table.stdtbl td{border:1px solid #C9D0DE;padding:5px 6px;text-align:center}
+table.stdtbl th{background:#F2F5FB;color:var(--secondary);font-size:11px}
+table.stdtbl td:first-child{text-align:left;font-weight:600;color:var(--primary)}
+table.stdtbl tr.pick{cursor:pointer}
+table.stdtbl tr.pick:hover td{background:#EEF3FC}
+.std-foot{border:1px solid #FBD4B4;background:#FFF4EC;color:var(--accent);
+  font-size:11px;font-weight:600;text-align:center;padding:8px;margin-top:8px;border-radius:var(--radius);line-height:1.6}
+
+.quick{display:flex;gap:6px;flex-wrap:wrap}
+.quick button{border:1px solid var(--line);background:#fff;color:var(--secondary);
+  border-radius:var(--radius);padding:7px 11px;font-size:12px;font-weight:600;min-height:38px}
+.quick button:hover{background:#EEF3FC}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-width:88px;border:1px solid var(--line);background:#fff;color:#7B8291;
+  border-radius:var(--radius);padding:9px;font-size:13px;font-weight:600;min-height:44px}
+.seg button.on{background:var(--primary);border-color:var(--primary);color:#fff}
+
 /* ---------- 인쇄 양식 ---------- */
 #printArea{display:none}
 @media print{
@@ -236,48 +282,39 @@ main{flex:1;padding:20px;max-width:1280px;width:100%;margin:0 auto}
       <h2><span class="sec-no">01</span>제품 등록</h2>
       <div class="rule"><i></i><i></i></div>
 
-      <div class="card">
-        <div class="grid g2">
-          <div class="field" id="entryStoreWrap" style="display:none">
-            <label>점포</label>
-            <select id="eStore"></select>
-          </div>
-          <div class="field">
-            <label>제품명</label>
-            <select id="eProduct" onchange="onProductChange()"><option value="">선택하세요</option></select>
-          </div>
-          <div class="field">
-            <label>수량</label>
-            <input id="eQty" type="text" inputmode="numeric" placeholder="예: 6">
-          </div>
-          <div class="field">
-            <label>제조일자 (제조 시작시간)</label>
-            <input id="eMfg" type="datetime-local" onchange="renderCalc()">
-          </div>
-          <div class="field" id="eMethodWrap">
-            <label>보관방법</label>
-            <select id="eMethod" onchange="renderCalc()"></select>
-          </div>
-          <div class="field">
-            <label>메모 <span style="font-weight:300;color:#9AA0AE">(선택)</span></label>
-            <input id="eMemo" type="text" placeholder="예: 오전 진열분">
-          </div>
+      <div class="sheet-bar">
+        <div class="field" id="entryStoreWrap" style="display:none;max-width:220px">
+          <select id="eStore" onchange="onSheetStore()"></select>
         </div>
+        <span id="dirtyNote" class="dirty-note" style="display:none"></span>
+        <span style="flex:1"></span>
+        <button class="btn ghost sm" onclick="addBlock()">＋ 칸 추가</button>
+        <button class="btn ghost sm" onclick="printSheet()">인쇄</button>
+        <button class="btn primary" id="btnSaveSheet" onclick="saveSheet()">저장</button>
+      </div>
 
-        <div id="calcBox" style="margin-top:18px;display:none">
-          <div style="background:#F2F5FB;border:1px solid #C6D0E4;border-radius:6px;padding:15px">
-            <div style="font-size:12px;font-weight:600;color:var(--secondary);margin-bottom:10px">자동 계산 결과</div>
-            <div class="grid g3" id="calcOut"></div>
-            <div class="hint" id="calcNote" style="margin-top:10px"></div>
-            <div id="calcWarn" class="warnbox" style="display:none"></div>
-          </div>
+      <p class="hint" style="margin:0 0 10px">
+        빈 칸을 누르면 제품과 제조일자를 고를 수 있습니다. 해동사용일 · 점포사용일 · 보관방법은 자동으로 채워집니다.
+        오른쪽 기준표를 눌러 선택한 칸에 제품을 바로 넣을 수도 있습니다.
+      </p>
+
+      <div class="sheet-wrap">
+        <div class="sheet-scroll">
+          <table class="sheet" id="sheetTbl"></table>
         </div>
-
-        <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">
-          <button class="btn primary" onclick="submitRecord()">등록하기</button>
-          <button class="btn ghost" onclick="resetEntry()">초기화</button>
+        <div class="std-box">
+          <table class="stdtbl" id="stdTbl"></table>
+          <div class="std-foot">
+            품질기한 내 해동시간 포함<br>
+            [ 품질기한은 판매가 가능한 총 시간입니다 ]
+          </div>
         </div>
       </div>
+
+      <p class="hint" style="margin-top:12px;line-height:1.7">
+        제조일자: 제조시작시간 · 해동사용일: 해동 후 판매가능시간 · 점포사용일: 판매가능시간(품질기한)<br>
+        ※ 제조 매뉴얼 및 보관방법을 준수합니다. [보관기준 실온 1~35℃, 상온 15~25℃, 냉장 0~10℃, 냉동 -18℃ 이하]
+      </p>
     </section>
 
     <!-- ===== 점포: 진행 현황 ===== -->
@@ -472,6 +509,59 @@ main{flex:1;padding:20px;max-width:1280px;width:100%;margin:0 auto}
     <div style="display:flex;gap:8px;margin-top:20px">
       <button class="btn primary" onclick="saveUser()">저장</button>
       <button class="btn ghost" onclick="closeModal('mUser')">취소</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="mSlot">
+  <div class="modal">
+    <h3 id="slotTitle">칸 입력</h3>
+    <div class="rule"><i></i><i></i></div>
+    <div class="grid" style="gap:14px">
+      <div class="field">
+        <label>제품명</label>
+        <select id="sProduct" onchange="onSlotProduct()"><option value="">선택하세요</option></select>
+      </div>
+      <div class="field">
+        <label>수량</label>
+        <input id="sQty" type="text" inputmode="numeric" placeholder="예: 6">
+      </div>
+      <div class="field">
+        <label>제조일자 (제조 시작시간)</label>
+        <input id="sMfg" type="datetime-local" onchange="renderSlotCalc()">
+        <div class="quick" style="margin-top:6px">
+          <button onclick="setSlotMfg('now')">지금</button>
+          <button onclick="setSlotMfg(-1)">1시간 전</button>
+          <button onclick="setSlotMfg(-2)">2시간 전</button>
+          <button onclick="setSlotMfg('today6')">오늘 06시</button>
+          <button onclick="setSlotMfg('prev20')">어제 20시</button>
+        </div>
+      </div>
+      <div id="sMethodWrap">
+        <label style="font-size:12px;font-weight:600;color:var(--secondary)">보관방법</label>
+        <div class="seg" id="sMethods" style="margin-top:6px"></div>
+      </div>
+      <div class="field">
+        <label>메모 <span style="font-weight:300;color:#9AA0AE">(선택)</span></label>
+        <input id="sMemo" type="text" placeholder="예: 오전 진열분">
+      </div>
+    </div>
+
+    <div id="sCalcBox" style="margin-top:16px;display:none">
+      <div style="background:#F2F5FB;border:1px solid #C6D0E4;border-radius:6px;padding:14px">
+        <div style="font-size:12px;font-weight:600;color:var(--secondary);margin-bottom:9px">자동 계산 결과</div>
+        <div id="sCalcOut" style="display:grid;gap:8px"></div>
+        <div class="hint" id="sCalcNote" style="margin-top:9px"></div>
+        <div id="sCalcWarn" class="warnbox" style="display:none"></div>
+      </div>
+    </div>
+
+    <div id="sStatusWrap" style="margin-top:16px;display:none"></div>
+
+    <div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap">
+      <button class="btn primary" onclick="applySlot()">확인</button>
+      <button class="btn ghost" onclick="clearSlot()">칸 비우기</button>
+      <button class="btn ghost" onclick="closeModal('mSlot')">취소</button>
     </div>
   </div>
 </div>
@@ -707,6 +797,7 @@ async function startApp() {
 function showView(id, btn) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === id));
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b === btn));
+  if (id === 'v-entry') renderSheet();
   if (id === 'v-live') renderLive();
   if (id === 'v-stores') renderStores();
   if (id === 'v-history') renderHistory();
@@ -734,9 +825,8 @@ function storeUsers() {
 }
 
 function fillSelects() {
-  // 제품 선택
-  const ep = document.getElementById('eProduct');
-  ep.innerHTML = '<option value="">선택하세요</option>' +
+  // 칸 입력 모달의 제품 선택
+  document.getElementById('sProduct').innerHTML = '<option value="">선택하세요</option>' +
     PRODUCTS.map(p => `<option value="${esc(p.productId)}">${esc(p.name)}</option>`).join('');
 
   // 이력 필터 — 제품
@@ -760,110 +850,339 @@ function fillSelects() {
   // 계정 모달 지역
   document.getElementById('uRegion').innerHTML =
     REGIONS.map(r => `<option value="${esc(r.regionId)}">${esc(r.regionName)}</option>`).join('');
-
-  if (!document.getElementById('eMfg').value) {
-    document.getElementById('eMfg').value = toLocalInput(new Date());
-  }
 }
 
 /* =====================================================================
-   01 제품 등록
+   01 제품 등록 — 종이 양식과 같은 표에 직접 입력한다
    ===================================================================== */
-function curProduct() {
-  return PRODUCTS.find(p => p.productId === document.getElementById('eProduct').value) || null;
+const COLS = 5;                    // 한 블록의 칸 수 (양식과 동일)
+const STORAGES = ['실온', '상온', '냉장', '냉동'];
+let SLOTS = [];                    // 표의 각 칸
+let slotCount = 20;                // 표시 칸 수 (4블록 × 5칸)
+let selSlot = -1;                  // 선택된 칸 (기준표 클릭 시 여기에 넣는다)
+let editSlot = -1;                 // 모달에서 편집 중인 칸
+let editMethodIdx = 0;
+
+function sheetStoreId() {
+  return ME.role === 'store' ? ME.userId : document.getElementById('eStore').value;
 }
-function onProductChange() {
-  const p = curProduct();
-  const sel = document.getElementById('eMethod');
-  if (!p) { sel.innerHTML = ''; renderCalc(); return; }
-  sel.innerHTML = (p.methods || []).map((m, i) => {
-    const range = m.min === m.max ? `${m.min}시간` : `${m.min}~${m.max}시간`;
-    return `<option value="${i}">${esc(m.storage)} ${Number(m.max) === 0 ? '해동 불필요' : range}</option>`;
-  }).join('');
-  renderCalc();
+function cellDT(ms) {
+  if (!ms) return '<span class="ph">월&nbsp; 일&nbsp; 시</span>';
+  const d = new Date(Number(ms));
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${p2(d.getHours())}:${p2(d.getMinutes())}`;
 }
-function renderCalc() {
-  const p = curProduct();
-  const box = document.getElementById('calcBox');
-  const mfgVal = document.getElementById('eMfg').value;
+
+/* 저장된 진행중 기록을 앞 칸부터 채우고, 저장 안 한 입력은 뒤에 이어 붙인다 */
+function rebuildSlots() {
+  const now = Date.now();
+  const sid = sheetStoreId();
+  const pending = SLOTS.filter(s => s && s.dirty);
+  const live = RECORDS
+    .filter(r => lotState(r, now).key !== 'done' && (!sid || r.storeId === sid))
+    .sort((a, b) => Number(a.expireMs) - Number(b.expireMs))
+    .map(r => ({
+      recordId: r.recordId, productName: r.productName, qty: r.qty,
+      mfgMs: +r.mfgMs, thawMs: +r.thawMs, thawMaxMs: +(r.thawMaxMs || r.thawMs),
+      expireMs: +r.expireMs, storage: r.storage, memo: r.memo || '',
+      status: r.status || '진행중', dirty: false
+    }));
+  SLOTS = live.concat(pending);
+  slotCount = Math.max(20, Math.ceil((SLOTS.length + 1) / COLS) * COLS);
+}
+function addBlock() { slotCount += COLS; renderSheet(); }
+
+function renderSheet() {
+  const tbl = document.getElementById('sheetTbl');
+  if (!tbl) return;
+  renderStd();
+
+  if (ME.role !== 'store' && !sheetStoreId()) {
+    tbl.innerHTML = '<tr><td class="empty">위에서 점포를 먼저 선택해 주세요.</td></tr>';
+    updateDirtyNote();
+    return;
+  }
+
+  const now = Date.now();
+  const blocks = Math.ceil(slotCount / COLS);
+  let html = '';
+
+  for (let b = 0; b < blocks; b++) {
+    const at = n => b * COLS + n;
+    const row = (label, cls, fn) =>
+      `<tr><th class="rh">${label}</th>` +
+      Array.from({ length: COLS }, (_, n) => {
+        const i = at(n), s = SLOTS[i];
+        const sel = i === selSlot ? ' selcol' : '';
+        return `<td colspan="4" class="slot ${cls}${sel}${fn(s, i).warn || ''}" onclick="openSlot(${i})">${fn(s, i).html}</td>`;
+      }).join('') + '</tr>';
+
+    html += row('제품명/ 수량', '', (s) => ({
+      html: s ? `<span class="pname">${esc(s.productName)}</span>` +
+                (s.qty ? ` <span class="pqty">/ ${esc(s.qty)}</span>` : '') + slotBadge(s, now)
+              : '<span class="ph">＋</span>',
+      warn: ''
+    }));
+    html += row('제조일자', '', (s) => ({ html: cellDT(s && s.mfgMs), warn: '' }));
+    html += row('해동사용일', 'auto', (s) => ({ html: cellDT(s && s.thawMs), warn: '' }));
+    html += row('점포사용일', 'exp', (s) => {
+      if (!s) return { html: cellDT(null), warn: '' };
+      const bad = s.expireMs <= s.thawMaxMs;
+      const soon = !bad && (s.expireMs - s.thawMaxMs) < 2 * HOUR;
+      return { html: cellDT(s.expireMs), warn: bad ? ' bad' : soon ? ' warn' : '' };
+    });
+
+    html += '<tr><th class="rh">보관방법</th>' +
+      Array.from({ length: COLS }, (_, n) => {
+        const i = at(n), s = SLOTS[i];
+        const allowed = s ? new Set((productByName(s.productName)?.methods || []).map(m => m.storage)) : new Set();
+        return STORAGES.map(st => {
+          const on = s && s.storage === st ? ' on' : '';
+          const able = allowed.has(st) && !on ? ' able' : '';
+          const sel = i === selSlot ? ' selcol' : '';
+          return `<td class="stor${on}${able}${sel}" onclick="pickStorage(event,${i},'${st}')">${st}</td>`;
+        }).join('');
+      }).join('') + '</tr>';
+
+    if (b < blocks - 1) html += `<tr class="gap"><td colspan="${1 + COLS * 4}"></td></tr>`;
+  }
+  tbl.innerHTML = html;
+  updateDirtyNote();
+}
+
+function slotBadge(s, now) {
+  if (s.dirty) return ' <span class="slot-badge" style="color:var(--accent);border-color:#FBD4B4;background:#FFF4EC">미저장</span>';
+  const st = lotState(s, now);
+  const c = { blue: '#2F497D', orange: '#F26300', red: '#C62828', navy: '#15237A', gray: '#79808F' }[st.badge];
+  return ` <span class="slot-badge" style="color:${c};border-color:${c}55">${st.label}</span>`;
+}
+function productByName(name) { return PRODUCTS.find(p => p.name === name) || null; }
+
+function updateDirtyNote() {
+  const n = SLOTS.filter(s => s && s.dirty).length;
+  const el = document.getElementById('dirtyNote');
+  el.style.display = n ? '' : 'none';
+  el.textContent = n ? `저장 안 된 항목 ${n}개` : '';
+  document.getElementById('btnSaveSheet').disabled = !n;
+}
+
+/* ---- 오른쪽 기준표 ---- */
+function renderStd() {
+  document.getElementById('stdTbl').innerHTML =
+    '<thead><tr><th>제품명</th><th>해동시간</th><th>품질기한</th></tr></thead><tbody>' +
+    PRODUCTS.map(p => `<tr class="pick" onclick="assignProduct('${esc(p.productId)}')">
+      <td>${esc(p.name)}</td><td>${esc(methodText(p))}</td><td>${esc(p.qualityLabel)}</td></tr>`).join('') +
+    '</tbody>';
+}
+function assignProduct(productId) {
+  if (selSlot < 0) {
+    // 선택된 칸이 없으면 첫 빈 칸에 넣는다
+    let i = 0; while (SLOTS[i]) i++;
+    selSlot = i;
+  }
+  openSlot(selSlot, productId);
+}
+
+/* ---- 점포 전환 (관리자) ---- */
+let sheetStoreLast = '';
+function onSheetStore() {
+  const dirty = SLOTS.filter(s => s && s.dirty).length;
+  if (dirty && !confirm(`저장 안 된 항목 ${dirty}개가 있습니다. 점포를 바꾸면 사라집니다. 계속할까요?`)) {
+    document.getElementById('eStore').value = sheetStoreLast;
+    return;
+  }
+  SLOTS = SLOTS.filter(s => s && !s.dirty);
+  sheetStoreLast = document.getElementById('eStore').value;
+  selSlot = -1;
+  rebuildSlots(); renderSheet();
+}
+
+/* ---- 보관방법 칸 직접 클릭 ---- */
+function pickStorage(ev, i, storage) {
+  ev.stopPropagation();
+  const s = SLOTS[i];
+  if (!s) { openSlot(i); return; }
+  const p = productByName(s.productName);
+  const idx = (p?.methods || []).findIndex(m => m.storage === storage);
+  if (idx < 0) { toast(`${s.productName}은(는) ${storage} 보관 기준이 없습니다.`, true); return; }
+  const c = calcTimes(p, idx, s.mfgMs);
+  Object.assign(s, { storage: c.storage, thawMs: c.thawMs, thawMaxMs: c.thawMaxMs, expireMs: c.expireMs, dirty: true });
+  selSlot = i;
+  renderSheet();
+}
+
+/* ---- 칸 입력 모달 ---- */
+function openSlot(i, presetProductId) {
+  selSlot = editSlot = i;
+  const s = SLOTS[i];
+  const p = presetProductId ? PRODUCTS.find(x => x.productId === presetProductId)
+                            : (s ? productByName(s.productName) : null);
+  document.getElementById('slotTitle').textContent =
+    `${Math.floor(i / COLS) + 1}번째 줄 ${i % COLS + 1}번 칸`;
+  document.getElementById('sProduct').value = p ? p.productId : '';
+  document.getElementById('sQty').value = s ? (s.qty || '') : '';
+  document.getElementById('sMemo').value = s ? (s.memo || '') : '';
+  document.getElementById('sMfg').value = toLocalInput(s && s.mfgMs ? new Date(s.mfgMs) : new Date());
+
+  editMethodIdx = 0;
+  if (p && s && s.storage) {
+    const k = p.methods.findIndex(m => m.storage === s.storage);
+    if (k >= 0) editMethodIdx = k;
+  }
+  onSlotProduct(true);
+
+  // 이미 저장된 칸이면 상태 처리 버튼을 함께 보여준다
+  const wrap = document.getElementById('sStatusWrap');
+  if (s && s.recordId) {
+    wrap.style.display = '';
+    wrap.innerHTML = `<div class="hint" style="margin-bottom:7px">저장된 항목입니다.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn sm" onclick="slotStatus('${s.recordId}','사용완료')">사용 완료</button>
+        <button class="btn sm danger" onclick="slotStatus('${s.recordId}','폐기')">폐기</button>
+      </div>`;
+  } else { wrap.style.display = 'none'; wrap.innerHTML = ''; }
+
+  openModal('mSlot');
+}
+function slotProduct() {
+  return PRODUCTS.find(p => p.productId === document.getElementById('sProduct').value) || null;
+}
+function onSlotProduct(keepIdx) {
+  const p = slotProduct();
+  if (!keepIdx) editMethodIdx = 0;
+  document.getElementById('sMethods').innerHTML = !p ? '' :
+    (p.methods || []).map((m, i) => {
+      const range = Number(m.max) === 0 ? '해동 불필요'
+        : (m.min === m.max ? `${m.min}시간` : `${m.min}~${m.max}시간`);
+      return `<button class="${i === editMethodIdx ? 'on' : ''}" onclick="setSlotMethod(${i})">${esc(m.storage)}<br>
+        <span style="font-weight:400;font-size:11px">${range}</span></button>`;
+    }).join('');
+  document.getElementById('sMethodWrap').style.display = p ? '' : 'none';
+  renderSlotCalc();
+}
+function setSlotMethod(i) { editMethodIdx = i; onSlotProduct(true); }
+function setSlotMfg(v) {
+  const d = new Date();
+  if (v === 'today6') d.setHours(6, 0, 0, 0);
+  else if (v === 'prev20') { d.setDate(d.getDate() - 1); d.setHours(20, 0, 0, 0); }
+  else if (v !== 'now') d.setTime(d.getTime() + Number(v) * HOUR);
+  d.setSeconds(0, 0);
+  document.getElementById('sMfg').value = toLocalInput(d);
+  renderSlotCalc();
+}
+function renderSlotCalc() {
+  const p = slotProduct();
+  const box = document.getElementById('sCalcBox');
+  const mfgVal = document.getElementById('sMfg').value;
   if (!p || !mfgVal) { box.style.display = 'none'; return; }
 
-  const mfgMs = new Date(mfgVal).getTime();
-  const idx = Number(document.getElementById('eMethod').value || 0);
-  const c = calcTimes(p, idx, mfgMs);
+  const c = calcTimes(p, editMethodIdx, new Date(mfgVal).getTime());
   const m = c.method;
-  const thawTxt = m.min === m.max ? fmtFull(c.thawMs)
-    : `${fmtFull(c.thawMs)} ~ ${fmtFull(c.thawMaxMs)}`;
+  const thawTxt = m.min === m.max ? fmtFull(c.thawMs) : `${fmtFull(c.thawMs)} ~ ${fmtFull(c.thawMaxMs)}`;
+  const line = (k, v, color) =>
+    `<div style="display:flex;justify-content:space-between;gap:12px">
+       <span style="font-size:12px;color:#7B8291">${k}</span>
+       <span style="font-weight:600;color:${color}">${v}</span></div>`;
 
-  document.getElementById('calcOut').innerHTML = `
-    <div><div class="k" style="font-size:12px;color:#7B8291">제조일자</div>
-         <div style="font-weight:600;color:var(--primary);margin-top:3px">${fmtFull(mfgMs)}</div></div>
-    <div><div class="k" style="font-size:12px;color:#7B8291">해동사용일 <span style="font-weight:300">(판매 가능 시작)</span></div>
-         <div style="font-weight:600;color:var(--primary);margin-top:3px">${thawTxt}</div></div>
-    <div><div class="k" style="font-size:12px;color:#7B8291">점포사용일 <span style="font-weight:300">(품질기한)</span></div>
-         <div style="font-weight:600;color:var(--accent);margin-top:3px">${fmtFull(c.expireMs)}</div></div>`;
-  document.getElementById('calcNote').innerHTML =
+  document.getElementById('sCalcOut').innerHTML =
+    line('해동사용일 (판매 가능 시작)', thawTxt, 'var(--primary)') +
+    line('점포사용일 (품질기한)', fmtFull(c.expireMs), 'var(--accent)');
+  document.getElementById('sCalcNote').innerHTML =
     `보관방법 <b>${esc(c.storage)}</b> · 품질기한 <b>${esc(p.qualityLabel)}</b>` +
     (Number(p.qualityHours) ? ' (해동시간 포함 총 판매 가능 시간)' : ' — 제조 당일 24시까지') +
     (p.note ? ` · ${esc(p.note)}` : '');
 
-  // 해동이 끝나기도 전에 품질기한이 닿거나, 판매 가능 시간이 2시간도 안 되는 경우 경고
+  // 해동이 끝나기 전에 품질기한이 닿거나, 판매 가능 시간이 2시간도 안 되면 경고
   // (해동 12시간 + 품질기한 '당일' 제품을 늦게 제조하면 실제로 발생한다)
   const sellable = c.expireMs - c.thawMaxMs;
-  const warn = document.getElementById('calcWarn');
+  const warn = document.getElementById('sCalcWarn');
   if (sellable <= 0) {
-    warn.style.display = 'block';
-    warn.className = 'warnbox bad';
-    warn.innerHTML = `해동이 끝나기 전에 품질기한이 지납니다. 제조일시를 앞당겨 주세요.
-      <span style="font-weight:400">(해동 완료 ${fmtFull(c.thawMaxMs)} · 품질기한 ${fmtFull(c.expireMs)})</span>`;
+    warn.style.display = 'block'; warn.className = 'warnbox bad';
+    warn.innerHTML = `해동이 끝나기 전에 품질기한이 지납니다. 제조일시를 앞당겨 주세요.`;
   } else if (sellable < 2 * HOUR) {
-    warn.style.display = 'block';
-    warn.className = 'warnbox';
-    warn.innerHTML = `판매 가능 시간이 <b>${durText(sellable).replace(' 남음', '')}</b>뿐입니다. 제조일시를 확인해 주세요.`;
+    warn.style.display = 'block'; warn.className = 'warnbox';
+    warn.innerHTML = `판매 가능 시간이 <b>${durText(sellable).replace(' 남음', '')}</b>뿐입니다.`;
   } else {
-    warn.style.display = 'none';
-    warn.className = 'warnbox';
-    warn.innerHTML = '';
+    warn.style.display = 'none'; warn.className = 'warnbox'; warn.innerHTML = '';
   }
   box.style.display = 'block';
 }
-function resetEntry() {
-  document.getElementById('eProduct').value = '';
-  document.getElementById('eQty').value = '';
-  document.getElementById('eMemo').value = '';
-  document.getElementById('eMfg').value = toLocalInput(new Date());
-  onProductChange();
-}
-async function submitRecord() {
-  const p = curProduct();
+function applySlot() {
+  const p = slotProduct();
   if (!p) { toast('제품을 선택해 주세요.', true); return; }
-  const mfgVal = document.getElementById('eMfg').value;
-  if (!mfgVal) { toast('제조일시를 입력해 주세요.', true); return; }
-
-  let storeId = '';
-  if (ME.role !== 'store') {
-    storeId = document.getElementById('eStore').value;
-    if (!storeId) { toast('점포를 선택해 주세요.', true); return; }
-  }
+  const mfgVal = document.getElementById('sMfg').value;
+  if (!mfgVal) { toast('제조일자를 입력해 주세요.', true); return; }
 
   const mfgMs = new Date(mfgVal).getTime();
-  const idx = Number(document.getElementById('eMethod').value || 0);
-  const c = calcTimes(p, idx, mfgMs);
+  const c = calcTimes(p, editMethodIdx, mfgMs);
 
+  // 경고 상황은 그냥 넘기지 않고 확인을 받는다 — 제조일자 오입력이 대부분이다
+  if (c.expireMs <= c.thawMaxMs &&
+      !confirm(`해동이 끝나기 전에 품질기한이 지납니다.\n(해동 완료 ${fmtFull(c.thawMaxMs)} · 품질기한 ${fmtFull(c.expireMs)})\n\n제조일자가 맞습니까? 이대로 넣으시겠습니까?`)) return;
+  if (c.expireMs <= Date.now() &&
+      !confirm(`품질기한이 이미 지난 상태입니다 (${fmtFull(c.expireMs)}).\n\n이대로 넣으시겠습니까?`)) return;
+
+  const old = SLOTS[editSlot] || {};
+  SLOTS[editSlot] = {
+    recordId: old.recordId,
+    productName: p.name,
+    qty: document.getElementById('sQty').value.trim(),
+    memo: document.getElementById('sMemo').value.trim(),
+    mfgMs, thawMs: c.thawMs, thawMaxMs: c.thawMaxMs, expireMs: c.expireMs,
+    storage: c.storage, status: old.status || '진행중', dirty: true
+  };
+  closeModal('mSlot');
+  renderSheet();
+}
+async function clearSlot() {
+  const s = SLOTS[editSlot];
+  if (s && s.recordId) {
+    if (!confirm('저장된 항목입니다. 기록에서 삭제하시겠습니까?')) return;
+    try { await api('deleteRecord', { recordId: s.recordId }); }
+    catch (e) { toast(e.message, true); return; }
+    RECORDS = RECORDS.filter(r => r.recordId !== s.recordId);
+    toast('삭제되었습니다.');
+  }
+  SLOTS.splice(editSlot, 1);
+  closeModal('mSlot');
+  renderSheet(); renderLive(); renderStores(); renderHistory();
+}
+async function slotStatus(recordId, status) {
+  closeModal('mSlot');
+  await setStatus(recordId, status);
+  rebuildSlots(); renderSheet();
+}
+
+/* ---- 표 전체 저장 ---- */
+async function saveSheet() {
+  const targets = SLOTS.map((s, i) => ({ s, i })).filter(x => x.s && x.s.dirty);
+  if (!targets.length) { toast('저장할 항목이 없습니다.'); return; }
+
+  const storeId = sheetStoreId();
+  if (ME.role !== 'store' && !storeId) { toast('점포를 먼저 선택해 주세요.', true); return; }
+
+  const btn = document.getElementById('btnSaveSheet');
+  btn.disabled = true;
+  let done = 0;
   try {
-    await api('saveRecord', {
-      record: {
-        storeId, productName: p.name,
-        qty: document.getElementById('eQty').value.trim(),
-        mfgMs, thawMs: c.thawMs, thawMaxMs: c.thawMaxMs, expireMs: c.expireMs,
-        storage: c.storage, status: '진행중',
-        memo: document.getElementById('eMemo').value.trim()
-      }
-    });
-    toast('등록되었습니다.');
-    resetEntry();
+    for (const { s } of targets) {
+      btn.textContent = `저장 중 ${done + 1}/${targets.length}`;
+      await api('saveRecord', {
+        record: {
+          recordId: s.recordId, storeId, productName: s.productName, qty: s.qty,
+          mfgMs: s.mfgMs, thawMs: s.thawMs, thawMaxMs: s.thawMaxMs, expireMs: s.expireMs,
+          storage: s.storage, status: s.status || '진행중', memo: s.memo
+        }
+      });
+      s.dirty = false;
+      done++;
+    }
+    toast(`${done}건 저장되었습니다.`);
+  } catch (e) {
+    toast(`${done}건 저장 후 중단되었습니다 — ${e.message}`, true);
+  } finally {
+    btn.textContent = '저장';
     await loadRecords();
-  } catch (e) { toast(e.message, true); }
+  }
 }
 
 /* =====================================================================
@@ -889,7 +1208,8 @@ async function loadRecords() {
     RECORDS = d.records || [];
     document.getElementById('histNote').textContent =
       d.truncated ? `조회 결과가 ${d.total}건으로 많아 최근 ${RECORDS.length}건만 표시합니다. 기간을 좁혀 주세요.` : '';
-    renderLive(); renderStores(); renderHistory();
+    rebuildSlots();
+    renderSheet(); renderLive(); renderStores(); renderHistory();
   } catch (e) { toast(e.message, true); }
 }
 function setRange(daysBack) {
@@ -1336,12 +1656,8 @@ async function savePw() {
    ===================================================================== */
 function printSheet() {
   const now = Date.now();
-  const list = RECORDS.filter(r => lotState(r, now).key !== 'done')
-    .sort((a, b) => Number(a.expireMs) - Number(b.expireMs));
-
-  const STORAGES = ['실온', '상온', '냉장', '냉동'];
-  const COLS = 5;
-  const blocks = Math.max(4, Math.ceil(list.length / COLS));
+  const list = SLOTS.filter(Boolean);          // 화면의 표를 그대로 출력한다
+  const blocks = Math.max(4, Math.ceil(slotCount / COLS));
   const cell = ms => ms ? `${new Date(+ms).getMonth() + 1} 월 &nbsp; ${new Date(+ms).getDate()} 일 &nbsp; ${p2(new Date(+ms).getHours())} 시` : '월&nbsp;&nbsp;&nbsp;일&nbsp;&nbsp;&nbsp;시';
 
   let body = '';
