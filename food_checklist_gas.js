@@ -695,9 +695,20 @@ function findUser(userId) {
 
 /* ===================== 시트 유틸 ===================== */
 
+/* 시트가 없으면 만들어서 돌려준다.
+   코드를 새로 올렸는데 setup 을 아직 실행하지 않았을 때, 시트 하나가 없다는
+   이유로 전체 요청이 실패하면 화면이 통째로 비어 버린다. 스스로 채우게 둔다. */
 function sheet(name) {
-  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
-  if (!sh) throw new Error(name + ' 시트가 없습니다. setup 함수를 먼저 실행해 주세요.');
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(name);
+  if (sh) return sh;
+  if (!SHEETS[name]) throw new Error('알 수 없는 시트: ' + name);
+
+  sh = ss.insertSheet(name);
+  sh.getRange(1, 1, 1, SHEETS[name].length).setValues([SHEETS[name]])
+    .setFontWeight('bold').setBackground('#2F497D').setFontColor('#FFFFFF');
+  sh.setFrozenRows(1);
+  if (name === 'Sessions') sh.hideSheet();
   return sh;
 }
 

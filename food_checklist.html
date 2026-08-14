@@ -1087,14 +1087,26 @@ function showView(id, btn) {
   window.scrollTo(0, 0);
 }
 
+let bootError = '';
 async function loadBootstrap() {
   try {
     const d = await api('bootstrap', {});
+    bootError = '';
     ME = d.user; REGIONS = d.regions || []; PRODUCTS = d.products || []; USERS = d.users || [];
     AREAS = d.areas || []; ITEMS = d.items || [];
     fillSelects();
+    // 기준 정보로 그리는 화면들도 함께 갱신한다 (다시 시도 후 화면이 남지 않도록)
+    if (ME.role !== 'store') {
+      renderUsers(); renderProducts();
+      if (ME.role === 'super') renderRegions();
+    }
     await loadRecords();
-  } catch (e) { toast(e.message, true); }
+  } catch (e) {
+    // 목록이 통째로 비어 보이는 것보다 왜 비었는지 남겨두는 편이 낫다
+    bootError = e.message;
+    toast(e.message, true);
+    renderAlert();
+  }
 }
 
 function regionName(id) {
@@ -1300,6 +1312,20 @@ const BASE_TITLE = 'FOOD 제품 생산 Check-list';
 function renderAlert() {
   const bar = document.getElementById('alertBar');
   if (!bar || !ME) return;
+
+  // 데이터를 못 받아온 상태면 그 사실부터 알린다
+  if (bootError) {
+    bar.className = 'alertbar';
+    bar.onclick = () => loadBootstrap();
+    bar.innerHTML = `<span class="mark">⚠</span>
+      <span>데이터를 불러오지 못했습니다</span>
+      <span class="go">다시 시도</span>
+      <span class="detail">${esc(bootError)}</span>`;
+    bar.style.display = 'flex';
+    return;
+  }
+  bar.onclick = gotoOver;
+
   const now = Date.now();
 
   const over = RECORDS.filter(r => lotState(r, now).key === 'over');
@@ -2335,7 +2361,9 @@ function renderProducts() {
         <tbody>${rows}</tbody>
       </table></div>
     </div>`;
-  }).join('') || '<div class="empty">등록된 대분류가 없습니다.</div>';
+  }).join('') || `<div class="empty">${bootError
+    ? '데이터를 불러오지 못했습니다. 위의 다시 시도를 눌러 주세요.'
+    : '등록된 대분류가 없습니다.'}</div>`;
 }
 
 /* ---- 소분류 편집 ---- */
