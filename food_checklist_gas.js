@@ -30,13 +30,17 @@ var RECORD_FETCH_LIMIT = 3000;   // 한 번에 내려주는 최대 이력 건수
 /* Regions 시트는 '팀'을 담는다 (사업1팀 · 사업2팀 · 사업3팀).
    areas 열에 그 팀이 담당하는 광역시도를 JSON 배열로 넣는다.
    시트 이름과 regionId 열 이름은 기존 데이터를 살리려고 그대로 둔다. */
+/* ⚠ 열 순서를 절대 중간에 바꾸지 말 것.
+   readAll 은 시트의 열 위치로 값을 읽는데, setup 은 머리글만 다시 쓰고
+   기존 데이터는 옮기지 않는다. 중간에 열을 끼우면 그 뒤 값이 전부 한 칸씩
+   밀려서 읽힌다. 새 항목은 반드시 맨 뒤에 붙인다. */
 var SHEETS = {
   Regions: ['regionId', 'regionName', 'sortOrder', 'areas'],
-  Users: ['userId', 'pwHash', 'salt', 'role', 'name', 'regionId', 'area', 'storeCode', 'phone', 'active', 'mustChangePw', 'createdAt', 'createdBy'],
+  Users: ['userId', 'pwHash', 'salt', 'role', 'name', 'regionId', 'storeCode', 'phone', 'active', 'mustChangePw', 'createdAt', 'createdBy', 'area'],
   Products: ['productId', 'name', 'methods', 'qualityHours', 'qualityLabel', 'note', 'sortOrder', 'active'],
-  Records: ['recordId', 'regionId', 'regionName', 'area', 'storeId', 'storeName', 'productName', 'qty',
+  Records: ['recordId', 'regionId', 'regionName', 'storeId', 'storeName', 'productName', 'qty',
             'mfgMs', 'mfgText', 'thawMs', 'thawText', 'thawMaxMs', 'expireMs', 'expireText',
-            'storage', 'status', 'memo', 'createdAt', 'updatedAt', 'updatedBy'],
+            'storage', 'status', 'memo', 'createdAt', 'updatedAt', 'updatedBy', 'area'],
   Sessions: ['token', 'userId', 'expireMs']
 };
 
