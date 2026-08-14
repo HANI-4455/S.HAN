@@ -305,17 +305,18 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
         <span id="installHow"></span>
       </div>
 
+      <!-- 서버 주소는 전체 관리자로 로그인한 뒤에만 바꾼다.
+           서버가 아예 연결되지 않아 로그인 자체가 불가능할 때를 위해
+           주소 끝에 ?server=1 을 붙이면 여기서도 열린다. -->
       <div class="field" id="apiField" style="display:none">
-        <label>서버 주소 (Apps Script 웹 앱 URL) — 관리자용</label>
+        <label>서버 주소 (Apps Script 웹 앱 URL)</label>
         <input id="inApi" type="url" placeholder="https://script.google.com/macros/s/.../exec">
-        <span class="hint">비워두고 저장하면 기본 서버 주소로 돌아갑니다. 점포에서는 건드릴 필요가 없습니다.</span>
+        <span class="hint">로그인이 불가능할 때 쓰는 비상용 입력란입니다. 비우고 저장하면 기본 주소로 돌아갑니다.</span>
         <div style="display:flex;gap:8px;margin-top:4px">
-          <button class="btn sm" onclick="saveApi()">서버 주소 저장</button>
+          <button class="btn sm" onclick="saveApi()">저장</button>
           <button class="btn ghost sm" onclick="resetApi()">기본값으로</button>
         </div>
       </div>
-      <button class="btn ghost sm" id="btnApiToggle" onclick="toggleApi()"
-              style="opacity:.6;font-weight:400">서버 주소 설정 (관리자)</button>
     </div>
   </div>
 </section>
@@ -327,6 +328,7 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
     <span class="who"><b id="whoName"></b> <span id="whoRole"></span></span>
     <span class="sp"></span>
     <span class="brand">파리크라상</span>
+    <button class="btn ghost sm" id="btnServer" onclick="openApi()" style="display:none">서버 주소</button>
     <button class="btn ghost sm" onclick="openPw()">비밀번호</button>
     <button class="btn ghost sm" onclick="doLogout()">로그아웃</button>
   </header>
@@ -711,6 +713,37 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
   </div>
 </div>
 
+<div class="modal-bg" id="mApi">
+  <div class="modal" style="max-width:560px">
+    <h3>서버 주소 설정</h3>
+    <div class="rule"><i></i><i></i></div>
+    <p class="hint" style="margin:0 0 14px;line-height:1.7">
+      데이터를 주고받는 Apps Script 웹 앱 주소입니다. <b>이 기기에만</b> 적용됩니다.<br>
+      평소에는 건드릴 필요가 없습니다. Apps Script 를 새로 배포해 주소가 바뀐 경우에만 사용하세요.
+    </p>
+    <div class="grid" style="gap:13px">
+      <div class="field">
+        <label>현재 적용된 주소</label>
+        <div id="apiCurrent" style="font-size:12px;word-break:break-all;background:var(--soft);
+             border:1px solid var(--line);border-radius:var(--radius);padding:10px;line-height:1.6"></div>
+      </div>
+      <div class="field">
+        <label>새 주소</label>
+        <input id="mApiInput" type="url" placeholder="https://script.google.com/macros/s/.../exec">
+        <span class="hint">비우고 저장하면 앱에 내장된 기본 주소로 돌아갑니다.</span>
+      </div>
+    </div>
+    <div class="warnbox" style="display:block;margin-top:14px">
+      주소를 바꾸면 로그아웃됩니다. 새 서버로 다시 로그인해 주세요.
+    </div>
+    <div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap">
+      <button class="btn primary" onclick="saveApiFromModal()">저장</button>
+      <button class="btn ghost" onclick="resetApiFromModal()">기본값으로</button>
+      <button class="btn ghost" onclick="closeModal('mApi')">취소</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="mPw">
   <div class="modal" style="max-width:420px">
     <h3>비밀번호 변경</h3>
@@ -847,25 +880,48 @@ function lotState(r, now) {
 /* =====================================================================
    로그인 / 로그아웃
    ===================================================================== */
-function toggleApi() {
-  const f = document.getElementById('apiField');
-  const open = f.style.display === 'none';
-  f.style.display = open ? 'flex' : 'none';
-  if (open) document.getElementById('inApi').value = (API === DEFAULT_API ? '' : API);
+/* ---- 서버 주소 (전체 관리자 전용) ---------------------------------
+   점포 직원이 잘못 건드리면 그 기기에서 접속이 끊기므로 로그인 화면에서는
+   숨긴다. 서버가 죽어 로그인 자체가 안 될 때만 ?server=1 로 열 수 있다. */
+
+function setApi(value) {
+  const next = value ? value.trim() : DEFAULT_API;
+  const changed = next !== API;
+  API = next;
+  if (next === DEFAULT_API) localStorage.removeItem('fcl_api');
+  else localStorage.setItem('fcl_api', next);
+  return changed;
 }
+
+/* 로그인 화면의 비상용 입력란 */
 function saveApi() {
-  const v = document.getElementById('inApi').value.trim();
-  if (!v) { resetApi(); return; }
-  API = v;
-  localStorage.setItem('fcl_api', API);
-  toast('이 기기의 서버 주소를 저장했습니다.');
+  setApi(document.getElementById('inApi').value);
+  toast(API === DEFAULT_API ? '기본 서버 주소로 돌아갔습니다.' : '이 기기의 서버 주소를 저장했습니다.');
 }
 function resetApi() {
-  API = DEFAULT_API;
-  localStorage.removeItem('fcl_api');
+  setApi('');
   document.getElementById('inApi').value = '';
   toast('기본 서버 주소로 돌아갔습니다.');
 }
+
+/* 앱 안의 관리자용 창 */
+function openApi() {
+  if (!ME || ME.role !== 'super') { toast('전체 관리자만 변경할 수 있습니다.', true); return; }
+  document.getElementById('apiCurrent').textContent =
+    API + (API === DEFAULT_API ? '  (앱 기본값)' : '  (이 기기에만 지정됨)');
+  document.getElementById('mApiInput').value = API === DEFAULT_API ? '' : API;
+  openModal('mApi');
+}
+async function applyApi(value) {
+  const changed = setApi(value);
+  closeModal('mApi');
+  if (!changed) { toast('서버 주소가 그대로입니다.'); return; }
+  toast('서버 주소를 바꿨습니다. 다시 로그인해 주세요.');
+  try { await api('logout', {}); } catch (e) {}
+  forceLogout();
+}
+function saveApiFromModal() { applyApi(document.getElementById('mApiInput').value); }
+function resetApiFromModal() { applyApi(''); }
 async function doLogin() {
   if (!API) { toast('서버 주소가 설정되지 않았습니다.', true); return; }
 
@@ -916,6 +972,7 @@ async function startApp() {
 
   // 팀 관리자는 제품 기준값을 읽기만 한다
   document.getElementById('btnAddRegionUser').style.display = ME.role === 'super' ? '' : 'none';
+  document.getElementById('btnServer').style.display = ME.role === 'super' ? '' : 'none';
 
   setRange(6);                 // 기본 조회 기간 — loadBootstrap 전에 정해둔다
   await loadBootstrap();
@@ -2137,6 +2194,12 @@ function showInstallTip() {
 
 (async function init() {
   showInstallTip();
+
+  // 비상용 — 서버가 죽어 로그인조차 안 될 때 ?server=1 로 주소를 고칠 수 있다
+  if (new URLSearchParams(location.search).has('server') || !API) {
+    document.getElementById('apiField').style.display = 'flex';
+    document.getElementById('inApi').value = API === DEFAULT_API ? '' : API;
+  }
 
   // 오프라인·느린 회선에서도 화면이 뜨도록 캐시해 둔다.
   // 캐시 때문에 문제가 생기면 주소 끝에 ?nosw=1 을 붙여 한 번 열면 전부 해제된다.

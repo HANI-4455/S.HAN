@@ -111,6 +111,8 @@ https://hani-4455.github.io/S.HAN/food_checklist.html?nosw=1
 
 Apps Script 를 **새 배포**로 다시 올려 서버 URL 이 바뀐 경우에만 `food_checklist.html` 의 `DEFAULT_API` 값을 고쳐 다시 올려야 합니다.
 
+급한 경우 전체 관리자로 로그인해 우측 상단 **서버 주소** 버튼으로 그 기기만 임시로 바꿀 수 있습니다. 다만 기기마다 따로 해야 하므로, 결국 `DEFAULT_API` 를 고쳐 올리는 것이 맞습니다.
+
 ---
 
 ## 7. 자주 나오는 질문
