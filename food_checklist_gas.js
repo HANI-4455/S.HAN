@@ -133,6 +133,30 @@ function setup() {
   return '설치 완료 — admin/1234 로 로그인하세요.';
 }
 
+/**
+ * 비밀번호 초기화 — 관리자가 비밀번호를 잊었을 때 쓴다.
+ *
+ * 아래 두 값을 고친 뒤 함수 목록에서 resetPassword 를 선택해 실행한다.
+ * 편집기에서 도는 것이라 웹 앱 재배포는 필요 없다.
+ * 실행하면 그 계정은 '초기비번' 상태가 되므로, 로그인 후 바로 바꾸게 한다.
+ */
+function resetPassword() {
+  var USER_ID = 'admin';     // 초기화할 아이디
+  var NEW_PW = '1234';       // 새 비밀번호
+
+  var u = findUser(USER_ID);
+  if (!u) throw new Error(USER_ID + ' 계정을 찾을 수 없습니다.');
+
+  var salt = newToken().slice(0, 12);
+  updateRow('Users', u._row, {
+    salt: salt,
+    pwHash: hash(String(NEW_PW), salt),
+    mustChangePw: 'Y',
+    active: 'Y'              // 실수로 중지된 계정도 함께 되살린다
+  });
+  return USER_ID + ' 비밀번호를 ' + NEW_PW + ' 로 초기화했습니다. 로그인 후 바로 변경하세요.';
+}
+
 /* ===================== HTTP 진입점 ===================== */
 
 function doGet(e) {
