@@ -37,10 +37,16 @@ var RECORD_FETCH_LIMIT = 3000;   // 한 번에 내려주는 최대 이력 건수
 var SHEETS = {
   Regions: ['regionId', 'regionName', 'sortOrder', 'areas'],
   Users: ['userId', 'pwHash', 'salt', 'role', 'name', 'regionId', 'storeCode', 'phone', 'active', 'mustChangePw', 'createdAt', 'createdBy', 'area'],
+  /* Products = 대분류. 해동시간과 품질기한의 기준을 갖는다. */
   Products: ['productId', 'name', 'methods', 'qualityHours', 'qualityLabel', 'note', 'sortOrder', 'active'],
+
+  /* Items = 소분류(실제 제품명). methods 와 qualityHours 가 비어 있으면
+     소속 대분류의 값을 그대로 물려받고, 값이 있으면 그 소분류만 따로 적용한다. */
+  Items: ['itemId', 'categoryId', 'name', 'methods', 'qualityHours', 'qualityLabel', 'note', 'sortOrder', 'active'],
+
   Records: ['recordId', 'regionId', 'regionName', 'storeId', 'storeName', 'productName', 'qty',
             'mfgMs', 'mfgText', 'thawMs', 'thawText', 'thawMaxMs', 'expireMs', 'expireText',
-            'storage', 'status', 'memo', 'createdAt', 'updatedAt', 'updatedBy', 'area'],
+            'storage', 'status', 'memo', 'createdAt', 'updatedAt', 'updatedBy', 'area', 'category'],
   Sessions: ['token', 'userId', 'expireMs']
 };
 
@@ -252,6 +258,21 @@ var ACTIONS = {
             sortOrder: Number(p.sortOrder) || 0
           };
         })
+        .sort(function (a, b) { return a.sortOrder - b.sortOrder; }),
+
+      items: readAll('Items')
+        .filter(function (i) { return i.active !== 'N'; })
+        .map(function (i) {
+          var mm = String(i.methods || '').length ? parseJson(i.methods, null) : null;
+          var qh = String(i.qualityHours || '').length ? Number(i.qualityHours) : null;
+          return {
+            itemId: i.itemId, categoryId: i.categoryId, name: i.name,
+            methods: mm,                 // null 이면 대분류에서 물려받는다
+            qualityHours: qh,            // null 이면 대분류에서 물려받는다
+            qualityLabel: i.qualityLabel, note: i.note,
+            sortOrder: Number(i.sortOrder) || 0
+          };
+        })
         .sort(function (a, b) { return a.sortOrder - b.sortOrder; })
     };
     if (u.role !== 'store') out.users = visibleUsers(u).map(publicUser);
@@ -357,6 +378,74 @@ var ACTIONS = {
     return { users: visibleUsers(me).map(publicUser) };
   },
 
+  /* 엑셀(CSV)로 점포 계정을 한 번에 등록한다.
+     한 줄이라도 문제가 있으면 그 줄만 건너뛰고 나머지는 넣은 뒤, 결과를 돌려준다. */
+  bulkUsers: function (req) {
+    var me = auth(req, ['super', 'region']);
+    var list = req.rows || [];
+    if (!list.length) throw new Error('등록할 내용이 없습니다.');
+    if (list.length > 500) throw new Error('한 번에 500개까지만 등록할 수 있습니다.');
+
+    var regions = readAll('Regions');
+    var existing = readAll('Users');
+    var byId = {};
+    existing.forEach(function (u) { byId[String(u.userId).trim()] = u; });
+
+    var ok = 0, updated = 0, fail = [];
+
+    list.forEach(function (r, idx) {
+      var line = idx + 2;                      // 머리글 다음 줄부터
+      try {
+        var userId = String(r.userId || '').trim();
+        var name = String(r.name || '').trim();
+        if (!userId) throw new Error('아이디가 비어 있습니다.');
+        if (!name) throw new Error('점포명이 비어 있습니다.');
+
+        // 팀은 이름 또는 ID 로 받는다
+        var teamKey = String(r.team || '').trim();
+        var team = null;
+        for (var i = 0; i < regions.length; i++) {
+          if (String(regions[i].regionName).trim() === teamKey ||
+              String(regions[i].regionId).trim() === teamKey) { team = regions[i]; break; }
+        }
+        if (me.role === 'region') team = find(regions, 'regionId', me.regionId);
+        if (!team) throw new Error('팀을 찾을 수 없습니다 — ' + teamKey);
+
+        var area = String(r.area || '').trim();
+        if (!area) throw new Error('지역이 비어 있습니다.');
+        if (AREAS.indexOf(area) < 0) throw new Error('지역 값이 올바르지 않습니다 — ' + area);
+        var teamAreas = parseJson(team.areas, []);
+        if (teamAreas.length && teamAreas.indexOf(area) < 0) {
+          throw new Error(area + '은(는) ' + team.regionName + ' 담당 지역이 아닙니다.');
+        }
+
+        var pw = String(r.pw || '').trim() || '1234';
+        var hit = byId[userId];
+
+        if (hit) {
+          if (me.role === 'region' && (hit.role !== 'store' || hit.regionId !== me.regionId)) {
+            throw new Error('수정 권한이 없는 계정입니다.');
+          }
+          updateRow('Users', hit._row, {
+            name: name, role: 'store', regionId: team.regionId, area: area,
+            storeCode: String(r.storeCode || '').trim(),
+            phone: String(r.phone || '').trim(), active: 'Y'
+          });
+          updated++;
+        } else {
+          createUserRow(userId, pw, 'store', name, team.regionId, area,
+                        String(r.storeCode || '').trim(), me.userId, String(r.phone || '').trim());
+          byId[userId] = { userId: userId };   // 같은 파일 안의 중복을 잡는다
+          ok++;
+        }
+      } catch (err) {
+        fail.push({ line: line, userId: r.userId || '', reason: String(err && err.message ? err.message : err) });
+      }
+    });
+
+    return { added: ok, updated: updated, failed: fail, users: visibleUsers(me).map(publicUser) };
+  },
+
   deleteUser: function (req) {
     var me = auth(req, ['super', 'region']);
     var hit = findUser(req.userId);
@@ -397,8 +486,58 @@ var ACTIONS = {
 
   deleteProduct: function (req) {
     auth(req, ['super']);
+    var items = readAll('Items').filter(function (i) { return i.categoryId === req.productId; });
+    if (items.length) {
+      throw new Error('이 대분류에 소분류가 ' + items.length + '개 있습니다. 먼저 정리해 주세요.');
+    }
     var hit = find(readAll('Products'), 'productId', req.productId);
     if (hit) deleteRowAt('Products', hit._row);
+    return {};
+  },
+
+  /* ---- 소분류 (전체 관리자 전용) ---- */
+
+  saveItem: function (req) {
+    auth(req, ['super']);
+    var d = req.item || {};
+    if (!d.name) throw new Error('제품명을 입력해 주세요.');
+    if (!d.categoryId) throw new Error('대분류를 선택해 주세요.');
+    if (!find(readAll('Products'), 'productId', d.categoryId)) {
+      throw new Error('대분류를 찾을 수 없습니다.');
+    }
+
+    var rows = readAll('Items');
+    var dup = rows.filter(function (x) {
+      return String(x.name).trim() === String(d.name).trim() && x.itemId !== d.itemId;
+    });
+    if (dup.length) throw new Error('같은 이름의 제품이 이미 있습니다 — ' + d.name);
+
+    // 비워 두면 대분류 값을 물려받는다
+    var patch = {
+      categoryId: d.categoryId,
+      name: String(d.name).trim(),
+      methods: (d.methods && d.methods.length) ? JSON.stringify(d.methods) : '',
+      qualityHours: (d.qualityHours === null || d.qualityHours === undefined || d.qualityHours === '')
+        ? '' : Number(d.qualityHours),
+      qualityLabel: d.qualityLabel || '',
+      note: d.note || '',
+      sortOrder: Number(d.sortOrder) || rows.length + 1,
+      active: d.active === false ? 'N' : 'Y'
+    };
+
+    var hit = find(rows, 'itemId', d.itemId);
+    if (hit) updateRow('Items', hit._row, patch);
+    else {
+      patch.itemId = 'I' + pad(rows.length + 1, 4) + Math.floor(Math.random() * 100);
+      insertRow('Items', patch);
+    }
+    return {};
+  },
+
+  deleteItem: function (req) {
+    auth(req, ['super']);
+    var hit = find(readAll('Items'), 'itemId', req.itemId);
+    if (hit) deleteRowAt('Items', hit._row);
     return {};
   },
 
@@ -429,6 +568,7 @@ var ACTIONS = {
       storeId: storeId,
       storeName: storeName,
       productName: d.productName,
+      category: d.category || '',
       qty: d.qty || '',
       mfgMs: Number(d.mfgMs),
       mfgText: fmt(d.mfgMs),

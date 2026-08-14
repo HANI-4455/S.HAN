@@ -539,6 +539,7 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
         <button class="btn primary" onclick="openUser(null,'store')">＋ 점포 계정 추가</button>
         <button class="btn accent" id="btnAddRegionUser" onclick="openUser(null,'region')" style="display:none">＋ 팀 관리자 추가</button>
+        <button class="btn" onclick="openBulk()">엑셀로 일괄 등록</button>
         <span style="flex:1"></span>
         <button class="btn ghost sm" onclick="loadBootstrap()">새로고침</button>
       </div>
@@ -563,19 +564,21 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
       <h2><span class="sec-no">05</span>제품 기준값 설정</h2>
       <div class="rule"><i></i><i></i></div>
 
+      <p class="hint" style="margin:0 0 14px">
+        <b style="color:var(--primary)">대분류</b>가 해동시간과 품질기한의 기준을 갖습니다.
+        그 아래 <b style="color:var(--primary)">소분류</b>에 실제 제품명을 넣으면 대분류 기준을 그대로 물려받고,
+        다른 제품만 따로 지정하면 됩니다. 점포는 소분류를 골라 등록합니다.
+      </p>
+
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-        <button class="btn primary" onclick="openProduct(null)">＋ 제품 추가</button>
+        <button class="btn primary" onclick="openProduct(null)">＋ 대분류 추가</button>
         <span style="flex:1"></span>
         <button class="btn ghost sm" onclick="loadBootstrap()">새로고침</button>
       </div>
 
-      <div class="panel" style="padding:0">
-        <div class="tbl-wrap"><table id="prodTbl">
-          <thead><tr><th>순서</th><th>제품명</th><th>해동시간 (보관방법)</th><th>품질기한</th><th>비고</th><th></th></tr></thead>
-          <tbody></tbody>
-        </table></div>
-      </div>
-      <p class="hint" style="margin-top:10px">
+      <div id="prodList"></div>
+
+      <p class="hint" style="margin-top:12px;line-height:1.7">
         품질기한은 판매가 가능한 총 시간이며 해동시간을 포함합니다. 0시간으로 두면 '당일'(제조 당일 24시)로 계산됩니다.<br>
         보관기준 — 실온 1~35℃, 상온 15~25℃, 냉장 0~10℃, 냉동 -18℃ 이하
       </p>
@@ -744,6 +747,83 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
   </div>
 </div>
 
+<div class="modal-bg" id="mBulk">
+  <div class="modal" style="max-width:720px">
+    <h3>점포 계정 일괄 등록</h3>
+    <div class="rule"><i></i><i></i></div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+      <button class="btn accent" onclick="downloadTemplate()">양식 내려받기 (CSV)</button>
+      <button class="btn ghost" onclick="downloadTemplate(true)">현재 점포 목록 내려받기</button>
+    </div>
+
+    <p class="hint" style="line-height:1.8;margin:0 0 14px">
+      양식을 받아 엑셀에서 채운 뒤, <b>다른 이름으로 저장 → CSV UTF-8</b> 로 저장해 아래에 올리세요.<br>
+      <b>아이디 · 점포명 · 팀 · 지역</b> 은 필수입니다. 비밀번호를 비우면 <b>1234</b> 로 만들어집니다.<br>
+      이미 있는 아이디는 <b>덮어쓰기(수정)</b> 되며 비밀번호는 그대로 둡니다.
+    </p>
+
+    <div class="field">
+      <label>CSV 파일</label>
+      <input id="bulkFile" type="file" accept=".csv,text/csv" onchange="readBulkFile(this)">
+    </div>
+
+    <div id="bulkPreview" style="margin-top:16px"></div>
+
+    <div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap">
+      <button class="btn primary" id="bulkGo" onclick="submitBulk()" disabled>등록하기</button>
+      <button class="btn ghost" onclick="closeModal('mBulk')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="mItem">
+  <div class="modal">
+    <h3 id="iTitle">소분류 추가</h3>
+    <div class="rule"><i></i><i></i></div>
+    <div class="grid" style="gap:13px">
+      <div class="field"><label>대분류</label><select id="iCategory" onchange="renderItemInherit()"></select></div>
+      <div class="field"><label>제품명 (소분류)</label>
+        <input id="iName" type="text" placeholder="예: 딸기 생크림 조각케익">
+      </div>
+
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--secondary)">해동시간 · 품질기한</label>
+        <div class="seg" style="margin-top:6px">
+          <button id="iInheritBtn" onclick="setItemOverride(false)">대분류와 같음</button>
+          <button id="iOverrideBtn" onclick="setItemOverride(true)">이 제품만 다름</button>
+        </div>
+        <div id="iInheritInfo" class="hint" style="margin-top:8px;line-height:1.7"></div>
+      </div>
+
+      <div id="iOverrideWrap" style="display:none">
+        <div class="grid" style="gap:13px">
+          <div>
+            <label style="font-size:12px;font-weight:600;color:var(--secondary)">해동 조건</label>
+            <div id="iMethods" style="margin-top:8px;display:grid;gap:8px"></div>
+            <button class="btn ghost sm" style="margin-top:8px" onclick="addItemMethodRow()">＋ 보관방법 추가</button>
+          </div>
+          <div class="field"><label>품질기한 (시간)</label>
+            <input id="iQuality" type="number" min="0" step="1" placeholder="0 = 당일">
+          </div>
+          <div class="field"><label>품질기한 표기</label>
+            <input id="iQLabel" type="text" placeholder="예: 48시간 / 2일 / 당일">
+          </div>
+        </div>
+      </div>
+
+      <div class="field"><label>비고 <span style="font-weight:300;color:#9AA0AE">(선택)</span></label>
+        <input id="iNote" type="text">
+      </div>
+      <div class="field"><label>정렬 순서</label><input id="iSort" type="number" min="1" step="1"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:20px">
+      <button class="btn primary" onclick="saveItem()">저장</button>
+      <button class="btn ghost" onclick="closeModal('mItem')">취소</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="mPw">
   <div class="modal" style="max-width:420px">
     <h3>비밀번호 변경</h3>
@@ -780,7 +860,7 @@ const DEFAULT_API = 'https://script.google.com/macros/s/AKfycbyLo6e1SgquQHTZpNKC
 let API = localStorage.getItem('fcl_api') || DEFAULT_API;
 let TOKEN = localStorage.getItem('fcl_token') || '';
 let ME = null;
-let REGIONS = [], PRODUCTS = [], USERS = [], RECORDS = [], AREAS = [];
+let REGIONS = [], PRODUCTS = [], USERS = [], RECORDS = [], AREAS = [], ITEMS = [];
 let tickTimer = null;
 
 /* =====================================================================
@@ -1011,7 +1091,7 @@ async function loadBootstrap() {
   try {
     const d = await api('bootstrap', {});
     ME = d.user; REGIONS = d.regions || []; PRODUCTS = d.products || []; USERS = d.users || [];
-    AREAS = d.areas || [];
+    AREAS = d.areas || []; ITEMS = d.items || [];
     fillSelects();
     await loadRecords();
   } catch (e) { toast(e.message, true); }
@@ -1035,14 +1115,28 @@ function areaTeam(area) {
 }
 
 function fillSelects() {
-  // 칸 입력 모달의 제품 선택
+  // 칸 입력 모달의 제품 선택 — 대분류로 묶고, 소분류가 없으면 대분류를 그대로 고른다
   document.getElementById('sProduct').innerHTML = '<option value="">선택하세요</option>' +
-    PRODUCTS.map(p => `<option value="${esc(p.productId)}">${esc(p.name)}</option>`).join('');
+    PRODUCTS.map(p => {
+      const items = itemsOf(p.productId);
+      if (!items.length) return `<option value="C:${esc(p.productId)}">${esc(p.name)}</option>`;
+      return `<optgroup label="${esc(p.name)}">` +
+        items.map(i => `<option value="I:${esc(i.itemId)}">${esc(i.name)}</option>`).join('') +
+        `<option value="C:${esc(p.productId)}">${esc(p.name)} (대분류 그대로)</option>` +
+        `</optgroup>`;
+    }).join('');
 
-  // 이력 필터 — 제품
+  // 이력 필터 — 대분류와 소분류를 모두 고를 수 있게 한다
   const hp = document.getElementById('hProduct');
   hp.innerHTML = '<option value="">전체 제품</option>' +
-    PRODUCTS.map(p => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('');
+    PRODUCTS.map(p => {
+      const items = itemsOf(p.productId);
+      const self = `<option value="C:${esc(p.name)}">${esc(p.name)} (대분류 전체)</option>`;
+      if (!items.length) return self;
+      return `<optgroup label="${esc(p.name)}">` + self +
+        items.map(i => `<option value="N:${esc(i.name)}">${esc(i.name)}</option>`).join('') +
+        `</optgroup>`;
+    }).join('');
 
   // 점포 선택 (관리자만)
   const isAdmin = ME.role !== 'store';
@@ -1123,7 +1217,7 @@ function rebuildSlots() {
     .filter(r => lotState(r, now).key !== 'done' && (!sid || r.storeId === sid))
     .sort((a, b) => Number(a.expireMs) - Number(b.expireMs))
     .map(r => ({
-      recordId: r.recordId, productName: r.productName, qty: r.qty,
+      recordId: r.recordId, productName: r.productName, category: r.category || '', qty: r.qty,
       mfgMs: +r.mfgMs, thawMs: +r.thawMs, thawMaxMs: +(r.thawMaxMs || r.thawMs),
       expireMs: +r.expireMs, storage: r.storage, memo: r.memo || '',
       status: r.status || '진행중', dirty: false
@@ -1182,7 +1276,7 @@ function renderSheet() {
     html += '<tr><th class="rh">보관방법</th>' +
       Array.from({ length: COLS }, (_, n) => {
         const i = at(n), s = SLOTS[i];
-        const allowed = s ? new Set((productByName(s.productName)?.methods || []).map(m => m.storage)) : new Set();
+        const allowed = s ? new Set((specByName(s.productName, s.category)?.methods || []).map(m => m.storage)) : new Set();
         return STORAGES.map(st => {
           const on = s && s.storage === st ? ' on' : '';
           const able = allowed.has(st) && !on ? ' able' : '';
@@ -1264,7 +1358,6 @@ function slotBadge(s, now) {
   const c = { blue: '#2F497D', orange: '#F26300', red: '#C62828', navy: '#15237A', gray: '#79808F' }[st.badge];
   return ` <span class="slot-badge" style="color:${c};border-color:${c}55">${st.label}</span>`;
 }
-function productByName(name) { return PRODUCTS.find(p => p.name === name) || null; }
 
 function updateDirtyNote() {
   const n = SLOTS.filter(s => s && s.dirty).length;
@@ -1278,17 +1371,20 @@ function updateDirtyNote() {
 function renderStd() {
   document.getElementById('stdTbl').innerHTML =
     '<thead><tr><th>제품명</th><th>해동시간</th><th>품질기한</th></tr></thead><tbody>' +
-    PRODUCTS.map(p => `<tr class="pick" onclick="assignProduct('${esc(p.productId)}')">
-      <td>${esc(p.name)}</td><td>${esc(methodText(p))}</td><td>${esc(p.qualityLabel)}</td></tr>`).join('') +
-    '</tbody>';
+    PRODUCTS.map(p => {
+      const n = itemsOf(p.productId).length;
+      return `<tr class="pick" onclick="assignProduct('C:${esc(p.productId)}')">
+        <td>${esc(p.name)}${n ? ` <span style="font-weight:400;color:#9AA0AE">${n}종</span>` : ''}</td>
+        <td>${esc(methodText(p))}</td><td>${esc(p.qualityLabel)}</td></tr>`;
+    }).join('') + '</tbody>';
 }
-function assignProduct(productId) {
+/* 기준표에서 대분류를 누르면 선택한 칸을 열고 그 대분류를 미리 고른다 */
+function assignProduct(selectValue) {
   if (selSlot < 0) {
-    // 선택된 칸이 없으면 첫 빈 칸에 넣는다
-    let i = 0; while (SLOTS[i]) i++;
+    let i = 0; while (SLOTS[i]) i++;   // 선택된 칸이 없으면 첫 빈 칸
     selSlot = i;
   }
-  openSlot(selSlot, productId);
+  openSlot(selSlot, selectValue);
 }
 
 /* ---- 점포 전환 (관리자) ---- */
@@ -1310,7 +1406,7 @@ function pickStorage(ev, i, storage) {
   ev.stopPropagation();
   const s = SLOTS[i];
   if (!s) { openSlot(i); return; }
-  const p = productByName(s.productName);
+  const p = specByName(s.productName, s.category);
   const idx = (p?.methods || []).findIndex(m => m.storage === storage);
   if (idx < 0) { toast(`${s.productName}은(는) ${storage} 보관 기준이 없습니다.`, true); return; }
   const c = calcTimes(p, idx, s.mfgMs);
@@ -1320,19 +1416,19 @@ function pickStorage(ev, i, storage) {
 }
 
 /* ---- 칸 입력 모달 ---- */
-function openSlot(i, presetProductId) {
+function openSlot(i, presetSelectValue) {
   selSlot = editSlot = i;
   const s = SLOTS[i];
-  const p = presetProductId ? PRODUCTS.find(x => x.productId === presetProductId)
-                            : (s ? productByName(s.productName) : null);
   document.getElementById('slotTitle').textContent =
     `${Math.floor(i / COLS) + 1}번째 줄 ${i % COLS + 1}번 칸`;
-  document.getElementById('sProduct').value = p ? p.productId : '';
+  document.getElementById('sProduct').value =
+    presetSelectValue || (s ? selectValueFor(s.productName) : '');
   document.getElementById('sQty').value = s ? (s.qty || '') : '';
   document.getElementById('sMemo').value = s ? (s.memo || '') : '';
   document.getElementById('sMfg').value = toLocalInput(s && s.mfgMs ? new Date(s.mfgMs) : new Date());
 
   editMethodIdx = 0;
+  const p = slotProduct();
   if (p && s && s.storage) {
     const k = p.methods.findIndex(m => m.storage === s.storage);
     if (k >= 0) editMethodIdx = k;
@@ -1352,8 +1448,32 @@ function openSlot(i, presetProductId) {
 
   openModal('mSlot');
 }
+/* 선택값은 'C:대분류ID' 또는 'I:소분류ID' 형태다 */
 function slotProduct() {
-  return PRODUCTS.find(p => p.productId === document.getElementById('sProduct').value) || null;
+  const v = document.getElementById('sProduct').value;
+  if (!v) return null;
+  if (v.slice(0, 2) === 'I:') {
+    const it = ITEMS.find(x => x.itemId === v.slice(2));
+    return it ? effectiveSpec(it) : null;
+  }
+  const c = PRODUCTS.find(p => p.productId === v.slice(2));
+  return c ? effectiveSpec(null, c) : null;
+}
+/* 표에 저장된 제품명으로 기준값을 되찾는다 */
+function specByName(name, categoryName) {
+  const it = ITEMS.find(x => x.name === name);
+  if (it) return effectiveSpec(it);
+  const c = PRODUCTS.find(p => p.name === name);
+  if (c) return effectiveSpec(null, c);
+  const c2 = categoryName ? PRODUCTS.find(p => p.name === categoryName) : null;
+  return c2 ? effectiveSpec(null, c2) : null;
+}
+/* 제품명 → 선택값 */
+function selectValueFor(name) {
+  const it = ITEMS.find(x => x.name === name);
+  if (it) return 'I:' + it.itemId;
+  const c = PRODUCTS.find(p => p.name === name);
+  return c ? 'C:' + c.productId : '';
 }
 function onSlotProduct(keepIdx) {
   const p = slotProduct();
@@ -1434,6 +1554,7 @@ function applySlot() {
   SLOTS[editSlot] = {
     recordId: old.recordId,
     productName: p.name,
+    category: p.categoryName || '',
     qty: document.getElementById('sQty').value.trim(),
     memo: document.getElementById('sMemo').value.trim(),
     mfgMs, thawMs: c.thawMs, thawMaxMs: c.thawMaxMs, expireMs: c.expireMs,
@@ -1477,7 +1598,7 @@ async function saveSheet() {
       btn.textContent = `저장 중 ${done + 1}/${targets.length}`;
       await api('saveRecord', {
         record: {
-          recordId: s.recordId, storeId, productName: s.productName, qty: s.qty,
+          recordId: s.recordId, storeId, productName: s.productName, category: s.category || '', qty: s.qty,
           mfgMs: s.mfgMs, thawMs: s.thawMs, thawMaxMs: s.thawMaxMs, expireMs: s.expireMs,
           storage: s.storage, status: s.status || '진행중', memo: s.memo
         }
@@ -1780,9 +1901,18 @@ function filteredHistory() {
   const s = ME.role !== 'store' ? document.getElementById('hStore').value : '';
   const p = document.getElementById('hProduct').value;
   const { fromMs, toMs } = historyRange();
+  // p 는 'C:대분류명'(그 대분류 전체) 또는 'N:제품명'(소분류 하나)
+  const matchProduct = r => {
+    if (!p) return true;
+    if (p.slice(0, 2) === 'C:') {
+      const name = p.slice(2);
+      return (r.category || r.productName) === name;
+    }
+    return r.productName === p.slice(2);
+  };
   return RECORDS.filter(r => {
     const m = Number(r.mfgMs) || 0;
-    return m >= fromMs && m <= toMs && (!s || r.storeId === s) && (!p || r.productName === p);
+    return m >= fromMs && m <= toMs && (!s || r.storeId === s) && matchProduct(r);
   });
 }
 function renderHistory() {
@@ -1795,10 +1925,11 @@ function renderHistory() {
   document.getElementById('hRate').textContent =
     list.length ? (waste / list.length * 100).toFixed(1) + '%' : '0%';
 
-  // 제품별 순위
+  // 제품별 순위 — 소분류가 있으면 '대분류 › 제품명' 으로 보여준다
   const map = {};
   list.forEach(r => {
-    const k = r.productName;
+    const k = (r.category && r.category !== r.productName)
+      ? `${r.category} › ${r.productName}` : r.productName;
     map[k] = map[k] || { n: 0, done: 0, waste: 0 };
     map[k].n++;
     if (r.status === '사용완료') map[k].done++;
@@ -1849,9 +1980,10 @@ async function delRecord(recordId) {
 function exportCsv() {
   const list = filteredHistory();
   if (!list.length) { toast('내려받을 데이터가 없습니다.', true); return; }
-  const head = ['제조일자', '팀', '지역', '점포명', '제품명', '수량', '보관방법', '해동사용일', '점포사용일', '상태', '메모', '등록시각'];
+  const head = ['제조일자', '팀', '지역', '점포명', '대분류', '제품명', '수량', '보관방법', '해동사용일', '점포사용일', '상태', '메모', '등록시각'];
   const rows = list.map(r => [
-    fmtFull(r.mfgMs), r.regionName || '', r.area || '', r.storeName, r.productName, r.qty || '',
+    fmtFull(r.mfgMs), r.regionName || '', r.area || '', r.storeName,
+    r.category || r.productName, r.productName, r.qty || '',
     r.storage || '', fmtFull(r.thawMs), fmtFull(r.expireMs), r.status || '', r.memo || '', r.createdAt || ''
   ]);
   downloadCsv([head, ...rows], '사용이력');
@@ -1943,6 +2075,176 @@ async function saveUser() {
     toast('저장되었습니다.');
   } catch (e) { toast(e.message, true); }
 }
+/* =====================================================================
+   점포 계정 엑셀(CSV) 일괄 등록
+   ===================================================================== */
+const BULK_HEAD = ['아이디', '점포명', '팀', '지역', '점포코드', '연락처', '비밀번호'];
+let bulkRows = [];
+
+function openBulk() {
+  bulkRows = [];
+  document.getElementById('bulkFile').value = '';
+  document.getElementById('bulkPreview').innerHTML = '';
+  document.getElementById('bulkGo').disabled = true;
+  openModal('mBulk');
+}
+
+/* 양식 — 우리 팀이 담당하는 지역을 예시로 채워 넣는다 */
+function downloadTemplate(withCurrent) {
+  const teams = ME.role === 'region' ? REGIONS.filter(t => t.regionId === ME.regionId) : REGIONS;
+  const rows = [BULK_HEAD];
+
+  if (withCurrent) {
+    storeUsers().forEach(u => rows.push([
+      u.userId, u.name, regionName(u.regionId), u.area || '', u.storeCode || '', u.phone || '', ''
+    ]));
+    if (rows.length === 1) { toast('등록된 점포가 없습니다.', true); return; }
+  } else {
+    const t = teams[0] || { regionName: '사업1팀', areas: [] };
+    const a = (t.areas && t.areas.length) ? t.areas[0] : (AREAS[0] || '서울');
+    rows.push(['store001', '강남점', t.regionName, a, 'A100', '02-000-0000', '']);
+    rows.push(['store002', '분당점', t.regionName, a, 'A101', '', '']);
+  }
+
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const a2 = document.createElement('a');
+  a2.href = URL.createObjectURL(blob);
+  a2.download = withCurrent ? '점포목록.csv' : '점포등록양식.csv';
+  a2.click();
+  URL.revokeObjectURL(a2.href);
+}
+
+/* 따옴표 안의 쉼표와 줄바꿈까지 처리하는 CSV 파서 */
+function parseCsv(text) {
+  const rows = [];
+  let row = [], cell = '', quoted = false;
+  text = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quoted) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { cell += '"'; i++; }
+        else quoted = false;
+      } else cell += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === ',') { row.push(cell); cell = ''; }
+    else if (ch === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += ch;
+  }
+  if (cell.length || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(c => String(c).trim().length));
+}
+
+function readBulkFile(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try { showBulkPreview(parseCsv(String(reader.result))); }
+    catch (e) { toast('파일을 읽지 못했습니다 — ' + e.message, true); }
+  };
+  reader.onerror = () => toast('파일을 읽지 못했습니다.', true);
+  reader.readAsText(f, 'utf-8');
+}
+
+function showBulkPreview(table) {
+  const box = document.getElementById('bulkPreview');
+  if (table.length < 2) {
+    box.innerHTML = '<div class="warnbox bad" style="display:block">내용이 없습니다. 머리글 아래에 점포를 채워 주세요.</div>';
+    document.getElementById('bulkGo').disabled = true;
+    return;
+  }
+  // 머리글 위치를 이름으로 찾는다 (열 순서가 바뀌어도 되도록)
+  const head = table[0].map(h => String(h).trim());
+  const idx = k => head.indexOf(k);
+  const need = ['아이디', '점포명', '팀', '지역'];
+  const missing = need.filter(k => idx(k) < 0);
+  if (missing.length) {
+    box.innerHTML = `<div class="warnbox bad" style="display:block">
+      머리글에 ${esc(missing.join(', '))} 열이 없습니다. 양식을 내려받아 사용해 주세요.</div>`;
+    document.getElementById('bulkGo').disabled = true;
+    return;
+  }
+
+  const at = (r, k) => (idx(k) >= 0 ? String(r[idx(k)] || '').trim() : '');
+  bulkRows = table.slice(1).map(r => ({
+    userId: at(r, '아이디'), name: at(r, '점포명'), team: at(r, '팀'), area: at(r, '지역'),
+    storeCode: at(r, '점포코드'), phone: at(r, '연락처'), pw: at(r, '비밀번호')
+  }));
+
+  // 서버에 보내기 전에 화면에서 먼저 확인시켜 준다
+  const teamNames = REGIONS.map(t => t.regionName);
+  const existing = new Set(storeUsers().map(u => u.userId));
+  const seen = new Set();
+  const checked = bulkRows.map((r, i) => {
+    const msg = [];
+    if (!r.userId) msg.push('아이디 없음');
+    else if (seen.has(r.userId)) msg.push('파일 안에서 아이디 중복');
+    if (r.userId) seen.add(r.userId);
+    if (!r.name) msg.push('점포명 없음');
+    if (!teamNames.includes(r.team)) msg.push('팀 없음');
+    else {
+      const t = REGIONS.find(x => x.regionName === r.team);
+      if (t && t.areas.length && !t.areas.includes(r.area)) msg.push(`${r.team} 담당 지역 아님`);
+    }
+    if (!AREAS.includes(r.area)) msg.push('지역 값 오류');
+    return { r, i, msg, exists: existing.has(r.userId) };
+  });
+
+  const bad = checked.filter(c => c.msg.length).length;
+  const upd = checked.filter(c => !c.msg.length && c.exists).length;
+  const add = checked.length - bad - upd;
+
+  box.innerHTML = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <span class="badge blue">신규 ${add}</span>
+      <span class="badge navy">덮어쓰기 ${upd}</span>
+      ${bad ? `<span class="badge red">확인 필요 ${bad}</span>` : ''}
+    </div>
+    ${bad ? '<div class="warnbox" style="display:block;margin-bottom:10px">확인 필요 줄은 건너뛰고 나머지만 등록됩니다.</div>' : ''}
+    <div class="tbl-wrap" style="max-height:260px;overflow-y:auto"><table>
+      <thead><tr><th>줄</th><th>아이디</th><th>점포명</th><th>팀</th><th>지역</th><th>처리</th></tr></thead>
+      <tbody>${checked.map(c => `<tr>
+        <td>${c.i + 2}</td><td>${esc(c.r.userId)}</td><td>${esc(c.r.name)}</td>
+        <td>${esc(c.r.team)}</td><td>${esc(c.r.area)}</td>
+        <td>${c.msg.length
+          ? `<span style="color:var(--danger);font-weight:600">${esc(c.msg.join(', '))}</span>`
+          : (c.exists ? '<span class="badge navy">덮어쓰기</span>' : '<span class="badge blue">신규</span>')}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  document.getElementById('bulkGo').disabled = (add + upd) === 0;
+}
+
+async function submitBulk() {
+  if (!bulkRows.length) return;
+  const btn = document.getElementById('bulkGo');
+  btn.disabled = true; btn.textContent = '등록 중…';
+  try {
+    const d = await api('bulkUsers', { rows: bulkRows });
+    USERS = d.users || USERS;
+    fillSelects(); renderUsers(); renderStores(); renderDash();
+    let msg = `신규 ${d.added}개, 수정 ${d.updated}개 처리했습니다.`;
+    if (d.failed && d.failed.length) {
+      msg += ` (건너뜀 ${d.failed.length}개)`;
+      document.getElementById('bulkPreview').innerHTML =
+        `<div class="warnbox bad" style="display:block">건너뛴 줄</div>
+         <div class="tbl-wrap" style="max-height:220px;overflow-y:auto;margin-top:8px"><table>
+           <thead><tr><th>줄</th><th>아이디</th><th>사유</th></tr></thead>
+           <tbody>${d.failed.map(f => `<tr><td>${f.line}</td><td>${esc(f.userId)}</td>
+             <td style="color:var(--danger)">${esc(f.reason)}</td></tr>`).join('')}</tbody>
+         </table></div>`;
+    } else {
+      closeModal('mBulk');
+    }
+    toast(msg);
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = '등록하기';
+  }
+}
+
 async function delUser(userId) {
   if (!confirm(`'${userId}' 계정을 삭제하시겠습니까?\n등록된 사용 이력은 그대로 남습니다.`)) return;
   try {
@@ -1962,19 +2264,161 @@ function methodText(p) {
     return `${m.storage} ${m.min === m.max ? m.min : m.min + '~' + m.max}시간`;
   }).join(' / ');
 }
+
+/* ---- 대분류 · 소분류 ------------------------------------------------
+   소분류의 methods / qualityHours 가 null 이면 대분류 값을 그대로 쓴다. */
+function categoryOf(itemOrId) {
+  const id = typeof itemOrId === 'string' ? itemOrId : (itemOrId && itemOrId.categoryId);
+  return PRODUCTS.find(p => p.productId === id) || null;
+}
+function itemsOf(categoryId) {
+  return ITEMS.filter(i => i.categoryId === categoryId)
+              .sort((a, b) => a.sortOrder - b.sortOrder);
+}
+/* 실제 계산에 쓰는 기준값 — 소분류가 재정의했으면 그것, 아니면 대분류 값 */
+function effectiveSpec(item, category) {
+  const c = category || categoryOf(item) || {};
+  if (!item) return { name: c.name, methods: c.methods || [], qualityHours: c.qualityHours || 0,
+                      qualityLabel: c.qualityLabel || '', note: c.note || '',
+                      categoryName: c.name, inherited: false };
+  const own = item.methods && item.methods.length;
+  const ownQ = item.qualityHours !== null && item.qualityHours !== undefined;
+  return {
+    name: item.name,
+    methods: own ? item.methods : (c.methods || []),
+    qualityHours: ownQ ? item.qualityHours : (c.qualityHours || 0),
+    qualityLabel: (ownQ && item.qualityLabel) ? item.qualityLabel : (c.qualityLabel || ''),
+    note: item.note || c.note || '',
+    categoryName: c.name || '',
+    inherited: !own && !ownQ
+  };
+}
+
 function renderProducts() {
   const canEdit = ME.role === 'super';
-  document.querySelector('#v-products button.primary').style.display = canEdit ? '' : 'none';
-  document.querySelector('#prodTbl tbody').innerHTML = PRODUCTS.map(p => `<tr>
-    <td>${p.sortOrder}</td>
-    <td><b>${esc(p.name)}</b></td>
-    <td>${esc(methodText(p))}</td>
-    <td>${esc(p.qualityLabel)}${Number(p.qualityHours) ? ` <span style="color:#9AA0AE">(${p.qualityHours}h)</span>` : ''}</td>
-    <td style="color:#7B8291">${esc(p.note || '')}</td>
-    <td style="white-space:nowrap">${canEdit ? `
-      <button class="btn sm ghost" onclick='openProduct(${JSON.stringify(p.productId)})'>수정</button>
-      <button class="btn sm ghost" onclick='delProduct(${JSON.stringify(p.productId)})'>삭제</button>` : ''}</td>
-  </tr>`).join('') || '<tr><td colspan="6" class="empty">등록된 제품이 없습니다.</td></tr>';
+  const addBtn = document.querySelector('#v-products button.primary');
+  if (addBtn) addBtn.style.display = canEdit ? '' : 'none';
+
+  document.getElementById('prodList').innerHTML = PRODUCTS.map(p => {
+    const items = itemsOf(p.productId);
+    const rows = items.length ? items.map(it => {
+      const s = effectiveSpec(it, p);
+      return `<tr>
+        <td>${it.sortOrder}</td>
+        <td><b>${esc(it.name)}</b></td>
+        <td>${esc(methodText(s))}${s.inherited ? '' : ' <span class="badge orange">개별</span>'}</td>
+        <td>${esc(s.qualityLabel)}${Number(s.qualityHours) ? ` <span style="color:#9AA0AE">(${s.qualityHours}h)</span>` : ''}</td>
+        <td style="color:#7B8291">${esc(it.note || '')}</td>
+        <td style="white-space:nowrap">${canEdit ? `
+          <button class="btn sm ghost" onclick='openItem(${JSON.stringify(it.itemId)})'>수정</button>
+          <button class="btn sm ghost" onclick='delItem(${JSON.stringify(it.itemId)})'>삭제</button>` : ''}</td>
+      </tr>`;
+    }).join('')
+      : `<tr><td colspan="6" class="empty" style="padding:22px">
+           소분류가 없습니다. 이 경우 점포는 대분류 <b>${esc(p.name)}</b> 를 그대로 골라 등록합니다.
+         </td></tr>`;
+
+    return `<div class="panel">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span class="badge navy">대분류</span>
+        <b style="font-size:16px;color:var(--primary)">${esc(p.name)}</b>
+        <span class="hint">${esc(methodText(p))} · 품질기한 ${esc(p.qualityLabel)}</span>
+        <span style="flex:1"></span>
+        ${canEdit ? `
+          <button class="btn sm accent" onclick='openItem(null,${JSON.stringify(p.productId)})'>＋ 소분류 추가</button>
+          <button class="btn sm ghost" onclick='openProduct(${JSON.stringify(p.productId)})'>대분류 수정</button>
+          <button class="btn sm ghost" onclick='delProduct(${JSON.stringify(p.productId)})'>삭제</button>` : ''}
+      </div>
+      <div class="tbl-wrap" style="margin-top:12px"><table>
+        <thead><tr><th style="width:56px">순서</th><th>제품명 (소분류)</th><th>해동시간 (보관방법)</th>
+          <th>품질기한</th><th>비고</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>`;
+  }).join('') || '<div class="empty">등록된 대분류가 없습니다.</div>';
+}
+
+/* ---- 소분류 편집 ---- */
+let editingItemId = null, itemOverride = false;
+
+function openItem(itemId, presetCategoryId) {
+  const it = itemId ? ITEMS.find(x => x.itemId === itemId) : null;
+  editingItemId = itemId || null;
+  document.getElementById('iTitle').textContent = it ? '소분류 수정' : '소분류 추가';
+  document.getElementById('iCategory').innerHTML =
+    PRODUCTS.map(p => `<option value="${esc(p.productId)}">${esc(p.name)}</option>`).join('');
+  document.getElementById('iCategory').value = it ? it.categoryId : (presetCategoryId || (PRODUCTS[0] || {}).productId);
+  document.getElementById('iName').value = it ? it.name : '';
+  document.getElementById('iNote').value = it ? (it.note || '') : '';
+  document.getElementById('iSort').value = it ? it.sortOrder : itemsOf(document.getElementById('iCategory').value).length + 1;
+
+  const hasOwn = !!(it && ((it.methods && it.methods.length) || it.qualityHours !== null));
+  const c = categoryOf(document.getElementById('iCategory').value) || { methods: [], qualityHours: 0 };
+  const base = hasOwn ? it : c;
+  document.getElementById('iQuality').value = hasOwn && it.qualityHours !== null ? it.qualityHours : (c.qualityHours || 0);
+  document.getElementById('iQLabel').value = hasOwn && it.qualityLabel ? it.qualityLabel : (c.qualityLabel || '');
+  document.getElementById('iMethods').innerHTML =
+    ((base.methods && base.methods.length) ? base.methods : [null]).map(methodRowHtml).join('');
+
+  setItemOverride(hasOwn);
+  openModal('mItem');
+}
+function setItemOverride(on) {
+  itemOverride = on;
+  document.getElementById('iInheritBtn').className = on ? '' : 'on';
+  document.getElementById('iOverrideBtn').className = on ? 'on' : '';
+  document.getElementById('iOverrideWrap').style.display = on ? '' : 'none';
+  renderItemInherit();
+}
+function renderItemInherit() {
+  const c = categoryOf(document.getElementById('iCategory').value);
+  document.getElementById('iInheritInfo').innerHTML = !c ? '' : itemOverride
+    ? `대분류 <b>${esc(c.name)}</b> 기준을 쓰지 않고 이 제품만 아래 값으로 계산합니다.`
+    : `대분류 <b>${esc(c.name)}</b> 기준을 그대로 씁니다 —
+       ${esc(methodText(c))} · 품질기한 <b>${esc(c.qualityLabel)}</b>`;
+}
+function addItemMethodRow() {
+  document.getElementById('iMethods').insertAdjacentHTML('beforeend', methodRowHtml());
+}
+async function saveItem() {
+  const qh = Number(document.getElementById('iQuality').value) || 0;
+  const item = {
+    itemId: editingItemId,
+    categoryId: document.getElementById('iCategory').value,
+    name: document.getElementById('iName').value.trim(),
+    note: document.getElementById('iNote').value.trim(),
+    sortOrder: Number(document.getElementById('iSort').value) || 1
+  };
+  if (itemOverride) {
+    item.methods = [...document.querySelectorAll('#iMethods > div')].map(d => ({
+      storage: d.querySelector('.mStorage').value,
+      min: Number(d.querySelector('.mMin').value) || 0,
+      max: Number(d.querySelector('.mMax').value) || 0
+    }));
+    item.qualityHours = qh;
+    item.qualityLabel = document.getElementById('iQLabel').value.trim() || (qh ? qh + '시간' : '당일');
+  } else {
+    item.methods = [];        // 비우면 대분류에서 물려받는다
+    item.qualityHours = '';
+    item.qualityLabel = '';
+  }
+  try {
+    await api('saveItem', { item });
+    closeModal('mItem');
+    toast('저장되었습니다.');
+    await loadBootstrap();
+    renderProducts();
+  } catch (e) { toast(e.message, true); }
+}
+async function delItem(itemId) {
+  const it = ITEMS.find(x => x.itemId === itemId);
+  if (!confirm(`'${it ? it.name : itemId}' 를 삭제하시겠습니까?\n이미 등록된 이력은 그대로 남습니다.`)) return;
+  try {
+    await api('deleteItem', { itemId });
+    toast('삭제되었습니다.');
+    await loadBootstrap();
+    renderProducts();
+  } catch (e) { toast(e.message, true); }
 }
 let editingProductId = null;
 function methodRowHtml(m) {
