@@ -13,9 +13,12 @@
  *
  * 기본 계정 (setup 실행 시 생성 · 최초 로그인 후 비밀번호 변경 필요)
  *    admin / 1234   전체 관리자
- *    area1 / 1234   지역 관리자 1
- *    area2 / 1234   지역 관리자 2
- *    area3 / 1234   지역 관리자 3
+ *    area1 / 1234   사업1팀 관리자
+ *    area2 / 1234   사업2팀 관리자
+ *    area3 / 1234   사업3팀 관리자
+ *
+ * 이미 쓰던 시트에 이 코드를 덮어쓴 경우에도 setup 을 다시 실행하면 된다.
+ * 열이 늘어난 만큼 머리글이 채워지고, 기존 데이터는 그대로 남는다.
  */
 
 var TZ = 'Asia/Seoul';
@@ -24,15 +27,22 @@ var RECORD_FETCH_LIMIT = 3000;   // 한 번에 내려주는 최대 이력 건수
 
 /* ===================== 시트 정의 ===================== */
 
+/* Regions 시트는 '팀'을 담는다 (사업1팀 · 사업2팀 · 사업3팀).
+   areas 열에 그 팀이 담당하는 광역시도를 JSON 배열로 넣는다.
+   시트 이름과 regionId 열 이름은 기존 데이터를 살리려고 그대로 둔다. */
 var SHEETS = {
-  Regions: ['regionId', 'regionName', 'sortOrder'],
-  Users: ['userId', 'pwHash', 'salt', 'role', 'name', 'regionId', 'storeCode', 'phone', 'active', 'mustChangePw', 'createdAt', 'createdBy'],
+  Regions: ['regionId', 'regionName', 'sortOrder', 'areas'],
+  Users: ['userId', 'pwHash', 'salt', 'role', 'name', 'regionId', 'area', 'storeCode', 'phone', 'active', 'mustChangePw', 'createdAt', 'createdBy'],
   Products: ['productId', 'name', 'methods', 'qualityHours', 'qualityLabel', 'note', 'sortOrder', 'active'],
-  Records: ['recordId', 'regionId', 'regionName', 'storeId', 'storeName', 'productName', 'qty',
+  Records: ['recordId', 'regionId', 'regionName', 'area', 'storeId', 'storeName', 'productName', 'qty',
             'mfgMs', 'mfgText', 'thawMs', 'thawText', 'thawMaxMs', 'expireMs', 'expireText',
             'storage', 'status', 'memo', 'createdAt', 'updatedAt', 'updatedBy'],
   Sessions: ['token', 'userId', 'expireMs']
 };
+
+/* 전국 광역자치단체 17곳 — 점포 소재 지역 */
+var AREAS = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종',
+             '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'];
 
 /* 기본 제품 기준값 — 첨부된 체크리스트 양식 그대로 */
 var SEED_PRODUCTS = [
@@ -55,10 +65,13 @@ var SEED_PRODUCTS = [
 ];
 
 var SEED_REGIONS = [
-  { regionId: 'R1', regionName: '지역 1', sortOrder: 1 },
-  { regionId: 'R2', regionName: '지역 2', sortOrder: 2 },
-  { regionId: 'R3', regionName: '지역 3', sortOrder: 3 }
+  { regionId: 'R1', regionName: '사업1팀', sortOrder: 1, areas: '[]' },
+  { regionId: 'R2', regionName: '사업2팀', sortOrder: 2, areas: '[]' },
+  { regionId: 'R3', regionName: '사업3팀', sortOrder: 3, areas: '[]' }
 ];
+
+/* 처음 만들 때 넣었던 임시 팀명 — 아직 그대로면 사업N팀으로 바꿔 준다 */
+var OLD_DEFAULT_TEAM_NAMES = ['지역 1', '지역 2', '지역 3'];
 
 /* ===================== 최초 설치 ===================== */
 
@@ -74,8 +87,18 @@ function setup() {
     sh.setFrozenRows(1);
   });
 
-  if (readAll('Regions').length === 0) {
+  var regions = readAll('Regions');
+  if (regions.length === 0) {
     SEED_REGIONS.forEach(function (r) { insertRow('Regions', r); });
+  } else {
+    // 이미 쓰던 시트라면 — 임시 팀명만 바꾸고, areas 가 비어 있으면 빈 배열로 채운다
+    regions.forEach(function (r) {
+      var patch = {};
+      var i = OLD_DEFAULT_TEAM_NAMES.indexOf(String(r.regionName).trim());
+      if (i >= 0) patch.regionName = '사업' + (i + 1) + '팀';
+      if (!String(r.areas || '').length) patch.areas = '[]';
+      if (Object.keys(patch).length) updateRow('Regions', r._row, patch);
+    });
   }
 
   if (readAll('Products').length === 0) {
@@ -94,10 +117,10 @@ function setup() {
   }
 
   if (readAll('Users').length === 0) {
-    createUserRow('admin', '1234', 'super',  '전체 관리자',   '',   '', 'system');
-    createUserRow('area1', '1234', 'region', '지역1 관리자',  'R1', '', 'system');
-    createUserRow('area2', '1234', 'region', '지역2 관리자',  'R2', '', 'system');
-    createUserRow('area3', '1234', 'region', '지역3 관리자',  'R3', '', 'system');
+    createUserRow('admin', '1234', 'super',  '전체 관리자',    '',   '', '', 'system');
+    createUserRow('area1', '1234', 'region', '사업1팀 관리자', 'R1', '', '', 'system');
+    createUserRow('area2', '1234', 'region', '사업2팀 관리자', 'R2', '', '', 'system');
+    createUserRow('area3', '1234', 'region', '사업3팀 관리자', 'R3', '', '', 'system');
   }
 
   var sh = ss.getSheetByName('Sessions');
@@ -182,7 +205,14 @@ var ACTIONS = {
     var u = auth(req);
     var out = {
       user: publicUser(u),
-      regions: readAll('Regions').map(strip).sort(function (a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); }),
+      areas: AREAS,
+      regions: readAll('Regions').map(function (r) {
+        return {
+          regionId: r.regionId, regionName: r.regionName,
+          sortOrder: Number(r.sortOrder) || 0,
+          areas: parseJson(r.areas, [])
+        };
+      }).sort(function (a, b) { return a.sortOrder - b.sortOrder; }),
       products: readAll('Products')
         .filter(function (p) { return p.active !== 'N'; })
         .map(function (p) {
@@ -203,30 +233,49 @@ var ACTIONS = {
   /* ---- 지역 (전체 관리자 전용) ---- */
 
   saveRegion: function (req) {
-    var u = auth(req, ['super']);
+    auth(req, ['super']);
     var r = req.region || {};
-    if (!r.regionName) throw new Error('지역명을 입력해 주세요.');
+    if (!r.regionName) throw new Error('팀 이름을 입력해 주세요.');
+
+    // 담당 지역은 광역시도 목록 안에서만 고를 수 있다
+    var areas = (r.areas || []).filter(function (a) { return AREAS.indexOf(a) >= 0; });
+
+    // 한 지역을 두 팀이 함께 담당하면 집계가 겹치므로 막는다
     var rows = readAll('Regions');
+    var dup = [];
+    rows.forEach(function (x) {
+      if (String(x.regionId) === String(r.regionId)) return;
+      parseJson(x.areas, []).forEach(function (a) {
+        if (areas.indexOf(a) >= 0) dup.push(a + '(' + x.regionName + ')');
+      });
+    });
+    if (dup.length) throw new Error('이미 다른 팀이 담당하는 지역입니다 — ' + dup.join(', '));
+
     var hit = find(rows, 'regionId', r.regionId);
     if (hit) {
-      updateRow('Regions', hit._row, { regionName: r.regionName, sortOrder: r.sortOrder || hit.sortOrder });
+      updateRow('Regions', hit._row, {
+        regionName: r.regionName,
+        sortOrder: r.sortOrder || hit.sortOrder,
+        areas: JSON.stringify(areas)
+      });
     } else {
       insertRow('Regions', {
         regionId: r.regionId || 'R' + (rows.length + 1),
         regionName: r.regionName,
-        sortOrder: r.sortOrder || rows.length + 1
+        sortOrder: r.sortOrder || rows.length + 1,
+        areas: JSON.stringify(areas)
       });
     }
-    return { regions: readAll('Regions').map(strip) };
+    return { regions: teamList() };
   },
 
   deleteRegion: function (req) {
     auth(req, ['super']);
     var users = readAll('Users').filter(function (x) { return x.regionId === req.regionId && x.active === 'Y'; });
-    if (users.length) throw new Error('이 지역에 소속된 계정이 ' + users.length + '개 있습니다. 먼저 정리해 주세요.');
+    if (users.length) throw new Error('이 팀에 소속된 계정이 ' + users.length + '개 있습니다. 먼저 정리해 주세요.');
     var hit = find(readAll('Regions'), 'regionId', req.regionId);
     if (hit) deleteRowAt('Regions', hit._row);
-    return { regions: readAll('Regions').map(strip) };
+    return { regions: teamList() };
   },
 
   /* ---- 계정 ---- */
@@ -237,12 +286,23 @@ var ACTIONS = {
     if (!d.userId) throw new Error('아이디를 입력해 주세요.');
     if (!d.name) throw new Error('이름(점포명)을 입력해 주세요.');
 
-    // 지역 관리자는 자기 지역의 점포 계정만 다룰 수 있다
+    // 팀 관리자는 자기 팀의 점포 계정만 다룰 수 있다
     if (me.role === 'region') {
-      if (d.role !== 'store') throw new Error('지역 관리자는 점포 계정만 만들 수 있습니다.');
+      if (d.role !== 'store') throw new Error('팀 관리자는 점포 계정만 만들 수 있습니다.');
       d.regionId = me.regionId;
     }
-    if (d.role === 'store' && !d.regionId) throw new Error('지역을 선택해 주세요.');
+    if (d.role === 'store') {
+      if (!d.regionId) throw new Error('팀을 선택해 주세요.');
+      if (!d.area) throw new Error('지역을 선택해 주세요.');
+      if (AREAS.indexOf(d.area) < 0) throw new Error('지역 값이 올바르지 않습니다 — ' + d.area);
+
+      // 팀에 담당 지역을 지정해 두었으면 그 안에서만 고를 수 있다
+      var team = find(readAll('Regions'), 'regionId', d.regionId);
+      var teamAreas = team ? parseJson(team.areas, []) : [];
+      if (teamAreas.length && teamAreas.indexOf(d.area) < 0) {
+        throw new Error(d.area + '은(는) ' + (team ? team.regionName : '이 팀') + ' 담당 지역이 아닙니다.');
+      }
+    }
 
     var hit = findUser(d.userId);
     if (hit) {
@@ -250,7 +310,7 @@ var ACTIONS = {
         throw new Error('수정 권한이 없는 계정입니다.');
       }
       var patch = {
-        name: d.name, role: d.role, regionId: d.regionId || '',
+        name: d.name, role: d.role, regionId: d.regionId || '', area: d.area || '',
         storeCode: d.storeCode || '', phone: d.phone || '',
         active: d.active === false ? 'N' : 'Y'
       };
@@ -263,7 +323,8 @@ var ACTIONS = {
       updateRow('Users', hit._row, patch);
     } else {
       if (!d.pw) throw new Error('비밀번호를 입력해 주세요.');
-      createUserRow(d.userId, d.pw, d.role, d.name, d.regionId || '', d.storeCode || '', me.userId, d.phone || '');
+      createUserRow(d.userId, d.pw, d.role, d.name, d.regionId || '', d.area || '',
+                    d.storeCode || '', me.userId, d.phone || '');
     }
     return { users: visibleUsers(me).map(publicUser) };
   },
@@ -321,20 +382,22 @@ var ACTIONS = {
     if (!d.productName) throw new Error('제품을 선택해 주세요.');
     if (!d.mfgMs) throw new Error('제조일시를 입력해 주세요.');
 
-    var storeId, storeName, regionId;
+    var storeId, storeName, regionId, area;
     if (u.role === 'store') {
-      storeId = u.userId; storeName = u.name; regionId = u.regionId;
+      storeId = u.userId; storeName = u.name; regionId = u.regionId; area = u.area;
     } else {
       storeId = d.storeId || u.userId;
       var su = findUser(storeId);
       storeName = su ? su.name : (d.storeName || u.name);
       regionId = su ? su.regionId : (d.regionId || u.regionId);
+      area = su ? su.area : '';
     }
     var region = find(readAll('Regions'), 'regionId', regionId);
 
     var row = {
       regionId: regionId || '',
       regionName: region ? region.regionName : '',
+      area: area || '',
       storeId: storeId,
       storeName: storeName,
       productName: d.productName,
@@ -429,21 +492,32 @@ function visibleUsers(me) {
 
 function publicUser(u) {
   return {
-    userId: u.userId, role: u.role, name: u.name, regionId: u.regionId,
+    userId: u.userId, role: u.role, name: u.name, regionId: u.regionId, area: u.area,
     storeCode: u.storeCode, phone: u.phone,
     active: u.active !== 'N', mustChangePw: u.mustChangePw === 'Y',
     createdAt: u.createdAt, createdBy: u.createdBy
   };
 }
 
-function createUserRow(userId, pw, role, name, regionId, storeCode, createdBy, phone) {
+function createUserRow(userId, pw, role, name, regionId, area, storeCode, createdBy, phone) {
   var salt = newToken().slice(0, 12);
   insertRow('Users', {
     userId: userId, pwHash: hash(String(pw), salt), salt: salt,
-    role: role, name: name, regionId: regionId || '', storeCode: storeCode || '',
-    phone: phone || '', active: 'Y', mustChangePw: 'Y',
+    role: role, name: name, regionId: regionId || '', area: area || '',
+    storeCode: storeCode || '', phone: phone || '', active: 'Y', mustChangePw: 'Y',
     createdAt: fmt(Date.now()), createdBy: createdBy || ''
   });
+}
+
+/* 팀 목록 (담당 지역 포함) */
+function teamList() {
+  return readAll('Regions').map(function (r) {
+    return {
+      regionId: r.regionId, regionName: r.regionName,
+      sortOrder: Number(r.sortOrder) || 0,
+      areas: parseJson(r.areas, [])
+    };
+  }).sort(function (a, b) { return a.sortOrder - b.sortOrder; });
 }
 
 function findUser(userId) {

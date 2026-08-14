@@ -249,6 +249,21 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
   border-radius:var(--radius);padding:9px;font-size:13px;font-weight:600;min-height:44px}
 .seg button.on{background:var(--primary);border-color:var(--primary);color:#fff}
 
+/* 팀별 담당 지역 선택 */
+.areagrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:7px}
+.areachip{display:flex;align-items:center;justify-content:center;gap:5px;
+  border:1px solid var(--line);border-radius:var(--radius);padding:9px 6px;min-height:42px;
+  font-size:13px;font-weight:600;color:#7B8291;background:#fff;cursor:pointer;user-select:none}
+.areachip input{margin:0;width:14px;height:14px;accent-color:var(--primary)}
+.areachip:hover{border-color:var(--secondary)}
+.areachip.on{background:#EEF3FC;border-color:var(--secondary);color:var(--primary)}
+.areachip.taken{opacity:.4;cursor:not-allowed;background:var(--soft)}
+.areachip.taken:hover{border-color:var(--line)}
+
+/* 집계 막대 */
+.bar{display:block;height:9px;border-radius:5px;background:var(--secondary);min-width:3px}
+.bar.waste{background:var(--danger)}
+
 /* ---------- 인쇄 양식 ---------- */
 #printArea{display:none}
 @media print{
@@ -387,6 +402,54 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
       <div class="grid g3" id="liveList"></div>
     </section>
 
+    <!-- ===== 관리자: 데이터 관리 (대시보드) ===== -->
+    <section class="view" id="v-dash">
+      <h2><span class="sec-no">01</span>데이터 관리</h2>
+      <div class="rule"><i></i><i></i></div>
+
+      <div class="panel" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:13px;font-weight:600;color:var(--secondary)" id="dashRange"></span>
+        <span style="flex:1"></span>
+        <button class="btn ghost sm" onclick="quickRange(0)">오늘</button>
+        <button class="btn ghost sm" onclick="quickRange(6)">최근 7일</button>
+        <button class="btn ghost sm" onclick="quickRange(29)">최근 30일</button>
+        <button class="btn ghost sm" onclick="quickRange(89)">최근 90일</button>
+        <button class="btn accent sm" onclick="exportDash()">집계 내려받기</button>
+      </div>
+
+      <div class="grid g3" style="margin-bottom:16px">
+        <div class="stat"><div class="k">총 등록</div><div class="v" id="dTotal">0</div></div>
+        <div class="stat"><div class="k">사용 완료</div><div class="v" id="dDone">0</div></div>
+        <div class="stat"><div class="k">폐기 · 폐기율</div><div class="v bad" id="dWaste">0</div></div>
+        <div class="stat"><div class="k">현재 진행중</div><div class="v" id="dActive">0</div></div>
+        <div class="stat"><div class="k">기한 임박</div><div class="v warn" id="dSoon">0</div></div>
+        <div class="stat"><div class="k">기한 초과</div><div class="v bad" id="dOver">0</div></div>
+      </div>
+
+      <div class="panel">
+        <h4 style="font-size:14px">팀별 현황</h4>
+        <div class="rule"><i></i><i></i></div>
+        <div class="tbl-wrap"><table id="teamTbl">
+          <thead><tr>
+            <th>팀</th><th>담당 지역</th><th>점포</th><th>등록</th><th>사용완료</th>
+            <th>폐기</th><th>폐기율</th><th>진행중</th><th>임박</th><th>초과</th><th style="width:120px">등록 비중</th>
+          </tr></thead><tbody></tbody>
+        </table></div>
+      </div>
+
+      <div class="panel">
+        <h4 style="font-size:14px">지역별 현황</h4>
+        <div class="rule"><i></i><i></i></div>
+        <div class="tbl-wrap"><table id="areaTbl">
+          <thead><tr>
+            <th>지역</th><th>담당 팀</th><th>점포</th><th>등록</th><th>사용완료</th>
+            <th>폐기</th><th>폐기율</th><th>진행중</th><th>임박</th><th>초과</th><th style="width:120px">등록 비중</th>
+          </tr></thead><tbody></tbody>
+        </table></div>
+        <p class="hint" style="margin-top:10px">등록 이력이 있거나 점포가 있는 지역만 표시됩니다.</p>
+      </div>
+    </section>
+
     <!-- ===== 관리자: 점포 현황 ===== -->
     <section class="view" id="v-stores">
       <h2><span class="sec-no">01</span>점포별 현황</h2>
@@ -400,7 +463,8 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
       </div>
 
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-        <select id="storeRegion" class="btn" style="max-width:220px" onchange="renderStores()"></select>
+        <select id="storeRegion" class="btn" style="max-width:200px" onchange="onStoreTeamFilter()"></select>
+        <select id="storeArea" class="btn" style="max-width:200px" onchange="renderStores()"></select>
         <span style="flex:1"></span>
         <button class="btn ghost sm" onclick="loadRecords()">새로고침</button>
       </div>
@@ -408,7 +472,7 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
       <div class="tbl-wrap panel" style="padding:0">
         <table id="storeTbl">
           <thead><tr>
-            <th>지역</th><th>점포명</th><th>아이디</th><th>오늘 등록</th>
+            <th>팀</th><th>지역</th><th>점포명</th><th>아이디</th><th>오늘 등록</th>
             <th>해동중</th><th>판매가능</th><th>임박</th><th>초과</th><th>최근 입력</th>
           </tr></thead>
           <tbody></tbody>
@@ -456,7 +520,7 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
       <div class="panel" style="padding:0">
         <div class="tbl-wrap"><table id="histTbl">
           <thead><tr>
-            <th>제조일자</th><th>지역</th><th>점포</th><th>제품명</th><th>수량</th>
+            <th>제조일자</th><th>팀</th><th>지역</th><th>점포</th><th>제품명</th><th>수량</th>
             <th>보관</th><th>해동사용일</th><th>점포사용일</th><th>상태</th><th></th>
           </tr></thead>
           <tbody></tbody>
@@ -472,7 +536,7 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
 
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
         <button class="btn primary" onclick="openUser(null,'store')">＋ 점포 계정 추가</button>
-        <button class="btn accent" id="btnAddRegionUser" onclick="openUser(null,'region')" style="display:none">＋ 지역 관리자 추가</button>
+        <button class="btn accent" id="btnAddRegionUser" onclick="openUser(null,'region')" style="display:none">＋ 팀 관리자 추가</button>
         <span style="flex:1"></span>
         <button class="btn ghost sm" onclick="loadBootstrap()">새로고침</button>
       </div>
@@ -480,14 +544,14 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
       <div class="panel" style="padding:0">
         <div class="tbl-wrap"><table id="userTbl">
           <thead><tr>
-            <th>구분</th><th>아이디</th><th>이름 / 점포명</th><th>지역</th><th>점포코드</th>
+            <th>구분</th><th>아이디</th><th>이름 / 점포명</th><th>팀</th><th>지역</th><th>점포코드</th>
             <th>연락처</th><th>상태</th><th></th>
           </tr></thead>
           <tbody></tbody>
         </table></div>
       </div>
       <p class="hint" style="margin-top:10px">
-        지역 관리자는 본인 지역의 점포 계정만 만들고 수정할 수 있습니다.
+        팀 관리자는 본인 팀의 점포 계정만 만들고 수정할 수 있습니다.
         비밀번호를 새로 입력해 저장하면 해당 계정의 비밀번호가 초기화됩니다.
       </p>
     </section>
@@ -515,21 +579,28 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
       </p>
     </section>
 
-    <!-- ===== 지역 관리 ===== -->
+    <!-- ===== 팀 · 지역 관리 ===== -->
     <section class="view" id="v-regions">
-      <h2><span class="sec-no">06</span>지역 관리</h2>
+      <h2><span class="sec-no">06</span>팀 · 지역 관리</h2>
       <div class="rule"><i></i><i></i></div>
 
-      <div class="card" style="max-width:520px">
+      <p class="hint" style="margin:0 0 14px">
+        팀마다 담당 광역시도를 지정합니다. 점포 계정을 만들 때 그 팀의 담당 지역만 고를 수 있고,
+        데이터 관리 화면의 팀별 · 지역별 집계도 이 설정을 따릅니다.
+        한 지역을 두 팀이 함께 담당할 수는 없습니다.
+      </p>
+
+      <div class="panel" style="max-width:640px">
         <div class="field">
-          <label>지역명 추가</label>
+          <label>팀 추가</label>
           <div style="display:flex;gap:8px">
-            <input id="rNew" type="text" placeholder="예: 수도권">
+            <input id="rNew" type="text" placeholder="예: 사업4팀">
             <button class="btn primary" onclick="addRegion()">추가</button>
           </div>
         </div>
-        <div style="margin-top:18px" id="regionList"></div>
       </div>
+
+      <div id="regionList"></div>
     </section>
   </main>
 </div>
@@ -541,11 +612,13 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
     <div class="rule"><i></i><i></i></div>
     <div class="grid" style="gap:13px">
       <div class="field"><label>구분</label><select id="uRole" onchange="onRoleChange()">
-        <option value="store">점포</option><option value="region">지역 관리자</option><option value="super">전체 관리자</option>
+        <option value="store">점포</option><option value="region">팀 관리자</option><option value="super">전체 관리자</option>
       </select></div>
       <div class="field"><label>아이디</label><input id="uId" type="text" autocapitalize="off" spellcheck="false"></div>
       <div class="field"><label>이름 / 점포명</label><input id="uName" type="text"></div>
-      <div class="field" id="uRegionWrap"><label>지역</label><select id="uRegion"></select></div>
+      <div class="field" id="uRegionWrap"><label>팀</label><select id="uRegion" onchange="fillAreaSelect()"></select></div>
+      <div class="field" id="uAreaWrap"><label>지역 (광역시도)</label><select id="uArea"></select>
+        <span class="hint" id="uAreaHint"></span></div>
       <div class="field"><label>점포코드 <span style="font-weight:300;color:#9AA0AE">(선택)</span></label><input id="uCode" type="text"></div>
       <div class="field"><label>연락처 <span style="font-weight:300;color:#9AA0AE">(선택)</span></label><input id="uPhone" type="text" inputmode="tel"></div>
       <div class="field"><label>비밀번호</label><input id="uPw" type="text" placeholder="새 계정은 필수 · 기존 계정은 변경할 때만"></div>
@@ -663,7 +736,8 @@ table.stdtbl tr.pick:hover td{background:#EEF3FC}
    ===================================================================== */
 const HOUR = 3600000;
 const SOON_MS = 2 * HOUR;          // '임박' 기준
-const ROLE_LABEL = { super: '전체 관리자', region: '지역 관리자', store: '점포' };
+const ROLE_LABEL = { super: '전체 관리자', region: '팀 관리자', store: '점포' };
+const NO_AREA = '(지역 미지정)';
 
 /* 서버 주소는 코드에 넣어 둔다 — 점포에서는 입력할 필요가 없다.
    Apps Script 를 새로 배포해 URL 이 바뀌면 이 값만 고치면 된다.
@@ -673,7 +747,7 @@ const DEFAULT_API = 'https://script.google.com/macros/s/AKfycbyLo6e1SgquQHTZpNKC
 let API = localStorage.getItem('fcl_api') || DEFAULT_API;
 let TOKEN = localStorage.getItem('fcl_token') || '';
 let ME = null;
-let REGIONS = [], PRODUCTS = [], USERS = [], RECORDS = [];
+let REGIONS = [], PRODUCTS = [], USERS = [], RECORDS = [], AREAS = [];
 let tickTimer = null;
 
 /* =====================================================================
@@ -829,8 +903,8 @@ async function doLogout() {
    ===================================================================== */
 const TABS = {
   store:  [['v-entry', '제품 등록'], ['v-live', '진행 현황'], ['v-history', '사용 이력']],
-  region: [['v-stores', '점포 현황'], ['v-live', '진행 현황'], ['v-history', '사용 이력'], ['v-users', '계정 관리'], ['v-products', '제품 기준값']],
-  super:  [['v-stores', '점포 현황'], ['v-live', '진행 현황'], ['v-history', '사용 이력'], ['v-users', '계정 관리'], ['v-products', '제품 기준값'], ['v-regions', '지역 관리']]
+  region: [['v-dash', '데이터 관리'], ['v-stores', '점포 현황'], ['v-live', '진행 현황'], ['v-history', '사용 이력'], ['v-users', '계정 관리'], ['v-products', '제품 기준값']],
+  super:  [['v-dash', '데이터 관리'], ['v-stores', '점포 현황'], ['v-live', '진행 현황'], ['v-history', '사용 이력'], ['v-users', '계정 관리'], ['v-products', '제품 기준값'], ['v-regions', '팀 · 지역 관리']]
 };
 
 async function startApp() {
@@ -840,7 +914,7 @@ async function startApp() {
   nav.innerHTML = TABS[ME.role].map(([id, label], i) =>
     `<button data-v="${id}" class="${i === 0 ? 'on' : ''}" onclick="showView('${id}',this)">${label}<span class="tabbadge" id="badge-${id}"></span></button>`).join('');
 
-  // 지역 관리자는 제품 기준값을 읽기만 한다
+  // 팀 관리자는 제품 기준값을 읽기만 한다
   document.getElementById('btnAddRegionUser').style.display = ME.role === 'super' ? '' : 'none';
 
   setRange(6);                 // 기본 조회 기간 — loadBootstrap 전에 정해둔다
@@ -866,6 +940,7 @@ function showView(id, btn) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === id));
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b === btn));
   if (id === 'v-entry') renderSheet();
+  if (id === 'v-dash') renderDash();
   if (id === 'v-live') renderLive();
   if (id === 'v-stores') renderStores();
   if (id === 'v-history') renderHistory();
@@ -879,6 +954,7 @@ async function loadBootstrap() {
   try {
     const d = await api('bootstrap', {});
     ME = d.user; REGIONS = d.regions || []; PRODUCTS = d.products || []; USERS = d.users || [];
+    AREAS = d.areas || [];
     fillSelects();
     await loadRecords();
   } catch (e) { toast(e.message, true); }
@@ -890,6 +966,15 @@ function regionName(id) {
 }
 function storeUsers() {
   return USERS.filter(u => u.role === 'store');
+}
+function teamAreas(regionId) {
+  const t = REGIONS.find(x => x.regionId === regionId);
+  return (t && t.areas && t.areas.length) ? t.areas : [];
+}
+/* 어느 팀이 이 지역을 담당하는지 */
+function areaTeam(area) {
+  const t = REGIONS.find(x => (x.areas || []).includes(area));
+  return t ? t.regionName : '-';
 }
 
 function fillSelects() {
@@ -908,16 +993,48 @@ function fillSelects() {
   document.getElementById('hStoreWrap').style.display = isAdmin ? 'flex' : 'none';
   if (isAdmin) {
     const opts = storeUsers().map(u =>
-      `<option value="${esc(u.userId)}">${esc(u.name)} (${esc(regionName(u.regionId))})</option>`).join('');
+      `<option value="${esc(u.userId)}">${esc(u.name)} (${esc(u.area || '지역미지정')} · ${esc(regionName(u.regionId))})</option>`).join('');
     document.getElementById('eStore').innerHTML = '<option value="">점포 선택</option>' + opts;
     document.getElementById('hStore').innerHTML = '<option value="">전체 점포</option>' + opts;
-    document.getElementById('storeRegion').innerHTML = '<option value="">전체 지역</option>' +
-      REGIONS.map(r => `<option value="${esc(r.regionId)}">${esc(r.regionName)}</option>`).join('');
+    // 팀 관리자는 자기 팀만 — 팀을 고르는 의미가 없고, 지역 필터도 담당 지역으로 좁혀야 한다
+    document.getElementById('storeRegion').innerHTML = ME.role === 'region'
+      ? `<option value="${esc(ME.regionId)}">${esc(regionName(ME.regionId))}</option>`
+      : '<option value="">전체 팀</option>' +
+        REGIONS.map(r => `<option value="${esc(r.regionId)}">${esc(r.regionName)}</option>`).join('');
+    fillStoreAreaFilter();
   }
 
-  // 계정 모달 지역
+  // 계정 모달 — 팀
   document.getElementById('uRegion').innerHTML =
     REGIONS.map(r => `<option value="${esc(r.regionId)}">${esc(r.regionName)}</option>`).join('');
+}
+
+/* 점포 현황의 지역 필터 — 선택한 팀의 담당 지역만 보여준다 */
+function fillStoreAreaFilter() {
+  const team = document.getElementById('storeRegion').value;
+  const list = team ? teamAreas(team) : AREAS;
+  const cur = document.getElementById('storeArea').value;
+  document.getElementById('storeArea').innerHTML = '<option value="">전체 지역</option>' +
+    (list.length ? list : AREAS).map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('');
+  if (cur && [...document.getElementById('storeArea').options].some(o => o.value === cur)) {
+    document.getElementById('storeArea').value = cur;
+  }
+}
+function onStoreTeamFilter() { fillStoreAreaFilter(); renderStores(); }
+
+/* 계정 모달 — 선택한 팀의 담당 지역만 고를 수 있게 한다 */
+function fillAreaSelect(preset) {
+  const team = document.getElementById('uRegion').value;
+  const own = teamAreas(team);
+  const list = own.length ? own : AREAS;
+  const sel = document.getElementById('uArea');
+  const cur = preset !== undefined ? preset : sel.value;
+  sel.innerHTML = '<option value="">선택하세요</option>' +
+    list.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('');
+  if (cur && list.includes(cur)) sel.value = cur;
+  document.getElementById('uAreaHint').textContent = own.length
+    ? `${regionName(team)} 담당 지역 ${own.length}곳`
+    : '이 팀에 담당 지역이 지정되지 않아 전국에서 고를 수 있습니다. 팀 · 지역 관리에서 먼저 지정하세요.';
 }
 
 /* =====================================================================
@@ -1344,7 +1461,7 @@ async function loadRecords() {
     document.getElementById('histNote').textContent =
       d.truncated ? `조회 결과가 ${d.total}건으로 많아 최근 ${RECORDS.length}건만 표시합니다. 기간을 좁혀 주세요.` : '';
     rebuildSlots();
-    renderSheet(); renderLive(); renderStores(); renderHistory(); renderAlert();
+    renderSheet(); renderLive(); renderStores(); renderHistory(); renderDash(); renderAlert();
   } catch (e) { toast(e.message, true); }
 }
 function setRange(daysBack) {
@@ -1425,7 +1542,7 @@ async function setStatus(recordId, status) {
     const r = RECORDS.find(x => x.recordId === recordId);
     if (r) r.status = status;
     rebuildSlots();
-    renderSheet(); renderLive(); renderStores(); renderHistory(); renderAlert();
+    renderSheet(); renderLive(); renderStores(); renderHistory(); renderDash(); renderAlert();
     toast(status + ' 처리되었습니다.');
   } catch (e) { toast(e.message, true); }
 }
@@ -1437,7 +1554,9 @@ function renderStores() {
   if (ME.role === 'store') return;
   const now = Date.now();
   const filt = document.getElementById('storeRegion').value;
-  const stores = storeUsers().filter(u => !filt || u.regionId === filt);
+  const filtArea = document.getElementById('storeArea').value;
+  const stores = storeUsers().filter(u =>
+    (!filt || u.regionId === filt) && (!filtArea || u.area === filtArea));
 
   const rows = stores.map(u => {
     const rs = RECORDS.filter(r => r.storeId === u.userId);
@@ -1455,11 +1574,12 @@ function renderStores() {
 
   const tb = document.querySelector('#storeTbl tbody');
   if (!rows.length) {
-    tb.innerHTML = '<tr><td colspan="9" class="empty">등록된 점포가 없습니다. 계정 관리에서 점포를 추가해 주세요.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="10" class="empty">해당하는 점포가 없습니다.</td></tr>';
     return;
   }
   tb.innerHTML = rows.map(({ u, today, c, last }) => `<tr>
     <td>${esc(regionName(u.regionId))}</td>
+    <td>${u.area ? esc(u.area) : '<span class="badge orange">미지정</span>'}</td>
     <td><b>${esc(u.name)}</b>${u.active ? '' : ' <span class="badge gray">중지</span>'}</td>
     <td style="color:#7B8291">${esc(u.userId)}</td>
     <td>${today}</td>
@@ -1469,6 +1589,131 @@ function renderStores() {
     <td>${c.over ? `<span class="badge red">${c.over}</span>` : 0}</td>
     <td style="color:#7B8291">${last ? fmtFull(last) : '-'}</td>
   </tr>`).join('');
+}
+
+/* =====================================================================
+   데이터 관리 — 팀별 · 지역별 집계
+   ===================================================================== */
+
+/* 조회 기간 안의 기록 (점포·제품 필터는 적용하지 않는다) */
+function dashRecords() {
+  const { fromMs, toMs } = historyRange();
+  return RECORDS.filter(r => {
+    const m = Number(r.mfgMs) || 0;
+    return m >= fromMs && m <= toMs;
+  });
+}
+
+/* keyFn 으로 묶어 등록·완료·폐기·진행 상태를 센다 */
+function groupBy(list, keyFn, now) {
+  const map = {};
+  list.forEach(r => {
+    const k = keyFn(r) || NO_AREA;
+    const g = map[k] || (map[k] = { n: 0, done: 0, waste: 0, active: 0, soon: 0, over: 0 });
+    g.n++;
+    if (r.status === '사용완료') g.done++;
+    if (r.status === '폐기') g.waste++;
+    const st = lotState(r, now).key;
+    if (st !== 'done') {
+      g.active++;
+      if (st === 'soon') g.soon++;
+      if (st === 'over') g.over++;
+    }
+  });
+  return map;
+}
+function blankGroup() { return { n: 0, done: 0, waste: 0, active: 0, soon: 0, over: 0 }; }
+function rate(g) { return g.n ? (g.waste / g.n * 100).toFixed(1) + '%' : '-'; }
+
+function renderDash() {
+  if (!ME || ME.role === 'store') return;
+  const now = Date.now();
+  const list = dashRecords();
+  const { fromMs, toMs } = historyRange();
+  document.getElementById('dashRange').textContent =
+    `조회 기간  ${fmtFull(fromMs).slice(0, 10)} ~ ${fmtFull(toMs).slice(0, 10)}`;
+
+  // 상단 요약
+  const all = groupBy(list, () => 'ALL', now).ALL || blankGroup();
+  document.getElementById('dTotal').textContent = all.n;
+  document.getElementById('dDone').textContent = all.done;
+  document.getElementById('dWaste').innerHTML =
+    `${all.waste} <span style="font-size:15px;font-weight:400">· ${rate(all)}</span>`;
+  document.getElementById('dActive').textContent = all.active;
+  document.getElementById('dSoon').textContent = all.soon;
+  document.getElementById('dOver').textContent = all.over;
+
+  const stores = storeUsers();
+  const cell = (g, max) => `
+    <td>${g.n}</td><td>${g.done}</td>
+    <td>${g.waste ? `<b style="color:var(--danger)">${g.waste}</b>` : 0}</td>
+    <td>${rate(g)}</td><td>${g.active}</td>
+    <td>${g.soon ? `<span class="badge orange">${g.soon}</span>` : 0}</td>
+    <td>${g.over ? `<span class="badge red">${g.over}</span>` : 0}</td>
+    <td><span class="bar" style="width:${max ? Math.round(g.n / max * 100) : 0}%"></span></td>`;
+
+  // ---- 팀별 ----
+  const byTeam = groupBy(list, r => r.regionName || regionName(r.regionId), now);
+  const teams = (ME.role === 'super' ? REGIONS : REGIONS.filter(t => t.regionId === ME.regionId));
+  const teamRows = teams.map(t => ({
+    t, g: byTeam[t.regionName] || blankGroup(),
+    stores: stores.filter(u => u.regionId === t.regionId).length
+  }));
+  const teamMax = Math.max(1, ...teamRows.map(x => x.g.n));
+  document.querySelector('#teamTbl tbody').innerHTML = teamRows.length
+    ? teamRows.map(({ t, g, stores: sc }) => `<tr>
+        <td><b>${esc(t.regionName)}</b></td>
+        <td style="color:#7B8291">${(t.areas || []).length ? esc(t.areas.join(', ')) : '<span class="badge orange">미지정</span>'}</td>
+        <td>${sc}</td>${cell(g, teamMax)}
+      </tr>`).join('')
+    : '<tr><td colspan="11" class="empty">팀이 없습니다.</td></tr>';
+
+  // ---- 지역별 ---- 기록이 있거나 점포가 있는 지역만
+  const byArea = groupBy(list, r => r.area, now);
+  const areaSet = new Set([...Object.keys(byArea), ...stores.map(u => u.area || NO_AREA)]);
+  const areaRows = [...areaSet].map(a => ({
+    a, g: byArea[a] || blankGroup(),
+    stores: stores.filter(u => (u.area || NO_AREA) === a).length
+  })).sort((x, y) => y.g.n - x.g.n || y.stores - x.stores);
+  const areaMax = Math.max(1, ...areaRows.map(x => x.g.n));
+  document.querySelector('#areaTbl tbody').innerHTML = areaRows.length
+    ? areaRows.map(({ a, g, stores: sc }) => `<tr>
+        <td><b>${esc(a)}</b></td>
+        <td style="color:#7B8291">${a === NO_AREA ? '-' : esc(areaTeam(a))}</td>
+        <td>${sc}</td>${cell(g, areaMax)}
+      </tr>`).join('')
+    : '<tr><td colspan="11" class="empty">표시할 지역이 없습니다.</td></tr>';
+}
+
+function exportDash() {
+  const now = Date.now();
+  const list = dashRecords();
+  const stores = storeUsers();
+  const head = ['구분', '이름', '담당/소속', '점포수', '등록', '사용완료', '폐기', '폐기율', '진행중', '임박', '초과'];
+  const rows = [];
+
+  const byTeam = groupBy(list, r => r.regionName || regionName(r.regionId), now);
+  (ME.role === 'super' ? REGIONS : REGIONS.filter(t => t.regionId === ME.regionId)).forEach(t => {
+    const g = byTeam[t.regionName] || blankGroup();
+    rows.push(['팀', t.regionName, (t.areas || []).join(' '), stores.filter(u => u.regionId === t.regionId).length,
+               g.n, g.done, g.waste, rate(g), g.active, g.soon, g.over]);
+  });
+
+  const byArea = groupBy(list, r => r.area, now);
+  [...new Set([...Object.keys(byArea), ...stores.map(u => u.area || NO_AREA)])].forEach(a => {
+    const g = byArea[a] || blankGroup();
+    rows.push(['지역', a, a === NO_AREA ? '' : areaTeam(a), stores.filter(u => (u.area || NO_AREA) === a).length,
+               g.n, g.done, g.waste, rate(g), g.active, g.soon, g.over]);
+  });
+
+  const byStore = groupBy(list, r => r.storeName, now);
+  stores.forEach(u => {
+    const g = byStore[u.name] || blankGroup();
+    rows.push(['점포', u.name, `${regionName(u.regionId)} ${u.area || ''}`.trim(), 1,
+               g.n, g.done, g.waste, rate(g), g.active, g.soon, g.over]);
+  });
+
+  downloadCsv([head, ...rows], '팀지역집계');
 }
 
 /* =====================================================================
@@ -1522,6 +1767,7 @@ function renderHistory() {
         return `<tr>
           <td style="white-space:nowrap">${fmtFull(r.mfgMs)}</td>
           <td>${esc(r.regionName || '')}</td>
+          <td>${esc(r.area || '')}</td>
           <td>${esc(r.storeName)}</td>
           <td>${esc(r.productName)}</td>
           <td>${esc(r.qty || '')}</td>
@@ -1532,7 +1778,7 @@ function renderHistory() {
           <td>${canDelete ? `<button class="btn sm ghost" onclick="delRecord('${r.recordId}')">삭제</button>` : ''}</td>
         </tr>`;
       }).join('')
-    : '<tr><td colspan="10" class="empty">조회된 이력이 없습니다.</td></tr>';
+    : '<tr><td colspan="11" class="empty">조회된 이력이 없습니다.</td></tr>';
 }
 async function delRecord(recordId) {
   if (!confirm('이 이력을 삭제하시겠습니까?')) return;
@@ -1546,17 +1792,21 @@ async function delRecord(recordId) {
 function exportCsv() {
   const list = filteredHistory();
   if (!list.length) { toast('내려받을 데이터가 없습니다.', true); return; }
-  const head = ['제조일자', '지역', '점포명', '제품명', '수량', '보관방법', '해동사용일', '점포사용일', '상태', '메모', '등록시각'];
+  const head = ['제조일자', '팀', '지역', '점포명', '제품명', '수량', '보관방법', '해동사용일', '점포사용일', '상태', '메모', '등록시각'];
   const rows = list.map(r => [
-    fmtFull(r.mfgMs), r.regionName || '', r.storeName, r.productName, r.qty || '',
+    fmtFull(r.mfgMs), r.regionName || '', r.area || '', r.storeName, r.productName, r.qty || '',
     r.storage || '', fmtFull(r.thawMs), fmtFull(r.expireMs), r.status || '', r.memo || '', r.createdAt || ''
   ]);
-  const csv = [head, ...rows]
-    .map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  downloadCsv([head, ...rows], '사용이력');
+}
+
+/* 엑셀에서 한글이 깨지지 않도록 BOM 을 붙인다 */
+function downloadCsv(table, label) {
+  const csv = table.map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `FOOD체크리스트_${document.getElementById('hFrom').value}_${document.getElementById('hTo').value}.csv`;
+  a.download = `FOOD체크리스트_${label}_${document.getElementById('hFrom').value}_${document.getElementById('hTo').value}.csv`;
   a.click();
   URL.revokeObjectURL(a.href);
 }
@@ -1577,6 +1827,7 @@ function renderUsers() {
           <td>${esc(u.userId)}</td>
           <td><b>${esc(u.name)}</b></td>
           <td>${u.regionId ? esc(regionName(u.regionId)) : '-'}</td>
+          <td>${u.role === 'store' ? (u.area ? esc(u.area) : '<span class="badge orange">미지정</span>') : '-'}</td>
           <td>${esc(u.storeCode || '-')}</td>
           <td>${esc(u.phone || '-')}</td>
           <td>${u.active ? '<span class="badge blue">사용</span>' : '<span class="badge gray">중지</span>'}${u.mustChangePw ? ' <span class="badge orange">초기비번</span>' : ''}</td>
@@ -1585,11 +1836,13 @@ function renderUsers() {
             <button class="btn sm ghost" onclick='delUser(${JSON.stringify(u.userId)})'>삭제</button>` : ''}</td>
         </tr>`;
       }).join('')
-    : '<tr><td colspan="8" class="empty">계정이 없습니다.</td></tr>';
+    : '<tr><td colspan="9" class="empty">계정이 없습니다.</td></tr>';
 }
 function onRoleChange() {
   const role = document.getElementById('uRole').value;
   document.getElementById('uRegionWrap').style.display = role === 'super' ? 'none' : 'flex';
+  // 지역(광역시도)은 점포에만 필요하다 — 팀 관리자는 팀 전체를 본다
+  document.getElementById('uAreaWrap').style.display = role === 'store' ? 'flex' : 'none';
 }
 function openUser(userId, presetRole) {
   const u = userId ? USERS.find(x => x.userId === userId) : null;
@@ -1604,10 +1857,11 @@ function openUser(userId, presetRole) {
 
   const roleSel = document.getElementById('uRole');
   roleSel.value = u ? u.role : (presetRole || 'store');
-  // 지역 관리자는 점포 계정만 만들 수 있다
+  // 팀 관리자는 점포 계정만 만들 수 있다
   roleSel.disabled = ME.role !== 'super';
   document.getElementById('uRegion').value = u ? u.regionId : (ME.role === 'region' ? ME.regionId : (REGIONS[0] || {}).regionId);
   document.getElementById('uRegion').disabled = ME.role !== 'super';
+  fillAreaSelect(u ? (u.area || '') : '');
   onRoleChange();
   openModal('mUser');
 }
@@ -1618,6 +1872,7 @@ async function saveUser() {
     name: document.getElementById('uName').value.trim(),
     role,
     regionId: role === 'super' ? '' : document.getElementById('uRegion').value,
+    area: role === 'store' ? document.getElementById('uArea').value : '',
     storeCode: document.getElementById('uCode').value.trim(),
     phone: document.getElementById('uPhone').value.trim(),
     pw: document.getElementById('uPw').value,
@@ -1732,19 +1987,38 @@ async function delProduct(productId) {
    06 지역 관리
    ===================================================================== */
 function renderRegions() {
-  document.getElementById('regionList').innerHTML = REGIONS.map(r => `
-    <div style="display:flex;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)">
-      <input value="${esc(r.regionName)}" data-rid="${esc(r.regionId)}"
-             style="flex:1;border:1px solid var(--line);border-radius:6px;padding:9px;min-height:42px">
-      <button class="btn sm" onclick="saveRegion(this)">저장</button>
-      <button class="btn sm ghost" onclick="delRegion('${esc(r.regionId)}')">삭제</button>
-    </div>`).join('') || '<div class="empty">지역이 없습니다.</div>';
+  // 다른 팀이 이미 담당하는 지역은 고를 수 없게 표시한다
+  const owner = {};
+  REGIONS.forEach(r => (r.areas || []).forEach(a => { owner[a] = r.regionId; }));
+
+  document.getElementById('regionList').innerHTML = REGIONS.map(r => {
+    const mine = r.areas || [];
+    const chips = AREAS.map(a => {
+      const taken = owner[a] && owner[a] !== r.regionId;
+      const on = mine.includes(a);
+      return `<label class="areachip${on ? ' on' : ''}${taken ? ' taken' : ''}"
+                     title="${taken ? esc(regionName(owner[a])) + ' 담당' : ''}">
+        <input type="checkbox" data-area="${esc(a)}" ${on ? 'checked' : ''} ${taken ? 'disabled' : ''}
+               onchange="this.closest('label').classList.toggle('on',this.checked)">${esc(a)}</label>`;
+    }).join('');
+    return `<div class="panel" data-team="${esc(r.regionId)}">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input class="tname" value="${esc(r.regionName)}"
+               style="flex:1;min-width:160px;border:1px solid var(--line);border-radius:6px;padding:10px;min-height:44px;font-weight:600;color:var(--primary)">
+        <span class="badge blue">점포 ${storeUsers().filter(u => u.regionId === r.regionId).length}개</span>
+        <button class="btn sm primary" onclick="saveRegion(this)">저장</button>
+        <button class="btn sm ghost" onclick="delRegion('${esc(r.regionId)}')">삭제</button>
+      </div>
+      <div style="font-size:12px;font-weight:600;color:var(--secondary);margin:14px 0 8px">담당 지역</div>
+      <div class="areagrid">${chips}</div>
+    </div>`;
+  }).join('') || '<div class="empty">팀이 없습니다.</div>';
 }
 async function addRegion() {
   const name = document.getElementById('rNew').value.trim();
-  if (!name) { toast('지역명을 입력해 주세요.', true); return; }
+  if (!name) { toast('팀 이름을 입력해 주세요.', true); return; }
   try {
-    const d = await api('saveRegion', { region: { regionName: name } });
+    const d = await api('saveRegion', { region: { regionName: name, areas: [] } });
     REGIONS = d.regions || REGIONS;
     document.getElementById('rNew').value = '';
     fillSelects(); renderRegions();
@@ -1752,16 +2026,19 @@ async function addRegion() {
   } catch (e) { toast(e.message, true); }
 }
 async function saveRegion(btn) {
-  const input = btn.parentNode.querySelector('input');
+  const box = btn.closest('[data-team]');
+  const areas = [...box.querySelectorAll('input[data-area]:checked')].map(c => c.dataset.area);
   try {
-    const d = await api('saveRegion', { region: { regionId: input.dataset.rid, regionName: input.value.trim() } });
+    const d = await api('saveRegion', {
+      region: { regionId: box.dataset.team, regionName: box.querySelector('.tname').value.trim(), areas }
+    });
     REGIONS = d.regions || REGIONS;
-    fillSelects(); renderRegions();
+    fillSelects(); renderRegions(); renderDash();
     toast('저장되었습니다.');
   } catch (e) { toast(e.message, true); }
 }
 async function delRegion(regionId) {
-  if (!confirm('이 지역을 삭제하시겠습니까?')) return;
+  if (!confirm('이 팀을 삭제하시겠습니까?')) return;
   try {
     const d = await api('deleteRegion', { regionId });
     REGIONS = d.regions || REGIONS;
