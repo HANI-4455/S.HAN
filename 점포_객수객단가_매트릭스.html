@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>점포 객수 × 객단가 매트릭스</title>
+<style>
+  :root{
+    --bg:#F2EEE4; --surface:#FFFFFF; --surface2:#FBF9F2; --border:#DCD3BC;
+    --ink:#211D16; --ink-soft:#5C5546; --ink-faint:#8B8371;
+    --brand:#1F3B3A; --brand-strong:#152A29;
+    --plus:#2E6B4C; --minus:#A3402C; --plus-bg:#EDF6EE; --minus-bg:#FDEFEE;
+    --mark:#1F6FC4;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo",sans-serif;font-size:14px;line-height:1.5}
+  .wrap{max-width:1320px;margin:0 auto;padding:28px 24px 60px}
+  header{border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:22px}
+  h1{font-size:22px;margin:0 0 6px}
+  .sub{color:var(--ink-soft);font-size:13px;margin:0}
+  .offline{display:inline-block;margin-top:10px;padding:6px 12px;border-radius:999px;
+    background:var(--plus-bg);border:1px solid var(--plus);color:var(--plus);font-size:12px;font-weight:700}
+  .grid{display:grid;grid-template-columns:340px 1fr;gap:22px;align-items:start}
+  @media(max-width:960px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px}
+  .card h2{font-size:14px;margin:0 0 10px}
+  label{display:block;font-size:12px;font-weight:700;color:var(--ink-soft);margin:12px 0 5px}
+  textarea{width:100%;height:150px;padding:10px;border:1px solid var(--border);border-radius:6px;
+    font-family:Consolas,"D2Coding",monospace;font-size:12px;resize:vertical;background:var(--surface2)}
+  textarea.small{height:56px}
+  select,input[type=number],input[type=text]{width:100%;padding:7px 9px;border:1px solid var(--border);
+    border-radius:6px;background:var(--surface2);font-family:inherit;font-size:13px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  button{font-family:inherit;font-size:13px;font-weight:700;padding:9px 14px;border-radius:6px;
+    border:1px solid var(--brand);background:var(--brand);color:#fff;cursor:pointer}
+  button.ghost{background:var(--surface);color:var(--brand-strong)}
+  button:hover{opacity:.88}
+  .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .note{font-size:11.5px;color:var(--ink-faint);margin-top:10px;line-height:1.45}
+  .err{color:var(--minus);font-size:12px;font-weight:700;margin-top:8px;min-height:16px}
+  .hint{font-size:11.5px;color:var(--plus);font-weight:700;margin-top:5px;min-height:15px}
+  .chk{display:flex;align-items:center;gap:7px;margin-top:10px;font-size:12.5px;font-weight:700;color:var(--ink-soft)}
+  .chk input{width:auto}
+  #chartBox{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px}
+  #svg{display:block;width:100%;height:auto;max-width:900px;margin:0 auto}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{padding:5px 8px;border-bottom:1px solid var(--border);text-align:left}
+  th{background:var(--surface2);font-size:11.5px;color:var(--ink-soft);position:sticky;top:0}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .up{color:var(--plus);font-weight:700}
+  .dn{color:var(--minus);font-weight:700}
+  .scroll{max-height:230px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;margin-top:6px}
+  .qdot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+  .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+  .stile{border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--surface)}
+  .stile .lab{font-size:11.5px;font-weight:700;color:var(--ink-soft)}
+  .stile .val{font-size:22px;font-weight:700;margin-top:2px}
+  .stile .pct{font-size:11.5px;color:var(--ink-faint)}
+  .stile .avg{font-size:11.5px;font-weight:700;margin-top:3px}
+  .revbar{margin-top:14px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;
+    background:var(--surface);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>점포 객수 × 객단가 매트릭스</h1>
+  <p class="sub">엑셀에서 <b>점포명 · 객수 · 객단가</b> 3개 열을 복사해 붙여넣으면 사분면 분포도를 그립니다. 전년비(지수·증감률)와 실적값 모두 인식합니다.</p>
+  <span class="offline">이 파일은 인터넷을 사용하지 않습니다 · 데이터는 이 PC 밖으로 나가지 않습니다</span>
+</header>
+
+<div class="grid">
+  <div class="card">
+    <h2>1. 데이터 입력</h2>
+    <label>엑셀에서 복사 후 붙여넣기 (머리글 포함 권장)</label>
+    <textarea id="data" placeholder="점포명	객단가 전년비	객수 전년비&#10;A점	104.2	97.5&#10;B점	99.1	108.3&#10;..."></textarea>
+    <div class="btnrow">
+      <button class="ghost" id="btnSample">예시 375개점 넣기</button>
+      <button class="ghost" id="btnClear">비우기</button>
+    </div>
+
+    <h2 style="margin-top:20px">2. 값의 형식</h2>
+    <select id="vtype">
+      <option value="auto">자동 감지 (권장)</option>
+      <option value="index">전년비 지수 — 100이 전년 동일</option>
+      <option value="growth">전년비 증감률 — 0%가 전년 동일</option>
+      <option value="abs">실적값 (객수·객단가 절대값)</option>
+    </select>
+    <div class="hint" id="hint"></div>
+    <label>열 순서</label>
+    <select id="order">
+      <option value="auto">자동 (머리글로 판단)</option>
+      <option value="xy">점포명 / 객수 / 객단가</option>
+      <option value="yx">점포명 / 객단가 / 객수</option>
+    </select>
+
+    <h2 style="margin-top:20px">3. 기준선</h2>
+    <select id="mode">
+      <option value="base">전년 동일선 (100 / 0%)</option>
+      <option value="mean">전사 평균</option>
+      <option value="median">중앙값</option>
+      <option value="manual">직접 입력</option>
+    </select>
+    <div class="row2" style="margin-top:8px">
+      <div><label style="margin-top:0">객수 기준</label><input type="number" id="thX" step="any" disabled></div>
+      <div><label style="margin-top:0">객단가 기준</label><input type="number" id="thY" step="any" disabled></div>
+    </div>
+    <div class="chk"><input type="checkbox" id="iso" checked><label for="iso" style="margin:0">매출 증감 0선 표시</label></div>
+
+    <h2 style="margin-top:20px">4. 라벨 · 표시</h2>
+    <label>점포명을 붙일 대상</label>
+    <select id="labelMode">
+      <option value="quad">사분면별 극단 점포</option>
+      <option value="revlow">매출 감소 하위 점포</option>
+      <option value="revboth">매출 상위 · 하위 점포</option>
+      <option value="pick">아래 지정 점포만</option>
+      <option value="none">표시 안 함</option>
+      <option value="all">전체 (점포 수 적을 때만)</option>
+    </select>
+    <div class="row2" style="margin-top:8px">
+      <div><label style="margin-top:0">개수 (구간별)</label><input type="number" id="labelN" value="3" min="0" max="15"></div>
+      <div><label style="margin-top:0">점 크기</label>
+        <select id="dotSize"><option value="auto">자동</option><option value="2">아주 작게</option>
+        <option value="3">작게</option><option value="4.5">보통</option><option value="6.5">크게</option></select></div>
+    </div>
+    <label>강조할 점포 (쉼표·줄바꿈 구분)</label>
+    <textarea id="pick" class="small" placeholder="강남점, 홍대점"></textarea>
+    <label>제목</label>
+    <input type="text" id="title" value="점포별 객수 × 객단가 전년비 분포">
+
+    <div class="btnrow">
+      <button id="btnDraw">분포도 그리기</button>
+      <button class="ghost" id="btnPng">PNG 저장</button>
+      <button class="ghost" id="btnPptx">PPT 저장</button>
+    </div>
+    <div class="err" id="err"></div>
+    <p class="note">
+      · 매출 전년비 = 객수 전년비 × 객단가 전년비.<br>
+      · 강조 점포는 항상 크게·이름과 함께 표시됩니다.<br>
+      · [PPT 저장]은 제목·부제·요약이 편집 가능한 텍스트로 들어간 .pptx를 만듭니다.<br>
+      · 이 HTML은 외부 서버·폰트·스크립트를 전혀 불러오지 않습니다.
+    </p>
+  </div>
+
+  <div>
+    <div id="chartBox"><svg id="svg" width="900" height="660" viewBox="0 0 900 660"></svg></div>
+    <div class="summary" id="summary"></div>
+    <div class="revbar" id="revbar" style="display:none"></div>
+    <div class="card" style="margin-top:14px">
+      <h2>사분면별 점포 목록</h2>
+      <input type="text" id="filter" placeholder="점포명 검색…" style="margin-bottom:4px">
+      <div id="tableBox"><p class="note" style="margin:0">데이터를 넣고 [분포도 그리기]를 누르세요.</p></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var SVGNS="http://www.w3.org/2000/svg";
+  var QUAD=[
+    {key:"star",name:"우량 성장형",    tag:"객수 ↑ · 객단가 ↑",fill:"#EDF6EE",line:"#2E6B4C",ink:"#2E6B4C"},
+    {key:"vol", name:"볼륨 확장형",    tag:"객수 ↑ · 객단가 ↓",fill:"#F3F8F4",line:"#5C8A6E",ink:"#3E6B50"},
+    {key:"prem",name:"프리미엄 착시형",tag:"객수 ↓ · 객단가 ↑",fill:"#FBF3F1",line:"#B9705E",ink:"#A3402C"},
+    {key:"risk",name:"위험 신호형",    tag:"객수 ↓ · 객단가 ↓",fill:"#FDEFEE",line:"#A3402C",ink:"#A3402C"}
+  ];
+  function q(id){return document.getElementById(id);}
+  function el(n,a){var e=document.createElementNS(SVGNS,n);for(var k in a){if(a[k]!==null&&a[k]!==undefined)e.setAttribute(k,a[k]);}return e;}
+  function n1(v){return (Math.round(v*10)/10).toLocaleString("ko-KR",{minimumFractionDigits:1,maximumFractionDigits:1});}
+  function n0(v){return Math.round(v).toLocaleString("ko-KR");}
+
+  function splitLine(L){
+    var p=L.split(/\t|,(?=(?:[^"]*"[^"]*")*[^"]*$)/);
+    if(p.length<3) p=L.split(/\s{2,}/);
+    return p.map(function(s){return String(s).replace(/^"|"$/g,"").trim();});
+  }
+  function num(s){
+    var t=String(s).replace(/[",\s%]/g,"");
+    if(/^\(.*\)$/.test(t)) t="-"+t.slice(1,-1);
+    var v=Number(t); return isFinite(v)?v:NaN;
+  }
+  function parse(txt,orderPref){
+    var lines=txt.split(/\r?\n/),rows=[],bad=0,order=orderPref,headerSeen=false;
+    for(var i=0;i<lines.length;i++){
+      var L=lines[i].trim(); if(!L) continue;
+      var p=splitLine(L); if(p.length<3){bad++;continue;}
+      var a=num(p[1]),b=num(p[2]);
+      if(!isFinite(a)||!isFinite(b)){
+        if(!headerSeen){
+          headerSeen=true;
+          if(orderPref==="auto"){
+            var c1=p[1].replace(/\s/g,""),c2=p[2].replace(/\s/g,"");
+            if(/객단가|단가/.test(c1)&&/객수|고객수/.test(c2)) order="yx";
+            else if(/객수|고객수/.test(c1)&&/객단가|단가/.test(c2)) order="xy";
+          }
+          continue;
+        }
+        bad++; continue;
+      }
+      headerSeen=true; rows.push({name:p[0],a:a,b:b});
+    }
+    if(order==="auto") order="xy";
+    rows.forEach(function(r){ if(order==="yx"){r.x=r.b;r.y=r.a;} else {r.x=r.a;r.y=r.b;} });
+    return {rows:rows,bad:bad,order:order};
+  }
+  function median(arr){var s=arr.slice().sort(function(p,r){return p-r;});var m=Math.floor(s.length/2);
+    return s.length%2?s[m]:(s[m-1]+s[m])/2;}
+  function detectType(rows){
+    var mx=median(rows.map(function(d){return d.x;})),my=median(rows.map(function(d){return d.y;}));
+    var idx=function(v){return v>55&&v<190;},gr=function(v){return v>-60&&v<60;};
+    if(idx(mx)&&idx(my)) return "index";
+    if(gr(mx)&&gr(my)) return "growth";
+    return "abs";
+  }
+  function baseline(t){return t==="index"?100:t==="growth"?0:null;}
+  function revOf(t,x,y){ if(t==="index")return x*y/100; if(t==="growth")return ((1+x/100)*(1+y/100)-1)*100; return x*y; }
+  function revGrew(t,x,y){ if(t==="index")return x*y/100>=100; if(t==="growth")return (1+x/100)*(1+y/100)>=1; return null; }
+  function isoY(t,x){ if(t==="index")return x>0?10000/x:null; if(t==="growth")return (100+x)!==0?10000/(100+x)-100:null; return null; }
+  function axLabel(t,w2){var w=w2==="x"?"객수":"객단가";
+    if(t==="index")return w+" 전년비 (100=전년)"; if(t==="growth")return w+" 전년비 증감률 (%)"; return w;}
+  function fmtVal(t,v){return t==="abs"?n0(v):(t==="growth"?(v>=0?"+":"")+n1(v):n1(v));}
+  function fmtRev(t,v){if(t==="abs")return n0(v); if(t==="growth")return (v>=0?"+":"")+n1(v)+"%"; return n1(v);}
+
+  var STATE=null;
+
+  function draw(){
+    var errBox=q("err"); errBox.textContent=""; q("hint").textContent="";
+    var pr=parse(q("data").value,q("order").value);
+    if(!pr.rows.length){errBox.textContent="읽을 수 있는 데이터가 없습니다.";return;}
+    if(pr.bad) errBox.textContent="건너뛴 줄 "+pr.bad+"개 (숫자가 아닌 값).";
+    var rows=pr.rows;
+
+    var t=q("vtype").value; if(t==="auto") t=detectType(rows);
+    q("hint").textContent="형식: "+(t==="index"?"전년비 지수 (100 = 전년 동일)":t==="growth"?"전년비 증감률 (0% = 전년 동일)":"실적값")
+      +"  ·  열 순서: "+(pr.order==="yx"?"점포명 / 객단가 / 객수":"점포명 / 객수 / 객단가");
+
+    var xs=rows.map(function(d){return d.x;}),ys=rows.map(function(d){return d.y;});
+    var mode=q("mode").value,base=baseline(t),tx,ty;
+    if(mode==="manual"){
+      tx=Number(q("thX").value); ty=Number(q("thY").value);
+      if(!isFinite(tx)||!isFinite(ty)){errBox.textContent="기준값을 숫자로 입력해 주세요.";return;}
+    } else if(mode==="median"){ tx=median(xs); ty=median(ys); }
+    else if(mode==="mean"){ tx=xs.reduce(function(a,b){return a+b;},0)/xs.length;
+      ty=ys.reduce(function(a,b){return a+b;},0)/ys.length; }
+    else { if(base===null){tx=median(xs);ty=median(ys);errBox.textContent="실적값에는 전년 동일선이 없어 중앙값을 사용했습니다.";}
+      else {tx=base;ty=base;} }
+    q("thX").value=Math.round(tx*10)/10; q("thY").value=Math.round(ty*10)/10;
+
+    rows.forEach(function(d){d.rev=revOf(t,d.x,d.y);d.grew=revGrew(t,d.x,d.y);});
+
+    // 강조 점포
+    var picks=q("pick").value.split(/[,\n]/).map(function(s){return s.trim();}).filter(Boolean);
+    rows.forEach(function(d){
+      d.hi = picks.some(function(p){return d.name.indexOf(p)>=0;});
+    });
+
+    var W=900,H=660,M={t:62,r:28,b:60,l:82};
+    var pw=W-M.l-M.r,ph=H-M.t-M.b;
+    var xMin=Math.min.apply(null,xs),xMax=Math.max.apply(null,xs);
+    var yMin=Math.min.apply(null,ys),yMax=Math.max.apply(null,ys);
+    xMin=Math.min(xMin,tx);xMax=Math.max(xMax,tx);yMin=Math.min(yMin,ty);yMax=Math.max(yMax,ty);
+    var px2=(xMax-xMin||1)*0.10,py2=(yMax-yMin||1)*0.10;
+    xMin-=px2;xMax+=px2;yMin-=py2;yMax+=py2;
+    var sx=function(v){return M.l+(v-xMin)/(xMax-xMin)*pw;};
+    var sy=function(v){return M.t+ph-(v-yMin)/(yMax-yMin)*ph;};
+
+    var svg=q("svg");
+    while(svg.firstChild) svg.removeChild(svg.firstChild);
+    svg.setAttribute("width",W);svg.setAttribute("height",H);svg.setAttribute("viewBox","0 0 "+W+" "+H);
+    svg.setAttribute("font-family","Malgun Gothic, 맑은 고딕, Apple SD Gothic Neo, sans-serif");
+    svg.appendChild(el("rect",{x:0,y:0,width:W,height:H,fill:"#FFFFFF"}));
+
+    var cx=sx(tx),cy=sy(ty);
+    [{qd:QUAD[0],x:cx,y:M.t,w:M.l+pw-cx,h:cy-M.t},
+     {qd:QUAD[1],x:cx,y:cy,w:M.l+pw-cx,h:M.t+ph-cy},
+     {qd:QUAD[2],x:M.l,y:M.t,w:cx-M.l,h:cy-M.t},
+     {qd:QUAD[3],x:M.l,y:cy,w:cx-M.l,h:M.t+ph-cy}].forEach(function(g){
+      if(g.w>0&&g.h>0) svg.appendChild(el("rect",{x:g.x,y:g.y,width:g.w,height:g.h,fill:g.qd.fill}));
+    });
+    svg.appendChild(el("rect",{x:M.l,y:M.t,width:pw,height:ph,fill:"none",stroke:"#DCD3BC","stroke-width":1}));
+
+    // 사분면 캡션 (모서리 고정 · 점과 겹치지 않게 반투명 판)
+    [{qd:QUAD[2],ax:M.l+9,ay:M.t+8,an:"start"},{qd:QUAD[0],ax:M.l+pw-9,ay:M.t+8,an:"end"},
+     {qd:QUAD[3],ax:M.l+9,ay:M.t+ph-34,an:"start"},{qd:QUAD[1],ax:M.l+pw-9,ay:M.t+ph-34,an:"end"}
+    ].forEach(function(c){
+      var wBox=112,bx=c.an==="start"?c.ax-4:c.ax-wBox+4;
+      svg.appendChild(el("rect",{x:bx,y:c.ay-2,width:wBox,height:32,fill:"#FFFFFF",opacity:.72,rx:4}));
+      var t1=el("text",{x:c.ax,y:c.ay+11,"font-size":12.5,"font-weight":"700",fill:c.qd.ink,"text-anchor":c.an});
+      t1.textContent=c.qd.name; svg.appendChild(t1);
+      var t2=el("text",{x:c.ax,y:c.ay+25,"font-size":9.5,fill:c.qd.ink,"text-anchor":c.an,opacity:.85});
+      t2.textContent=c.qd.tag; svg.appendChild(t2);
+    });
+
+    // 매출 전년 동일선
+    if(q("iso").checked && t!=="abs"){
+      var pts=[],steps=200;
+      for(var i2=0;i2<=steps;i2++){
+        var vx=xMin+(xMax-xMin)*i2/steps,vy=isoY(t,vx);
+        if(vy===null||!isFinite(vy)) continue;
+        var Y=sy(vy); if(Y<M.t-2||Y>M.t+ph+2) continue;
+        pts.push([sx(vx),Y]);
+      }
+      if(pts.length>1){
+        svg.appendChild(el("polyline",{points:pts.map(function(p){return p[0]+","+p[1];}).join(" "),
+          fill:"none",stroke:"#6E675A","stroke-width":1.5,"stroke-dasharray":"2 5"}));
+        var lp=pts[Math.floor(pts.length*0.12)];
+        svg.appendChild(el("rect",{x:lp[0]+3,y:lp[1]-20,width:96,height:15,fill:"#FFFFFF",opacity:.8,rx:3}));
+        var il=el("text",{x:lp[0]+7,y:lp[1]-9,"font-size":9.5,"font-weight":"700",fill:"#6E675A"});
+        il.textContent="매출 전년 동일선"; svg.appendChild(il);
+      }
+    }
+
+    svg.appendChild(el("line",{x1:cx,y1:M.t,x2:cx,y2:M.t+ph,stroke:"#5C5546","stroke-width":1.25,"stroke-dasharray":"5 4"}));
+    svg.appendChild(el("line",{x1:M.l,y1:cy,x2:M.l+pw,y2:cy,stroke:"#5C5546","stroke-width":1.25,"stroke-dasharray":"5 4"}));
+
+    for(var i=0;i<=4;i++){
+      var vx2=xMin+(xMax-xMin)*i/4,vy2=yMin+(yMax-yMin)*i/4;
+      var a1=el("text",{x:sx(vx2),y:M.t+ph+18,"font-size":10,fill:"#8B8371","text-anchor":"middle"});
+      a1.textContent=fmtVal(t,vx2); svg.appendChild(a1);
+      var b1=el("text",{x:M.l-8,y:sy(vy2)+3.5,"font-size":10,fill:"#8B8371","text-anchor":"end"});
+      b1.textContent=fmtVal(t,vy2); svg.appendChild(b1);
+    }
+    var axl=el("text",{x:M.l+pw,y:M.t+ph+41,"font-size":11.5,"font-weight":"700",fill:"#5C5546","text-anchor":"end"});
+    axl.textContent=axLabel(t,"x")+" →"; svg.appendChild(axl);
+    var ayl=el("text",{transform:"rotate(-90)",x:-(M.t+ph/2),y:17,"font-size":11.5,"font-weight":"700",
+      fill:"#5C5546","text-anchor":"middle"});
+    ayl.textContent=axLabel(t,"y")+" →"; svg.appendChild(ayl);
+
+    var ttl=el("text",{x:M.l,y:28,"font-size":16,"font-weight":"700",fill:"#211D16"});
+    ttl.textContent=q("title").value||"점포별 분포"; svg.appendChild(ttl);
+    var st=el("text",{x:M.l,y:46,"font-size":11,fill:"#8B8371"});
+    st.textContent="기준선 — 객수 "+fmtVal(t,tx)+" · 객단가 "+fmtVal(t,ty)+" ("+
+      (mode==="base"?"전년 동일":mode==="mean"?"전사 평균":mode==="median"?"중앙값":"직접 입력")+
+      ") · 점포 "+rows.length+"개"; svg.appendChild(st);
+
+    // 사분면 배정
+    var counts={star:0,vol:0,prem:0,risk:0},sums={star:0,vol:0,prem:0,risk:0};
+    rows.forEach(function(d){
+      d.q = d.x>=tx ? (d.y>=ty?QUAD[0]:QUAD[1]) : (d.y>=ty?QUAD[2]:QUAD[3]);
+      counts[d.q.key]++; sums[d.q.key]+=d.rev;
+    });
+
+    // ---- 라벨 대상 선정 ----
+    var lm=q("labelMode").value, N=Math.max(0,Math.min(15,parseInt(q("labelN").value,10)||0));
+    var labelSet=[];
+    if(lm==="all") labelSet=rows.slice();
+    else if(lm==="quad"){
+      QUAD.forEach(function(qd){
+        var list=rows.filter(function(d){return d.q.key===qd.key;});
+        list.forEach(function(d){
+          var ddx=(d.x-tx)/(xMax-xMin||1), ddy=(d.y-ty)/(yMax-yMin||1);
+          d._s=Math.sqrt(ddx*ddx+ddy*ddy);
+        });
+        list.sort(function(a,b){return b._s-a._s;});
+        labelSet=labelSet.concat(list.slice(0,N));
+      });
+    } else if(lm==="revlow"){
+      labelSet=rows.slice().sort(function(a,b){return a.rev-b.rev;}).slice(0,N*2);
+    } else if(lm==="revboth"){
+      var s2=rows.slice().sort(function(a,b){return b.rev-a.rev;});
+      labelSet=s2.slice(0,N).concat(s2.slice(-N));
+    } else if(lm==="pick"){ labelSet=[]; }
+    rows.forEach(function(d){d._lab=false;});
+    labelSet.forEach(function(d){d._lab=true;});
+    rows.forEach(function(d){ if(d.hi) d._lab=true; });
+
+    // ---- 점 그리기 ----
+    var ds=q("dotSize").value, r;
+    if(ds==="auto"){ r = rows.length>250?2.6 : rows.length>120?3.4 : rows.length>60?4.6 : 6.5; }
+    else r=parseFloat(ds);
+    var op = rows.length>250?0.55 : rows.length>120?0.65 : 0.8;
+
+    var gDots=el("g",{}); svg.appendChild(gDots);
+    rows.forEach(function(d){
+      if(d.hi) return;
+      gDots.appendChild(el("circle",{cx:sx(d.x),cy:sy(d.y),r:r,fill:d.q.line,"fill-opacity":op,
+        stroke:"#FFFFFF","stroke-width":r>4?1:0.6}));
+    });
+    rows.forEach(function(d){
+      if(!d.hi) return;
+      svg.appendChild(el("circle",{cx:sx(d.x),cy:sy(d.y),r:Math.max(r+2.5,5.5),fill:"#FFFFFF",
+        stroke:"#1F6FC4","stroke-width":2.5}));
+    });
+
+    // ---- 라벨 배치 (충돌 회피) ----
+    var placed=[];
+    function hit(b){
+      for(var i3=0;i3<placed.length;i3++){var o=placed[i3];
+        if(b.x1<o.x2&&b.x2>o.x1&&b.y1<o.y2&&b.y2>o.y1) return true;}
+      return false;
+    }
+    var labeled=rows.filter(function(d){return d._lab;});
+    labeled.sort(function(a,b){return (b.hi?1:0)-(a.hi?1:0);});
+    labeled.forEach(function(d){
+      var X=sx(d.x),Y=sy(d.y),fs=10,wpx=d.name.length*9.2+4,hpx=13;
+      var cands=[{dx:0,dy:-(r+8),an:"middle"},{dx:0,dy:r+13,an:"middle"},
+                 {dx:r+6,dy:4,an:"start"},{dx:-(r+6),dy:4,an:"end"},
+                 {dx:0,dy:-(r+21),an:"middle"},{dx:0,dy:r+26,an:"middle"}];
+      for(var k=0;k<cands.length;k++){
+        var c=cands[k],lx=X+c.dx,ly=Y+c.dy;
+        var x1=c.an==="middle"?lx-wpx/2:(c.an==="start"?lx:lx-wpx);
+        var box={x1:x1,x2:x1+wpx,y1:ly-hpx,y2:ly+3};
+        if(box.x1<M.l-40||box.x2>M.l+pw+40||box.y1<M.t-6||box.y2>M.t+ph+6) continue;
+        if(hit(box)) continue;
+        placed.push(box);
+        var halo=el("text",{x:lx,y:ly,"font-size":fs,"font-weight":"700",fill:"#FFFFFF","text-anchor":c.an,
+          stroke:"#FFFFFF","stroke-width":3.2,"stroke-linejoin":"round"});
+        halo.textContent=d.name; svg.appendChild(halo);
+        var lb=el("text",{x:lx,y:ly,"font-size":fs,"font-weight":"700",
+          fill:d.hi?"#1F6FC4":"#211D16","text-anchor":c.an});
+        lb.textContent=d.name; svg.appendChild(lb);
+        return;
+      }
+    });
+
+    // 범례 (강조 있을 때만)
+    if(rows.some(function(d){return d.hi;})){
+      var lgy=M.t+ph+41;
+      svg.appendChild(el("circle",{cx:M.l+8,cy:lgy-4,r:5.5,fill:"#FFFFFF",stroke:"#1F6FC4","stroke-width":2.5}));
+      var lg=el("text",{x:M.l+20,y:lgy,"font-size":10.5,"font-weight":"700",fill:"#1F6FC4"});
+      lg.textContent="강조 점포"; svg.appendChild(lg);
+    }
+
+    STATE={rows:rows,t:t,sub:st.textContent};
+
+    // ---- 요약 타일 ----
+    var sum=q("summary"); sum.innerHTML="";
+    QUAD.forEach(function(qd){
+      var n=counts[qd.key],p=rows.length?Math.round(n/rows.length*1000)/10:0;
+      var avg=n?sums[qd.key]/n:0;
+      var d=document.createElement("div"); d.className="stile";
+      var avgTxt = t==="abs"?"":'<div class="avg" style="color:'+
+        ((t==="index"?avg>=100:avg>=0)?"#2E6B4C":"#A3402C")+'">매출 전년비 평균 '+fmtRev(t,avg)+'</div>';
+      d.innerHTML='<div class="lab"><span class="qdot" style="background:'+qd.line+'"></span>'+qd.name+'</div>'+
+        '<div class="val">'+n+'<span style="font-size:13px;font-weight:400">개점</span></div>'+
+        '<div class="pct">'+p+'% · '+qd.tag+'</div>'+avgTxt;
+      sum.appendChild(d);
+    });
+
+    var rb=q("revbar");
+    if(t!=="abs"){
+      var up=rows.filter(function(d){return d.grew===true;}).length,dn=rows.length-up;
+      rb.style.display="block";
+      rb.innerHTML='<b>매출 전년비</b> — <span class="up">증가 '+up+'개점 ('+
+        Math.round(up/rows.length*1000)/10+'%)</span> · <span class="dn">감소 '+dn+'개점 ('+
+        Math.round(dn/rows.length*1000)/10+'%)</span>  <span style="color:#8B8371;font-size:11.5px">'+
+        '(매출 전년비 = 객수 전년비 × 객단가 전년비)</span>';
+    } else rb.style.display="none";
+
+    renderTable();
+  }
+
+  function renderTable(){
+    if(!STATE) return;
+    var t=STATE.t, rows=STATE.rows;
+    var f=q("filter").value.trim();
+    var box=q("tableBox"); box.innerHTML="";
+    QUAD.forEach(function(qd){
+      var list=rows.filter(function(d){return d.q.key===qd.key && (!f||d.name.indexOf(f)>=0);})
+                   .sort(function(a,b){return a.rev-b.rev;});
+      if(!list.length) return;
+      var h=document.createElement("div");
+      h.style.cssText="margin-top:12px;font-weight:700;font-size:13px;color:"+qd.ink;
+      h.innerHTML='<span class="qdot" style="background:'+qd.line+'"></span>'+qd.name+' · '+list.length+'개점'+
+        '<span style="font-weight:400;color:#8B8371;font-size:11.5px"> (매출 전년비 낮은 순)</span>';
+      box.appendChild(h);
+      var wrap=document.createElement("div"); wrap.className="scroll";
+      var tb=document.createElement("table");
+      tb.innerHTML="<tr><th>점포명</th><th style='text-align:right'>"+axLabel(t,"x")+
+        "</th><th style='text-align:right'>"+axLabel(t,"y")+"</th><th style='text-align:right'>매출 전년비</th></tr>"+
+        list.map(function(d){
+          var cls=d.grew===null?"":(d.grew?"up":"dn");
+          var nm=d.hi?"<b style='color:#1F6FC4'>"+d.name+"</b>":d.name;
+          return "<tr><td>"+nm+"</td><td class='num'>"+fmtVal(t,d.x)+"</td><td class='num'>"+
+            fmtVal(t,d.y)+"</td><td class='num "+cls+"'>"+fmtRev(t,d.rev)+"</td></tr>";
+        }).join("");
+      wrap.appendChild(tb); box.appendChild(wrap);
+    });
+    if(!box.firstChild) box.innerHTML='<p class="note" style="margin:0">검색 결과가 없습니다.</p>';
+  }
+
+  function savePng(){
+    var svg=q("svg");
+    if(!svg.querySelector("circle")){q("err").textContent="먼저 [분포도 그리기]를 눌러주세요.";return;}
+    var s=new XMLSerializer().serializeToString(svg),img=new Image(),scale=2.5,W=900,H=660;
+    img.onload=function(){
+      var c=document.createElement("canvas");c.width=W*scale;c.height=H*scale;
+      var ctx=c.getContext("2d");ctx.fillStyle="#FFFFFF";ctx.fillRect(0,0,c.width,c.height);
+      ctx.setTransform(scale,0,0,scale,0,0);ctx.drawImage(img,0,0);
+      var name="점포_객수객단가_매트릭스.png";
+      if(c.toBlob){c.toBlob(function(blob){
+        var url=URL.createObjectURL(blob),a=document.createElement("a");
+        a.download=name;a.href=url;document.body.appendChild(a);a.click();
+        document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url);},4000);},"image/png");
+      } else {var a2=document.createElement("a");a2.download=name;a2.href=c.toDataURL("image/png");
+        document.body.appendChild(a2);a2.click();document.body.removeChild(a2);}
+    };
+    img.onerror=function(){q("err").textContent="PNG 변환 실패. Chrome 또는 Edge로 열어보세요.";};
+    img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(s);
+  }
+
+
+  /* ================= 최소 PPTX 생성기 (외부 라이브러리 없음) ================= */
+  var CRC_T=(function(){var t=new Uint32Array(256);for(var n=0;n<256;n++){var c=n;
+    for(var k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+  function crc32(u8){var c=0xFFFFFFFF;for(var i=0;i<u8.length;i++)c=CRC_T[(c^u8[i])&0xFF]^(c>>>8);
+    return (c^0xFFFFFFFF)>>>0;}
+  function utf8(str){return new TextEncoder().encode(str);}
+  function zipStore(files){
+    var parts=[],central=[],offset=0;
+    function u16(v){return [v&255,(v>>8)&255];}
+    function u32(v){return [v&255,(v>>8)&255,(v>>16)&255,(v>>>24)&255];}
+    files.forEach(function(f){
+      var name=utf8(f.name), data=f.data, crc=crc32(data);
+      var lh=[].concat([0x50,0x4b,0x03,0x04],u16(20),u16(0),u16(0),u16(0),u16(0),
+        u32(crc),u32(data.length),u32(data.length),u16(name.length),u16(0));
+      parts.push(new Uint8Array(lh)); parts.push(name); parts.push(data);
+      var ch=[].concat([0x50,0x4b,0x01,0x02],u16(20),u16(20),u16(0),u16(0),u16(0),u16(0),
+        u32(crc),u32(data.length),u32(data.length),u16(name.length),u16(0),u16(0),u16(0),u16(0),
+        u32(0),u32(offset));
+      central.push(new Uint8Array(ch)); central.push(name);
+      offset += lh.length + name.length + data.length;
+    });
+    var cdSize=central.reduce(function(a,b){return a+b.length;},0);
+    var end=new Uint8Array([].concat([0x50,0x4b,0x05,0x06],u16(0),u16(0),
+      u16(files.length),u16(files.length),u32(cdSize),u32(offset),u16(0)));
+    var all=parts.concat(central,[end]);
+    var total=all.reduce(function(a,b){return a+b.length;},0);
+    var out=new Uint8Array(total),pos=0;
+    all.forEach(function(b){out.set(b,pos);pos+=b.length;});
+    return out;
+  }
+  function xesc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");}
+
+  var XML_DECL='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+  var NS_A='http://schemas.openxmlformats.org/drawingml/2006/main';
+  var NS_P='http://schemas.openxmlformats.org/presentationml/2006/main';
+  var NS_R='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+
+  function themeXml(){
+    var dk=["000000","FFFFFF","1F3B3A","F2EEE4"];
+    var acc=["2E6B4C","A3402C","1F6FC4","5C8A6E","B9705E","8B8371"];
+    var accXml=acc.map(function(c,i){return '<a:accent'+(i+1)+'><a:srgbClr val="'+c+'"/></a:accent'+(i+1)+'>';}).join("");
+    var fill='<a:solidFill><a:schemeClr val="phClr"/></a:solidFill>';
+    var ln='<a:ln w="9525" cap="flat" cmpd="sng" algn="ctr">'+fill+'<a:prstDash val="solid"/></a:ln>';
+    return XML_DECL+'<a:theme xmlns:a="'+NS_A+'" name="PAS"><a:themeElements>'+
+      '<a:clrScheme name="PAS"><a:dk1><a:srgbClr val="'+dk[0]+'"/></a:dk1>'+
+      '<a:lt1><a:srgbClr val="'+dk[1]+'"/></a:lt1><a:dk2><a:srgbClr val="'+dk[2]+'"/></a:dk2>'+
+      '<a:lt2><a:srgbClr val="'+dk[3]+'"/></a:lt2>'+accXml+
+      '<a:hlink><a:srgbClr val="1F6FC4"/></a:hlink><a:folHlink><a:srgbClr val="954F72"/></a:folHlink></a:clrScheme>'+
+      '<a:fontScheme name="PAS"><a:majorFont><a:latin typeface="맑은 고딕"/><a:ea typeface="맑은 고딕"/><a:cs typeface=""/></a:majorFont>'+
+      '<a:minorFont><a:latin typeface="맑은 고딕"/><a:ea typeface="맑은 고딕"/><a:cs typeface=""/></a:minorFont></a:fontScheme>'+
+      '<a:fmtScheme name="PAS"><a:fillStyleLst>'+fill+fill+fill+'</a:fillStyleLst>'+
+      '<a:lnStyleLst>'+ln+ln+ln+'</a:lnStyleLst>'+
+      '<a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle>'+
+      '<a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst>'+
+      '<a:bgFillStyleLst>'+fill+fill+fill+'</a:bgFillStyleLst></a:fmtScheme>'+
+      '</a:themeElements><a:objectDefaults/><a:extraClrSchemeLst/></a:theme>';
+  }
+  function masterXml(){
+    return XML_DECL+'<p:sldMaster xmlns:a="'+NS_A+'" xmlns:r="'+NS_R+'" xmlns:p="'+NS_P+'">'+
+      '<p:cSld><p:bg><p:bgPr><a:solidFill><a:schemeClr val="lt1"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>'+
+      '<p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'+
+      '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/>'+
+      '<a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld>'+
+      '<p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" '+
+      'accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/>'+
+      '<p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst>'+
+      '<p:txStyles><p:titleStyle><a:lvl1pPr><a:defRPr sz="2400"/></a:lvl1pPr></p:titleStyle>'+
+      '<p:bodyStyle><a:lvl1pPr><a:defRPr sz="1400"/></a:lvl1pPr></p:bodyStyle>'+
+      '<p:otherStyle><a:lvl1pPr><a:defRPr sz="1400"/></a:lvl1pPr></p:otherStyle></p:txStyles></p:sldMaster>';
+  }
+  function layoutXml(){
+    return XML_DECL+'<p:sldLayout xmlns:a="'+NS_A+'" xmlns:r="'+NS_R+'" xmlns:p="'+NS_P+'" type="blank" preserve="1">'+
+      '<p:cSld name="빈 화면"><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'+
+      '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/>'+
+      '<a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld>'+
+      '<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>';
+  }
+  function tbox(id,name,x,y,cx,cy,runs,align){
+    var rs=runs.map(function(r){
+      return '<a:r><a:rPr lang="ko-KR" altLang="en-US" sz="'+r.sz+'"'+(r.b?' b="1"':'')+' dirty="0">'+
+        '<a:solidFill><a:srgbClr val="'+r.c+'"/></a:solidFill>'+
+        '<a:latin typeface="맑은 고딕"/><a:ea typeface="맑은 고딕"/></a:rPr>'+
+        '<a:t>'+xesc(r.t)+'</a:t></a:r>';
+    }).join("");
+    return '<p:sp><p:nvSpPr><p:cNvPr id="'+id+'" name="'+xesc(name)+'"/>'+
+      '<p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>'+
+      '<p:spPr><a:xfrm><a:off x="'+Math.round(x)+'" y="'+Math.round(y)+'"/>'+
+      '<a:ext cx="'+Math.round(cx)+'" cy="'+Math.round(cy)+'"/></a:xfrm>'+
+      '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr>'+
+      '<p:txBody><a:bodyPr wrap="square" rtlCol="0" anchor="ctr"><a:noAutofit/></a:bodyPr><a:lstStyle/>'+
+      '<a:p><a:pPr algn="'+(align||"l")+'"/>'+rs+'</a:p></p:txBody></p:sp>';
+  }
+  function slideXml(meta,img){
+    var SW=9906000, SH=6858000, EMU=914400;
+    var titleY=0.30*EMU, subY=0.78*EMU, footY=SH-0.68*EMU;
+    var top=1.18*EMU, bot=SH-0.78*EMU, availH=bot-top, availW=SW-1.0*EMU;
+    var ar=img.w/img.h, ih=availH, iw=ih*ar;
+    if(iw>availW){ iw=availW; ih=iw/ar; }
+    var ix=(SW-iw)/2, iy=top+(availH-ih)/2;
+    var pic='<p:pic><p:nvPicPr><p:cNvPr id="10" name="매트릭스 차트"/>'+
+      '<p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>'+
+      '<p:blipFill><a:blip r:embed="rId2"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>'+
+      '<p:spPr><a:xfrm><a:off x="'+Math.round(ix)+'" y="'+Math.round(iy)+'"/>'+
+      '<a:ext cx="'+Math.round(iw)+'" cy="'+Math.round(ih)+'"/></a:xfrm>'+
+      '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>';
+    var sps =
+      tbox(2,"제목",0.5*EMU,titleY,SW-1.0*EMU,0.42*EMU,[{t:meta.title,sz:2000,b:1,c:"211D16"}])+
+      tbox(3,"부제",0.5*EMU,subY,SW-1.0*EMU,0.30*EMU,[{t:meta.sub,sz:1100,c:"8B8371"}])+
+      pic+
+      tbox(4,"요약",0.5*EMU,footY,SW-1.0*EMU,0.46*EMU,meta.footRuns,"l");
+    return XML_DECL+'<p:sld xmlns:a="'+NS_A+'" xmlns:r="'+NS_R+'" xmlns:p="'+NS_P+'">'+
+      '<p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'+
+      '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/>'+
+      '<a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'+
+      sps+'</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>';
+  }
+  function buildPptx(meta,pngBytes,imgWH){
+    var f=[];
+    function add(n,str){f.push({name:n,data:utf8(str)});}
+    add("[Content_Types].xml",XML_DECL+
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'+
+      '<Default Extension="xml" ContentType="application/xml"/>'+
+      '<Default Extension="png" ContentType="image/png"/>'+
+      '<Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>'+
+      '<Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>'+
+      '<Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/>'+
+      '<Override PartName="/ppt/slides/slide1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>'+
+      '<Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>'+
+      '</Types>');
+    add("_rels/.rels",XML_DECL+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="'+NS_R+'/officeDocument" Target="ppt/presentation.xml"/></Relationships>');
+    add("ppt/presentation.xml",XML_DECL+
+      '<p:presentation xmlns:a="'+NS_A+'" xmlns:r="'+NS_R+'" xmlns:p="'+NS_P+'">'+
+      '<p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>'+
+      '<p:sldIdLst><p:sldId id="256" r:id="rId2"/></p:sldIdLst>'+
+      '<p:sldSz cx="9906000" cy="6858000"/><p:notesSz cx="6858000" cy="9906000"/></p:presentation>');
+    add("ppt/_rels/presentation.xml.rels",XML_DECL+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="'+NS_R+'/slideMaster" Target="slideMasters/slideMaster1.xml"/>'+
+      '<Relationship Id="rId2" Type="'+NS_R+'/slide" Target="slides/slide1.xml"/>'+
+      '<Relationship Id="rId3" Type="'+NS_R+'/theme" Target="theme/theme1.xml"/></Relationships>');
+    add("ppt/theme/theme1.xml",themeXml());
+    add("ppt/slideMasters/slideMaster1.xml",masterXml());
+    add("ppt/slideMasters/_rels/slideMaster1.xml.rels",XML_DECL+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="'+NS_R+'/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>'+
+      '<Relationship Id="rId2" Type="'+NS_R+'/theme" Target="../theme/theme1.xml"/></Relationships>');
+    add("ppt/slideLayouts/slideLayout1.xml",layoutXml());
+    add("ppt/slideLayouts/_rels/slideLayout1.xml.rels",XML_DECL+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="'+NS_R+'/slideMaster" Target="../slideMasters/slideMaster1.xml"/></Relationships>');
+    add("ppt/slides/slide1.xml",slideXml(meta,imgWH));
+    add("ppt/slides/_rels/slide1.xml.rels",XML_DECL+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="'+NS_R+'/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>'+
+      '<Relationship Id="rId2" Type="'+NS_R+'/image" Target="../media/image1.png"/></Relationships>');
+    f.push({name:"ppt/media/image1.png",data:pngBytes});
+    return zipStore(f);
+  }
+
+  function savePptx(){
+    var svg=q("svg");
+    if(!svg.querySelector("circle")||!STATE){q("err").textContent="먼저 [분포도 그리기]를 눌러주세요.";return;}
+    var CROP=54, W=900, H=660-CROP, scale=3;
+    var clone=svg.cloneNode(true);
+    clone.setAttribute("viewBox","0 "+CROP+" "+W+" "+H);
+    clone.setAttribute("width",W); clone.setAttribute("height",H);
+    var s=new XMLSerializer().serializeToString(clone),img=new Image();
+    img.onload=function(){
+      var c=document.createElement("canvas");c.width=W*scale;c.height=H*scale;
+      var ctx=c.getContext("2d");ctx.fillStyle="#FFFFFF";ctx.fillRect(0,0,c.width,c.height);
+      ctx.setTransform(scale,0,0,scale,0,0);ctx.drawImage(img,0,0);
+      c.toBlob(function(blob){
+        blob.arrayBuffer().then(function(ab){
+          var meta=buildMeta();
+          var bytes=buildPptx(meta,new Uint8Array(ab),{w:W,h:H});
+          var out=new Blob([bytes],{type:"application/vnd.openxmlformats-officedocument.presentationml.presentation"});
+          var url=URL.createObjectURL(out),a=document.createElement("a");
+          a.download="점포_객수객단가_매트릭스.pptx";a.href=url;
+          document.body.appendChild(a);a.click();document.body.removeChild(a);
+          setTimeout(function(){URL.revokeObjectURL(url);},5000);
+        });
+      },"image/png");
+    };
+    img.onerror=function(){q("err").textContent="PPT 변환 실패. Chrome 또는 Edge로 열어보세요.";};
+    img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(s);
+  }
+  function buildMeta(){
+    var t=STATE.t,rows=STATE.rows;
+    var counts={},sums={};
+    QUAD.forEach(function(qd){counts[qd.key]=0;sums[qd.key]=0;});
+    rows.forEach(function(d){counts[d.q.key]++;sums[d.q.key]+=d.rev;});
+    var foot=[];
+    QUAD.forEach(function(qd,i){
+      if(i) foot.push({t:"   ",sz:900,c:"8B8371"});
+      foot.push({t:qd.name+" "+counts[qd.key]+"개점",sz:900,b:1,c:qd.line.replace("#","")});
+      if(t!=="abs"&&counts[qd.key]) foot.push({t:" ("+fmtRev(t,sums[qd.key]/counts[qd.key])+")",sz:900,c:"8B8371"});
+    });
+    if(t!=="abs"){
+      var up=rows.filter(function(d){return d.grew===true;}).length;
+      foot.push({t:"   |   매출 증가 "+up+"개점 · 감소 "+(rows.length-up)+"개점",sz:900,c:"5C5546"});
+    }
+    return {title:q("title").value||"점포별 분포",
+            sub:STATE.sub||"",
+            footRuns:foot};
+  }
+
+  q("mode").addEventListener("change",function(){
+    var m=this.value==="manual";q("thX").disabled=!m;q("thY").disabled=!m;});
+  q("btnDraw").addEventListener("click",draw);
+  q("btnPng").addEventListener("click",savePng);
+  q("btnPptx").addEventListener("click",savePptx);
+  q("filter").addEventListener("input",renderTable);
+  q("btnClear").addEventListener("click",function(){
+    q("data").value="";q("err").textContent="";q("hint").textContent="";});
+  q("btnSample").addEventListener("click",function(){
+    var seed=20260828, rnd=function(){seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff;};
+    var gauss=function(){return (rnd()+rnd()+rnd()+rnd()-2)*0.8;};
+    var L=["점포명\t객단가 전년비\t객수 전년비"];
+    for(var i=1;i<=375;i++){
+      var y=100+gauss()*5.2, x=100+gauss()*7.4;
+      L.push("가상"+String(i).padStart(3,"0")+"점\t"+(Math.round(y*10)/10)+"\t"+(Math.round(x*10)/10));
+    }
+    q("data").value=L.join("\n"); draw();
+  });
+})();
+</script>
+</body>
+</html>
