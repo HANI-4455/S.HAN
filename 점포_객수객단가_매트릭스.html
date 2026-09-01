@@ -138,7 +138,7 @@
     <p class="note">
       · 매출 전년비 = 객수 전년비 × 객단가 전년비.<br>
       · 강조 점포는 항상 크게·이름과 함께 표시됩니다.<br>
-      · [PPT 저장]은 제목·부제·요약이 편집 가능한 텍스트로 들어간 .pptx를 만듭니다.<br>
+      · [PPT 저장]은 2장(① 분포도 ② 요약·매출증감·점포표 분석)으로 저장됩니다.<br>
       · 이 HTML은 외부 서버·폰트·스크립트를 전혀 불러오지 않습니다.
     </p>
   </div>
@@ -619,9 +619,11 @@
       '<a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'+
       sps+'</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>';
   }
-  function buildPptx(meta,pngBytes,imgWH){
+  function buildPptx(slides){
     var f=[];
     function add(n,str){f.push({name:n,data:utf8(str)});}
+    var ctOv="";
+    slides.forEach(function(_,i){ ctOv+='<Override PartName="/ppt/slides/slide'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>'; });
     add("[Content_Types].xml",XML_DECL+
       '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
       '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'+
@@ -630,22 +632,26 @@
       '<Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>'+
       '<Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>'+
       '<Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/>'+
-      '<Override PartName="/ppt/slides/slide1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>'+
+      ctOv+
       '<Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>'+
       '</Types>');
     add("_rels/.rels",XML_DECL+
       '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
       '<Relationship Id="rId1" Type="'+NS_R+'/officeDocument" Target="ppt/presentation.xml"/></Relationships>');
+    var sldIdLst="", presRels='<Relationship Id="rId1" Type="'+NS_R+'/slideMaster" Target="slideMasters/slideMaster1.xml"/>';
+    slides.forEach(function(_,i){
+      var rid="rId"+(100+i);
+      sldIdLst+='<p:sldId id="'+(256+i)+'" r:id="'+rid+'"/>';
+      presRels+='<Relationship Id="'+rid+'" Type="'+NS_R+'/slide" Target="slides/slide'+(i+1)+'.xml"/>';
+    });
+    presRels+='<Relationship Id="rId2" Type="'+NS_R+'/theme" Target="theme/theme1.xml"/>';
     add("ppt/presentation.xml",XML_DECL+
       '<p:presentation xmlns:a="'+NS_A+'" xmlns:r="'+NS_R+'" xmlns:p="'+NS_P+'">'+
       '<p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>'+
-      '<p:sldIdLst><p:sldId id="256" r:id="rId2"/></p:sldIdLst>'+
+      '<p:sldIdLst>'+sldIdLst+'</p:sldIdLst>'+
       '<p:sldSz cx="9906000" cy="6858000"/><p:notesSz cx="6858000" cy="9906000"/></p:presentation>');
     add("ppt/_rels/presentation.xml.rels",XML_DECL+
-      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
-      '<Relationship Id="rId1" Type="'+NS_R+'/slideMaster" Target="slideMasters/slideMaster1.xml"/>'+
-      '<Relationship Id="rId2" Type="'+NS_R+'/slide" Target="slides/slide1.xml"/>'+
-      '<Relationship Id="rId3" Type="'+NS_R+'/theme" Target="theme/theme1.xml"/></Relationships>');
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+presRels+'</Relationships>');
     add("ppt/theme/theme1.xml",themeXml());
     add("ppt/slideMasters/slideMaster1.xml",masterXml());
     add("ppt/slideMasters/_rels/slideMaster1.xml.rels",XML_DECL+
@@ -656,41 +662,121 @@
     add("ppt/slideLayouts/_rels/slideLayout1.xml.rels",XML_DECL+
       '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
       '<Relationship Id="rId1" Type="'+NS_R+'/slideMaster" Target="../slideMasters/slideMaster1.xml"/></Relationships>');
-    add("ppt/slides/slide1.xml",slideXml(meta,imgWH));
-    add("ppt/slides/_rels/slide1.xml.rels",XML_DECL+
-      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
-      '<Relationship Id="rId1" Type="'+NS_R+'/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>'+
-      '<Relationship Id="rId2" Type="'+NS_R+'/image" Target="../media/image1.png"/></Relationships>');
-    f.push({name:"ppt/media/image1.png",data:pngBytes});
+    slides.forEach(function(sl,i){
+      add("ppt/slides/slide"+(i+1)+".xml",slideXml(sl.meta,sl.wh));
+      add("ppt/slides/_rels/slide"+(i+1)+".xml.rels",XML_DECL+
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+        '<Relationship Id="rId1" Type="'+NS_R+'/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>'+
+        '<Relationship Id="rId2" Type="'+NS_R+'/image" Target="../media/image'+(i+1)+'.png"/></Relationships>');
+      f.push({name:"ppt/media/image"+(i+1)+".png",data:sl.png});
+    });
     return zipStore(f);
   }
 
+  function svgToPng(svgStr,W,H,scale){
+    return new Promise(function(res,rej){
+      var img=new Image();
+      img.onload=function(){
+        var c=document.createElement("canvas");c.width=Math.round(W*scale);c.height=Math.round(H*scale);
+        var ctx=c.getContext("2d");ctx.fillStyle="#FFFFFF";ctx.fillRect(0,0,c.width,c.height);
+        ctx.setTransform(scale,0,0,scale,0,0);ctx.drawImage(img,0,0);
+        c.toBlob(function(blob){ if(!blob){rej(new Error("blob"));return;}
+          blob.arrayBuffer().then(function(ab){res(new Uint8Array(ab));}); },"image/png");
+      };
+      img.onerror=function(){rej(new Error("img"));};
+      img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svgStr);
+    });
+  }
+  /* 분석 상세(요약 타일·매출증감·점포표)를 SVG로 렌더 → 2번째 슬라이드 이미지 */
+  function buildAnalysisSvg(){
+    var t=STATE.t, rows=STATE.rows, fq=q("filter").value.trim();
+    function xesc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+    var FONT="'Malgun Gothic','맑은 고딕','Apple SD Gothic Neo',sans-serif";
+    function T(x,y,s,o){o=o||{};return '<text x="'+x+'" y="'+y+'" font-family="'+FONT+'" font-size="'+(o.sz||12.5)+'" font-weight="'+(o.b?700:400)+'" fill="'+(o.c||"#211D16")+'"'+(o.a?' text-anchor="'+o.a+'"':'')+'>'+xesc(s)+'</text>';}
+    var counts={},sums={};
+    QUAD.forEach(function(qd){counts[qd.key]=0;sums[qd.key]=0;});
+    rows.forEach(function(d){counts[d.q.key]++;sums[d.q.key]+=d.rev;});
+    var W=900, pad=40, P=[], y=pad+8;
+    P.push(T(pad,y+14,"분석 상세",{sz:20,b:1})); y+=28;
+    P.push('<line x1="'+pad+'" y1="'+y+'" x2="'+(W-pad)+'" y2="'+y+'" stroke="#E7E1D3" stroke-width="1"/>'); y+=22;
+    var tileH=(t!=="abs")?96:78, gap=12, tileW=(W-pad*2-gap*3)/4;
+    QUAD.forEach(function(qd,i){
+      var n=counts[qd.key], p=rows.length?Math.round(n/rows.length*1000)/10:0, avg=n?sums[qd.key]/n:0;
+      var x0=pad+i*(tileW+gap);
+      P.push('<rect x="'+x0+'" y="'+y+'" width="'+tileW+'" height="'+tileH+'" rx="7" fill="#FBFAF6" stroke="#E7E1D3"/>');
+      P.push('<circle cx="'+(x0+15)+'" cy="'+(y+19)+'" r="4.5" fill="'+qd.line+'"/>');
+      P.push(T(x0+27,y+23,qd.name,{sz:12.5,b:1,c:qd.ink||"#211D16"}));
+      P.push(T(x0+15,y+51,String(n),{sz:20,b:1}));
+      P.push(T(x0+15+String(n).length*12+5,y+51,"개점",{sz:11}));
+      P.push(T(x0+15,y+69,p+"% · "+qd.tag,{sz:10.5,c:"#8B8371"}));
+      if(t!=="abs" && n){
+        var col=(t==="index"?avg>=100:avg>=0)?"#2E6B4C":"#A3402C";
+        P.push(T(x0+15,y+88,"매출전년비 평균 "+fmtRev(t,avg),{sz:10.5,c:col,b:1}));
+      }
+    });
+    y+=tileH+18;
+    if(t!=="abs"){
+      var up=rows.filter(function(d){return d.grew===true;}).length, dn=rows.length-up;
+      P.push('<rect x="'+pad+'" y="'+(y-14)+'" width="'+(W-pad*2)+'" height="30" rx="6" fill="#FAF7EF" stroke="#E7E1D3"/>');
+      P.push(T(pad+12,y+5,"매출 전년비",{sz:12,b:1}));
+      P.push(T(pad+96,y+5,"증가 "+up+"개점 ("+Math.round(up/rows.length*1000)/10+"%)",{sz:12,b:1,c:"#2E6B4C"}));
+      P.push(T(pad+260,y+5,"· 감소 "+dn+"개점 ("+Math.round(dn/rows.length*1000)/10+"%)",{sz:12,b:1,c:"#A3402C"}));
+      P.push(T(W-pad-12,y+5,"(매출 전년비 = 객수 × 객단가)",{sz:10.5,c:"#8B8371",a:"end"}));
+      y+=34;
+    }
+    var cName=pad+8, cX=W-pad-300, cY=W-pad-165, cRev=W-pad-12;
+    QUAD.forEach(function(qd){
+      var list=rows.filter(function(d){return d.q.key===qd.key && (!fq||d.name.indexOf(fq)>=0);}).sort(function(a,b){return a.rev-b.rev;});
+      if(!list.length) return;
+      y+=24;
+      P.push('<circle cx="'+cName+'" cy="'+(y-4)+'" r="4.5" fill="'+qd.line+'"/>');
+      P.push(T(cName+12,y,qd.name+" · "+list.length+"개점",{sz:13,b:1,c:qd.ink||"#211D16"}));
+      P.push(T(cRev,y,"(매출 전년비 낮은 순)",{sz:10.5,c:"#8B8371",a:"end"}));
+      y+=20;
+      P.push('<line x1="'+pad+'" y1="'+(y-13)+'" x2="'+(W-pad)+'" y2="'+(y-13)+'" stroke="#EFE9DC" stroke-width="1"/>');
+      P.push(T(cName,y,"점포명",{sz:11,b:1,c:"#8B8371"}));
+      P.push(T(cX,y,axLabel(t,"x"),{sz:11,b:1,c:"#8B8371",a:"end"}));
+      P.push(T(cY,y,axLabel(t,"y"),{sz:11,b:1,c:"#8B8371",a:"end"}));
+      P.push(T(cRev,y,"매출 전년비",{sz:11,b:1,c:"#8B8371",a:"end"}));
+      y+=4;
+      list.forEach(function(d){
+        y+=20;
+        P.push('<line x1="'+pad+'" y1="'+(y+4)+'" x2="'+(W-pad)+'" y2="'+(y+4)+'" stroke="#F4EFE4" stroke-width="1"/>');
+        P.push(T(cName,y,d.name,{sz:11.5,b:d.hi?1:0,c:d.hi?"#1F6FC4":"#211D16"}));
+        P.push(T(cX,y,fmtVal(t,d.x),{sz:11.5,a:"end"}));
+        P.push(T(cY,y,fmtVal(t,d.y),{sz:11.5,a:"end"}));
+        var rc=d.grew===null?"#5C5546":(d.grew?"#2E6B4C":"#A3402C");
+        P.push(T(cRev,y,fmtRev(t,d.rev),{sz:11.5,a:"end",c:rc}));
+      });
+      y+=12;
+    });
+    var H=y+pad;
+    return {svg:'<svg xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'"><rect width="'+W+'" height="'+H+'" fill="#FFFFFF"/>'+P.join("")+'</svg>', w:W, h:H};
+  }
   function savePptx(){
     var svg=q("svg");
     if(!svg.querySelector("circle")||!STATE){q("err").textContent="먼저 [분포도 그리기]를 눌러주세요.";return;}
-    var CROP=54, W=900, H=660-CROP, scale=3;
+    q("err").textContent="";
+    var CROP=54, CW=900, CH=660-CROP;
     var clone=svg.cloneNode(true);
-    clone.setAttribute("viewBox","0 "+CROP+" "+W+" "+H);
-    clone.setAttribute("width",W); clone.setAttribute("height",H);
-    var s=new XMLSerializer().serializeToString(clone),img=new Image();
-    img.onload=function(){
-      var c=document.createElement("canvas");c.width=W*scale;c.height=H*scale;
-      var ctx=c.getContext("2d");ctx.fillStyle="#FFFFFF";ctx.fillRect(0,0,c.width,c.height);
-      ctx.setTransform(scale,0,0,scale,0,0);ctx.drawImage(img,0,0);
-      c.toBlob(function(blob){
-        blob.arrayBuffer().then(function(ab){
-          var meta=buildMeta();
-          var bytes=buildPptx(meta,new Uint8Array(ab),{w:W,h:H});
-          var out=new Blob([bytes],{type:"application/vnd.openxmlformats-officedocument.presentationml.presentation"});
-          var url=URL.createObjectURL(out),a=document.createElement("a");
-          a.download="점포_객수객단가_매트릭스.pptx";a.href=url;
-          document.body.appendChild(a);a.click();document.body.removeChild(a);
-          setTimeout(function(){URL.revokeObjectURL(url);},5000);
-        });
-      },"image/png");
-    };
-    img.onerror=function(){q("err").textContent="PPT 변환 실패. Chrome 또는 Edge로 열어보세요.";};
-    img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(s);
+    clone.setAttribute("viewBox","0 "+CROP+" "+CW+" "+CH);
+    clone.setAttribute("width",CW); clone.setAttribute("height",CH);
+    var chartSvg=new XMLSerializer().serializeToString(clone);
+    var an=buildAnalysisSvg();
+    var aScale=Math.max(1, Math.min(2, Math.floor(16000/an.h)));
+    var meta=buildMeta();
+    Promise.all([ svgToPng(chartSvg,CW,CH,3), svgToPng(an.svg,an.w,an.h,aScale) ]).then(function(pngs){
+      var slides=[
+        {png:pngs[0], wh:{w:CW,h:CH}, meta:meta},
+        {png:pngs[1], wh:{w:an.w,h:an.h}, meta:{title:(q("title").value||"점포별 분포")+" — 분석 상세", sub:meta.sub, footRuns:[]}}
+      ];
+      var bytes=buildPptx(slides);
+      var out=new Blob([bytes],{type:"application/vnd.openxmlformats-officedocument.presentationml.presentation"});
+      var url=URL.createObjectURL(out),a=document.createElement("a");
+      a.download="점포_객수객단가_매트릭스.pptx";a.href=url;
+      document.body.appendChild(a);a.click();document.body.removeChild(a);
+      setTimeout(function(){URL.revokeObjectURL(url);},5000);
+    }).catch(function(e){ q("err").textContent="PPT 변환 실패. Chrome 또는 Edge로 열어보세요."; });
   }
   function buildMeta(){
     var t=STATE.t,rows=STATE.rows;
