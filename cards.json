@@ -89,9 +89,9 @@
  },
  {
   "id": 15,
-  "path": "https://docs.google.com/spreadsheets/d/1Xytjpt_WgEeFWrcJMawfTfNlW3I9Zj2kNiwZBJWy8AY/edit?gid=1318878712#gid=1318878712",
+  "path": "https://script.google.com/macros/s/AKfycbzN773hYqmKvVGLoeZ2ggZOptIh_BBm8kvRkdcF72eXpK_GC-hlkLCbpSvsJBFpXNjp/exec",
   "title": "조직도",
-  "desc": "PAS사업부 조직도 (구글 시트)",
+  "desc": "PAS사업부 조직도 · 기준일 이력 · A4 인쇄",
   "emoji": "📄",
   "tag": "기타"
  },
