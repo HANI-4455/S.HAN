@@ -18,8 +18,8 @@ const USERS_KEY = 'ADMIN_USERS', TOKEN_SECONDS = 6 * 3600, MAX_FAILS = 5, LOCK_S
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('조직도 관리')
     .addItem('조직도 화면 열기', 'openApp')
-    .addItem('초기 설정 (처음 한 번)', 'setup')
-    .addItem('admin 비밀번호 초기화', 'resetAdminPassword')
+    .addItem('초기 설정 (처음 한 번)', 'menuSetup')
+    .addItem('admin 비밀번호 초기화', 'menuResetAdminPassword')
     .addToUi();
 }
 
@@ -39,7 +39,11 @@ function openApp() {
   ui.showModalDialog(html, '조직도 관리');
 }
 
-/** 필요한 탭을 만들고, 관리자 계정이 하나도 없으면 admin 계정을 임시 비밀번호로 만든다. 여러 번 실행해도 안전 */
+/**
+ * 필요한 탭을 만들고, 관리자 계정이 하나도 없으면 admin 계정을 임시 비밀번호로 만든다. 여러 번 실행해도 안전.
+ * 편집기에서 실행하면 결과가 [실행 로그]에 나온다. 알림창을 띄우지 않는다
+ * (편집기에서 알림창을 띄우면 열린 시트 탭에서 확인을 누를 때까지 멈춰 6분 시간 초과가 난다)
+ */
 function setup() {
   const ss = ss_();
   sheet_(ss, TAB.data);
@@ -54,17 +58,31 @@ function setup() {
     temp = tempPassword_();
     setUser_('admin', '관리자', temp);
     msg += '\n\n첫 관리자 계정을 만들었습니다.\n아이디: admin\n임시 비밀번호: ' + temp + '\n\n조직도 화면에서 로그인한 뒤 설정 탭에서 비밀번호를 바꾸세요.';
+  } else {
+    msg += '\n\n관리자 계정이 이미 있습니다. 비밀번호를 모르면 resetAdminPassword 를 실행하세요.';
   }
-  notify_(msg);
-  return {ok: true, tempPassword: temp};
+  console.log(msg);
+  return {ok: true, tempPassword: temp, message: msg};
 }
 
-/** 비밀번호를 잊었을 때: 시트 편집자가 메뉴에서 실행하면 admin 계정 비밀번호를 새 임시 비밀번호로 바꾼다 */
+/** 비밀번호를 잊었을 때: 편집기에서 실행하면 admin 계정 비밀번호를 새 임시 비밀번호로 바꾸고 [실행 로그]에 보여 준다 */
 function resetAdminPassword() {
   const temp = tempPassword_(), u = users_();
   setUser_('admin', (u.admin && u.admin.name) || '관리자', temp);
-  notify_('admin 계정 비밀번호를 초기화했습니다.\n임시 비밀번호: ' + temp + '\n\n로그인한 뒤 설정 탭에서 바꾸세요.');
+  console.log('admin 계정 비밀번호를 초기화했습니다.\n아이디: admin\n임시 비밀번호: ' + temp + '\n\n로그인한 뒤 설정 탭에서 바꾸세요.');
   return temp;
+}
+
+/** 시트 메뉴용: 결과를 알림창으로 보여 준다 */
+function menuSetup() {
+  SpreadsheetApp.getUi().alert(setup().message);
+}
+
+function menuResetAdminPassword() {
+  const ui = SpreadsheetApp.getUi();
+  if (ui.alert('admin 계정 비밀번호를 새 임시 비밀번호로 바꿀까요?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  const temp = resetAdminPassword();
+  ui.alert('admin 계정 비밀번호를 초기화했습니다.\n임시 비밀번호: ' + temp + '\n\n로그인한 뒤 설정 탭에서 바꾸세요.');
 }
 
 /* ---------- 누구나 부르는 함수 ---------- */
@@ -191,10 +209,6 @@ function who_(token) {
 }
 
 function tempPassword_() { return Utilities.getUuid().replace(/-/g, '').slice(0, 10); }
-
-function notify_(msg) {
-  try { SpreadsheetApp.getUi().alert(msg); } catch (e) { Logger.log(msg); }
-}
 
 /* ---------- 시트 읽고 쓰기 ---------- */
 function ss_() { return SpreadsheetApp.getActiveSpreadsheet(); }
