@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>조직도 관리 · 파리크라상</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root{--p:#15237A;--s:#2F497D;--a:#F26300;--t:#272727;--bg:#F5F6F8;--line:#D8DDE7;--mute:#737985;--tint:#EEF1F7;--bd:rgba(47,73,125,.35)}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body:not(.admin) .admin-only{display:none!important}
+#adminBox{font-size:13px;display:flex;align-items:center;gap:6px}
+body{margin:0;font-family:Pretendard,'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:var(--t);background:var(--bg);font-size:14px}
+button,.btnlink{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--s);background:#fff;color:var(--s);border-radius:6px;padding:6px 12px;white-space:nowrap;text-decoration:none;display:inline-block}
+button:hover,.btnlink:hover{background:var(--tint)}
+button.pri{background:var(--p);border-color:var(--p);color:#fff}
+button.pri:hover{background:var(--s)}
+button.ghost{border-color:transparent;background:none}
+button.ghost:hover{background:var(--tint)}
+button:disabled{opacity:.4;cursor:default}
+input,select,textarea{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:4px;padding:5px 7px;color:var(--t);background:#fff;min-width:0}
+input:focus,select:focus,textarea:focus{outline:2px solid rgba(21,35,122,.25);border-color:var(--p)}
+label{font-size:13px;color:var(--t)}
+.hint{font-size:12px;color:var(--mute);font-weight:300}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}
+.sec{display:flex;align-items:baseline;gap:8px;font-size:15px;font-weight:600;color:var(--p);margin:0 0 10px}
+.sec b{color:var(--a);font-size:17px}
+.rule{display:flex;height:2px;margin:-4px 0 12px}.rule i{width:32px;background:var(--a)}.rule span{flex:1;background:var(--line)}
+
+.app-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 20px;background:#fff;border-bottom:1px solid var(--line)}
+.app-head h1{font-size:18px;font-weight:600;color:var(--p);margin:0 10px 0 0}
+.app-head .sep{width:1px;height:22px;background:var(--line);margin:0 4px}
+#status{font-size:12px;color:var(--mute);margin-left:6px}
+#status b{color:var(--p)}
+.brand{margin-left:auto;font-weight:600;color:var(--p);letter-spacing:1px}
+#banner{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 20px;background:var(--tint);border-bottom:2px solid var(--p);color:var(--p);font-weight:600}
+
+.app{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:calc(100vh - 100px)}
+aside{background:#fff;border-right:1px solid var(--line);padding:16px}
+.snap{display:flex;justify-content:space-between;align-items:center;width:100%;padding:8px 10px;margin-bottom:6px;border:1px solid var(--line);border-radius:6px;color:var(--t);background:#fff;font-size:14px}
+.snap.on{border-color:var(--p);background:var(--tint);color:var(--p);font-weight:600}
+.snap small{font-size:12px;color:var(--mute);font-weight:400}
+.snap.draft{border-style:dashed}
+.who{border:1px solid var(--line);border-radius:6px;padding:6px 8px;margin-top:6px;font-size:12px}
+.who b{color:var(--p)}
+.who div{padding:2px 0;color:var(--mute)}
+.who div.ch{color:var(--t);font-weight:600}
+main{padding:14px 20px 40px;min-width:0}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;color:var(--mute);padding:8px 16px;font-size:14px}
+.tabs button.on{color:var(--p);border-bottom-color:var(--p);font-weight:600}
+.card{background:#fff;border:1px solid var(--bd);border-radius:8px;padding:14px 16px;margin-bottom:14px}
+.warn{font-size:13px;padding:5px 0;border-bottom:1px dashed var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.warn:last-child{border:0}
+.warn em{font-style:normal;font-weight:600;color:var(--p)}
+.notes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 6px}
+.notes textarea{width:100%;display:block;margin-top:4px;resize:vertical}
+.tablewrap{overflow-x:auto}
+table.grid{border-collapse:collapse;width:100%;font-size:13px}
+table.grid th{background:var(--tint);color:var(--s);font-weight:600;text-align:left;padding:6px;border-bottom:1px solid var(--bd);white-space:nowrap}
+table.grid td{padding:3px 4px;border-bottom:1px solid var(--line)}
+table.grid td input,table.grid td select{width:100%}
+table.grid tr.off td input{color:var(--mute)}
+table.grid .ord button{padding:2px 6px;border:0;color:var(--mute)}
+table.list{border-collapse:collapse;font-size:13px;width:100%}
+table.list th,table.list td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:left}
+table.list th{color:var(--s);background:var(--tint)}
+table.list td.num,table.list th.num{text-align:right}
+.chg{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.chg h3{font-size:14px;margin:0 0 6px;color:var(--p)}
+.chg ul{margin:0;padding-left:18px;font-size:13px;line-height:1.7}
+.empty{padding:40px;text-align:center}
+dialog{border:1px solid var(--s);border-radius:8px;padding:18px 20px;max-width:760px;width:92vw;color:var(--t)}
+dialog::backdrop{background:rgba(21,35,122,.25)}
+dialog h2{font-size:18px;color:var(--p);margin:0 0 10px}
+dialog ol,dialog ul{padding-left:20px;line-height:1.75;font-size:14px;margin:6px 0 12px}
+dialog h3{font-size:14px;color:var(--s);margin:14px 0 4px}
+
+/* ===== 인쇄용 조직도 (A4 가로 1장) ===== */
+.bar-tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+#sheetWrap{overflow:hidden}
+#sheetScaler{transform-origin:0 0;width:max-content}
+.sheet{width:280mm;height:178mm;background:#fff;position:relative;overflow:hidden;box-shadow:0 1px 8px rgba(0,0,0,.12)}
+.oc{position:absolute;left:0;top:0;transform-origin:0 0;padding:14px 16px;width:max-content;font-size:12px;color:var(--t)}
+.oc-head{display:flex;align-items:flex-end;gap:14px}
+.oc-title{font-size:24px;font-weight:600;color:var(--p);white-space:nowrap}
+.oc-date{font-size:12px;color:var(--mute);padding-bottom:4px;white-space:nowrap}
+.oc-brand{margin-left:auto;font-size:13px;font-weight:600;color:var(--p);letter-spacing:1px;padding-bottom:4px}
+.oc-rule{display:flex;height:2px;margin:6px 0 12px}.oc-rule i{width:56px;background:var(--a)}.oc-rule b{flex:1;background:var(--s)}
+.oc-top{display:flex;gap:16px;align-items:flex-start;margin-bottom:12px}
+.oc-exec{flex:1;display:flex;flex-direction:column;gap:6px;min-width:320px}
+.oc-bar{padding:6px 12px;border-radius:4px;font-weight:600;text-align:center;font-size:14px;white-space:nowrap}
+.oc-bar.l0{background:var(--p);color:#fff}
+.oc-bar.l1{background:var(--s);color:#fff}
+.oc-staff{border:1px solid var(--s);border-radius:4px;padding:5px 10px;font-size:12px;text-align:center}
+.oc-staff small{color:var(--s);font-weight:600;margin-right:6px;font-size:11px}
+.oc-staff span+span{margin-left:14px}
+.oc-sum{border-collapse:collapse;font-size:11.5px;white-space:nowrap}
+.oc-sum th,.oc-sum td{border:1px solid var(--bd);padding:3px 9px;text-align:center}
+.oc-sum th{background:var(--s);color:#fff;font-weight:600;line-height:1.2}
+.oc-sum th small{font-weight:300;font-size:9.5px}
+.oc-sum td:first-child{text-align:left}
+.oc-sum tr.tot td{font-weight:600;color:var(--p);background:var(--tint)}
+.oc-sum tr.sub td{color:var(--mute)}
+.oc-teams{display:flex;flex-direction:column;gap:8px}
+.oc-trow{display:flex;gap:8px;align-items:stretch}
+.oc-barrow{display:flex;flex-wrap:wrap;gap:6px}
+.oc-barrow .oc-bar{flex:1 1 22%}
+.oc-team{flex:1 1 auto;border:1px solid var(--s);border-radius:4px;overflow:hidden;display:flex;flex-direction:column}
+.oc-tn{background:var(--p);color:#fff;font-weight:600;text-align:center;padding:5px 6px;font-size:13px;white-space:nowrap}
+.oc-tc{text-align:center;font-size:10.5px;padding:3px 4px;border-bottom:1px solid var(--bd);color:var(--s);white-space:nowrap}
+.oc-lead{text-align:center;padding:4px;font-weight:600;color:var(--p);border-bottom:1px solid var(--bd);white-space:nowrap;font-size:12.5px}
+.oc-lead small{font-weight:400;color:var(--mute);margin-right:4px;font-size:10.5px}
+.oc-cols{display:flex;flex:1}
+.oc-col{flex:1 1 0;min-width:88px;padding:2px 0 4px}
+.oc-col+.oc-col{border-left:1px dashed var(--bd)}
+.oc-h{background:var(--tint);color:var(--s);font-weight:600;text-align:center;font-size:10.5px;padding:2px 4px;margin:3px 5px 1px;border-radius:2px;white-space:nowrap}
+.oc-n{text-align:center;padding:1px 4px;white-space:nowrap;line-height:1.4}
+.oc-n small{color:var(--mute);font-size:10px}
+.oc-bottom{display:flex;gap:8px;margin-top:10px}
+.oc-box{flex:1 1 0;border:1px solid var(--s);border-radius:4px;padding:6px 10px;font-size:11px;line-height:1.55;white-space:pre-wrap;min-width:200px}
+.oc-box h4{margin:0 0 2px;font-size:11.5px;color:var(--p)}
+
+@page{size:A4 landscape;margin:8mm}
+@media print{
+  body{background:#fff}
+  .app-head,#banner,aside,.tabs,.bar-tools,dialog{display:none!important}
+  .app{display:block;min-height:0}
+  main{padding:0}
+  #sheetScaler{transform:none!important}
+  #sheetWrap{height:auto!important}
+  .sheet{box-shadow:none}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+@media (max-width:900px){.app{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line)}.notes{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<!-- pc-seal:v3 · 파리크라상 이성한 서명 -->
+<style>
+.pc-seal{display:flex;align-items:center;justify-content:flex-end;gap:9px;box-sizing:border-box;
+width:100%;margin:0;padding:9px 20px;border-bottom:1px solid rgba(47,73,125,.14);
+font-family:Pretendard,'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif}
+.pc-seal svg{height:24px;width:auto;flex:none;fill:#15237A;opacity:.92}
+.pc-seal span{font-size:10.5px;font-weight:400;letter-spacing:.4px;color:#2F497D;opacity:.85;white-space:nowrap}
+.pc-seal--float{position:fixed;right:0;top:0;width:auto;margin:0;padding:8px 14px;
+border-bottom:0;pointer-events:none;z-index:9990}
+@media print{.pc-seal{break-inside:avoid}.pc-seal--float{position:static;width:100%}}
+@media (max-width:480px){.pc-seal{padding:8px 14px}
+.pc-seal--float span{display:none}}
+</style>
+<div class="pc-seal">
+<svg viewBox="0 0 1673.6 1000" role="img" aria-label="이성한 서명"><path fill-rule="evenodd" d="M8.4,994.0C-26.7,964.9 123.5,830.6 251.3,776.9L261.9,772.4L265.4,755.5C272.3,721.9 299.1,635.2 310.6,609.1C312.2,605.3 315.2,597.6 317.2,591.9C342.2,521.6 400.2,403.1 489.2,240.7C550.5,128.9 578.1,75.4 573.6,77.1C557.4,83.3 499.3,128.3 479.6,149.9C465.1,165.8 464.8,163.5 479.0,144.8C525.1,83.9 586.4,33.6 603.7,42.5C620.0,51.0 618.1,64.5 594.4,107.4C592.8,110.3 588.5,118.6 584.7,126.0C575.6,144.0 535.1,217.0 466.6,338.8C455.4,358.7 439.6,387.8 431.4,403.4C423.3,419.1 416.0,430.9 415.2,429.6C414.3,428.1 413.3,428.5 412.5,430.7C411.7,432.7 412.1,433.6 413.2,432.8C417.0,430.5 415.5,433.8 379.1,505.5C359.2,544.7 343.0,575.7 343.0,574.2C343.0,570.5 341.5,572.5 337.8,581.4C335.8,586.2 335.4,588.7 336.9,587.7C339.8,586.0 337.8,593.4 333.3,601.2C330.2,606.6 330.4,603.4 333.6,594.0C334.9,590.4 334.8,590.3 332.7,593.4C328.7,599.7 299.5,673.3 298.7,679.2C297.8,686.4 292.0,702.3 289.1,705.8C284.4,711.4 267.9,769.3 271.4,767.9C325.4,745.0 356.5,735.4 380.2,734.4C397.2,733.8 397.3,733.8 384.3,735.4C360.0,738.3 319.1,751.3 285.6,766.7L267.2,775.1L263.7,795.1C261.8,806.1 260.2,819.3 260.2,824.4C260.1,832.3 259.8,833.0 258.1,828.8C256.1,823.8 258.7,785.3 261.3,781.1C267.1,771.8 207.5,803.7 160.1,835.3C81.5,887.7 18.6,952.2 18.6,980.3C18.6,996.2 61.1,976.6 186.0,902.9C422.5,763.3 715.2,631.1 998.0,536.2L1027.9,526.2L1043.4,502.2C1077.3,449.9 1133.7,378.1 1141.0,378.1C1151.7,378.1 1159.3,392.3 1152.4,399.3C1137.5,414.2 1072.3,500.5 1072.3,505.3C1072.3,505.8 1074.9,505.0 1078.1,503.3C1081.3,501.7 1089.4,498.4 1096.2,496.1C1102.9,493.8 1115.9,489.3 1125.0,486.0C1205.0,456.9 1324.7,431.1 1399.8,426.7C1411.2,426.0 1427.4,425.0 1436.0,424.4C1511.8,419.0 1592.9,442.0 1601.3,471.1C1605.9,487.2 1578.4,526.9 1562.6,526.9C1561.6,526.9 1556.6,529.5 1551.5,532.7C1514.6,556.1 1387.7,596.2 1354.7,594.9C1352.2,594.8 1364.7,591.6 1382.3,587.9C1609.6,540.0 1664.2,429.4 1460.7,428.9C1323.0,428.5 1068.6,510.7 1035.9,566.0C1024.9,584.6 1002.4,569.1 1012.3,549.8L1016.6,541.4L992.3,549.8C978.9,554.4 966.1,558.9 963.8,560.0C961.6,561.0 949.5,565.7 937.0,570.5C900.9,584.2 803.1,623.2 782.4,632.1C772.0,636.6 739.3,650.7 709.7,663.4C654.9,686.9 638.7,694.2 564.0,728.9C436.4,788.2 313.9,851.8 198.3,918.7C71.6,992.2 27.4,1009.7 8.4,994.0ZM83.7,603.6C39.1,582.4 58.9,525.5 139.0,444.5C215.7,367.1 278.0,336.7 283.7,374.0C284.3,377.5 286.3,379.4 290.7,380.6C312.0,386.1 317.6,416.0 302.7,444.6C260.7,524.8 125.1,623.4 83.7,603.6ZM437.8,586.0C423.9,555.6 534.0,399.5 670.4,256.1C681.8,244.2 696.2,229.0 702.3,222.3C719.0,204.4 731.7,203.4 741.2,219.2C748.6,231.6 746.9,233.8 673.5,307.0L605.2,375.0L613.8,376.5C649.3,382.6 670.2,426.3 657.4,467.5C649.6,492.5 645.1,487.4 633.2,440.2C626.4,413.3 612.4,393.2 601.8,395.2C599.2,395.7 596.0,394.8 594.7,393.2C591.6,389.5 586.4,394.5 543.7,442.1C525.9,462.0 506.7,482.9 500.9,488.6C466.3,523.0 434.9,578.7 444.6,588.4C446.6,590.4 446.3,590.9 443.6,590.9C441.6,590.9 439.0,588.7 437.8,586.0ZM122.5,572.7C213.1,528.3 310.3,424.6 288.6,395.7C283.3,388.6 240.7,402.8 220.4,418.3C216.6,421.2 212.0,423.6 210.3,423.6C191.9,423.6 103.9,525.7 89.6,563.5C80.0,589.1 85.7,590.7 122.5,572.7ZM350.0,556.3C351.9,552.6 352.9,549.6 352.4,549.6C351.2,549.6 345.0,561.0 345.0,563.3C345.0,565.4 346.2,563.8 350.0,556.3ZM743.3,535.9C733.5,528.9 732.5,525.2 736.4,511.8C743.0,489.0 778.4,448.9 802.7,436.8C814.6,430.8 814.7,430.7 819.6,415.3C822.3,406.8 827.3,391.1 830.7,380.4C834.2,369.7 846.1,339.7 857.2,313.7C870.0,284.0 876.1,267.4 873.8,269.1C871.8,270.5 860.6,278.7 848.9,287.2C829.6,301.3 812.1,312.9 757.2,348.4C747.0,355.0 732.8,366.3 725.6,373.4C718.5,380.5 711.8,386.4 710.8,386.4C701.8,386.4 690.1,373.0 690.1,362.6C690.1,354.1 712.1,332.6 722.0,331.5C724.6,331.2 730.4,328.6 734.9,325.6C739.4,322.6 750.5,317.0 759.5,313.2C820.3,287.6 905.0,224.4 905.0,204.6C905.0,193.9 925.2,190.6 935.8,199.6C943.1,205.7 943.8,210.9 938.3,218.7C932.8,226.7 883.6,319.4 861.7,363.3C851.3,384.2 842.2,400.8 841.6,400.1C839.6,398.1 824.4,419.4 824.4,424.3C824.4,424.8 830.2,423.4 837.3,421.2C890.8,404.7 876.7,461.2 815.5,508.6C773.9,540.9 758.5,546.7 743.3,535.9ZM781.6,510.0C808.3,492.1 856.3,438.3 850.7,432.6C846.6,428.6 814.0,452.6 814.0,459.6C814.0,464.4 808.3,467.8 804.8,465.0C798.9,460.0 758.3,508.4 758.3,520.4C758.3,523.8 766.8,520.0 781.6,510.0ZM393.7,470.9C396.6,465.1 398.7,460.0 398.3,459.6C397.8,459.1 395.0,463.9 392.0,470.1C388.9,476.3 386.8,481.4 387.4,481.4C387.9,481.4 390.8,476.7 393.7,470.9ZM1530.1,420.3C1525.4,415.6 1526.7,410.9 1533.7,407.1C1539.2,404.1 1539.7,404.2 1543.6,408.9C1550.9,417.8 1538.3,428.5 1530.1,420.3ZM436.0,388.4C438.3,383.9 439.7,380.2 439.1,380.2C438.6,380.2 436.2,383.9 433.9,388.4C431.6,393.0 430.1,396.7 430.7,396.7C431.3,396.7 433.6,393.0 436.0,388.4ZM1200.9,391.2C1190.1,386.8 1189.8,369.7 1200.2,358.5C1203.6,354.8 1208.0,345.9 1210.8,336.8C1253.6,198.6 1335.1,62.9 1360.8,87.0C1367.9,93.7 1367.0,100.4 1357.7,109.7C1322.6,144.8 1237.6,302.1 1237.6,331.9C1237.6,332.3 1242.1,330.4 1247.7,327.6C1310.3,295.9 1445.7,257.3 1530.7,247.0C1600.7,238.5 1673.6,243.0 1673.6,255.8C1673.6,256.9 1669.6,255.8 1664.8,253.4C1651.9,246.9 1583.0,247.0 1546.5,253.6C1501.9,261.5 1459.4,271.4 1464.5,272.6C1468.0,273.5 1464.3,275.1 1451.1,278.7C1346.6,307.2 1249.4,351.2 1222.6,382.4C1214.1,392.3 1208.9,394.4 1200.9,391.2ZM1048.2,382.7C1038.7,372.4 1043.6,350.6 1060.6,327.5C1063.1,324.1 1067.4,316.9 1070.1,311.6C1072.7,306.2 1084.3,292.4 1095.9,280.6C1107.5,268.9 1119.9,255.1 1123.5,250.0C1127.2,244.9 1136.6,232.8 1144.5,223.2C1152.4,213.5 1158.5,205.4 1158.2,205.0C1151.2,198.1 1038.9,258.8 1029.3,274.7C1022.9,285.5 1001.3,270.2 1005.9,258.1C1014.3,235.7 1155.8,172.6 1183.8,178.7C1191.4,180.4 1200.4,189.3 1200.4,195.0C1200.3,199.6 1167.8,238.7 1165.8,236.7C1165.1,236.1 1158.9,240.9 1151.9,247.4C1144.9,254.0 1135.7,261.9 1131.5,265.2C1122.0,272.3 1122.7,275.8 1133.7,276.0C1181.8,277.0 1164.1,326.7 1099.8,371.4C1070.7,391.6 1058.7,394.2 1048.2,382.7ZM1083.6,359.3C1120.4,334.7 1154.8,289.3 1136.7,289.3C1134.5,289.3 1131.7,290.6 1130.3,292.1C1129.0,293.7 1125.2,296.1 1121.9,297.5C1118.6,298.9 1115.3,301.8 1114.6,303.9C1113.9,306.0 1110.9,308.9 1107.9,310.4C1096.7,315.8 1058.4,369.8 1065.8,369.8C1066.9,369.8 1074.9,365.1 1083.6,359.3ZM1134.4,163.3C1122.9,156.2 1142.1,91.1 1170.7,40.3C1177.2,28.9 1184.3,16.1 1186.5,11.7C1191.8,1.7 1198.0,-1.3 1208.0,1.2C1221.8,4.7 1227.6,21.9 1218.3,31.4C1210.4,39.6 1181.6,84.5 1161.5,120.1C1157.9,126.5 1153.5,132.9 1151.8,134.3C1148.0,137.5 1140.5,154.1 1140.5,159.2C1140.5,163.9 1138.1,165.5 1134.4,163.3Z"/></svg>
+<span>파리크라상 · 이성한</span>
+</div>
+<script>
+/* body 가 flex(row)/grid 인 페이지는 흐름에서 빼내 레이아웃을 건드리지 않는다 */
+(function(){var e=document.querySelector('.pc-seal');if(!e)return;
+var c=getComputedStyle(document.body),d=c.display;
+if(d.indexOf('grid')>-1||(d.indexOf('flex')>-1&&c.flexDirection.indexOf('row')===0))
+e.classList.add('pc-seal--float');})();
+</script>
+<!-- /pc-seal:v3 -->
+<header class="app-head">
+  <h1>조직도 관리</h1>
+  <button id="btnReload">시트에서 새로고침</button>
+  <a id="lnkSheet" class="btnlink admin-only" target="_blank" rel="noopener">시트 열기</a>
+  <span class="sep"></span>
+  <button id="btnPrint" class="pri">인쇄 / PDF</button>
+  <button id="btnHelp" class="ghost">사용·인수인계 안내</button>
+  <span id="status">시트에서 불러오는 중…</span>
+  <span id="adminBox"></span>
+  <span class="brand">파리크라상</span>
+</header>
+<div id="banner" hidden></div>
+
+<div class="app">
+  <aside>
+    <div class="sec"><b>01</b>기준일</div>
+    <div id="snapList"></div>
+    <div class="admin-only">
+    <div class="sec" style="margin-top:22px"><b>02</b>기준일 확정</div>
+    <div class="row"><input type="date" id="cfDate" style="flex:1"><button id="btnConfirm" class="pri">확정</button></div>
+    <p class="hint">작성 중 명단을 이 날짜로 시트의 조직도_이력 탭에 기록합니다. 같은 날짜가 이미 있으면 새 명단으로 바뀝니다.</p>
+    </div>
+    <div class="sec" style="margin-top:22px"><b>03</b>사람별 이력</div>
+    <input id="who" placeholder="이름 검색" style="width:100%">
+    <div id="whoRes"></div>
+  </aside>
+  <main>
+    <nav class="tabs" id="tabs">
+      <button data-t="chart">조직도</button>
+      <button data-t="edit" class="admin-only">인원 편집</button>
+      <button data-t="diff">변동 내역</button>
+      <button data-t="set" class="admin-only">설정</button>
+    </nav>
+    <section id="pane"><div class="card empty">시트에서 불러오는 중…</div></section>
+  </main>
+</div>
+
+<dialog id="dlgHelp">
+  <h2>사용·인수인계 안내</h2>
+  <div id="helpBody"></div>
+  <div class="row" style="justify-content:flex-end"><button class="pri" onclick="this.closest('dialog').close()">닫기</button></div>
+</dialog>
+
+<dialog id="dlgLogin" style="max-width:380px">
+  <h2>관리자 로그인</h2>
+  <p class="hint">명단을 고치거나 기준일을 확정하려면 로그인하세요. 보기와 인쇄는 로그인 없이 됩니다.</p>
+  <label style="display:block;margin:8px 0">아이디<br><input id="lgId" autocomplete="username" style="width:100%"></label>
+  <label style="display:block;margin:8px 0">비밀번호<br><input id="lgPw" type="password" autocomplete="current-password" style="width:100%"></label>
+  <p id="lgMsg" class="hint" style="min-height:18px"></p>
+  <div class="row" style="justify-content:flex-end"><button class="ghost" onclick="this.closest('dialog').close()">취소</button><button id="lgGo" class="pri">로그인</button></div>
+</dialog>
+
+<script>
+'use strict';
+const POS_RANK = {'본부장':0,'사업부장':0,'부사업부장':1,'실장':1,'부문장':1,'부실장':1,'팀장':2,'담당':3,'팀원':4};
+const STATUS = ['재직','휴직'];
+
+let D = {settings:{}, snapshots:[]}, cur = 'draft', tab = 'chart', ver = '', sheetUrl = '';
+let dirty = false, saving = false, conflict = false, editSeq = 0, saveTimer = null, syncedAt = '', loadErr = '';
+let token = '', adminName = '';
+try { token = sessionStorage.getItem('orgToken') || ''; adminName = sessionStorage.getItem('orgAdmin') || ''; } catch (e) {}
+const isAdmin = () => !!token;
+let cmpId = '', fTeam = '', fText = '';
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uid = () => Math.random().toString(36).slice(2, 10);
+const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+const dnum = s => Date.parse(s + 'T00:00:00');
+const short = s => s ? s.slice(2).replace(/-/g, '.') : '';
+const rank = p => POS_RANK[String(p).trim()] ?? 5;
+const nowTime = () => new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'});
+
+/* ---------- 시트 연결 ---------- */
+function call(fn, ...args) {
+  return new Promise((resolve, reject) => {
+    if (!window.google || !google.script || !google.script.run) return reject(new Error('구글 시트에 연결된 웹 앱 주소로 열어야 합니다.'));
+    google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[fn](...args);
+  });
+}
+const draft = () => D.snapshots.find(s => s.draft);
+const hist = () => D.snapshots.filter(s => !s.draft).sort((a, b) => b.date.localeCompare(a.date));
+const S = () => D.snapshots.find(s => s.id === cur);
+const prevOf = s => hist().find(x => x !== s && x.date < s.date);
+function yearAgo(s) {
+  const target = dnum(s.date) - 365 * 864e5;
+  let best = null, gap = 46 * 864e5;
+  hist().forEach(x => { const g = Math.abs(dnum(x.date) - target); if (x !== s && g < gap) { best = x; gap = g; } });
+  return best;
+}
+const withId = p => ({id:uid(), team:p.team || '', position:p.position || '', role:p.role || '', name:p.name || '', status:p.status || '재직', note:p.note || ''});
+function matchIds(people, base) {
+  if (!base) return;
+  const used = new Set();
+  people.forEach(p => {
+    const c = base.people.filter(q => q.name.trim() === p.name.trim() && !used.has(q.id));
+    const m = c.find(q => q.team.trim() === p.team.trim()) || c[0];
+    if (m) { p.id = m.id; used.add(m.id); }
+  });
+}
+function fromServer(a) {
+  const st = a.settings;
+  D.settings = {orgName:st.orgName || 'PAS사업부', topUnit:st.topUnit || '사업부', coachRoles:st.coachRoles || '코칭매니저',
+    maxRows:+st.maxRows || 15, showGroups:String(st.showGroups).toUpperCase() !== 'FALSE', owner:st.owner || ''};
+  const info = k => a.infos[k] || {store:[], notes:{moves:'', leaves:''}, teamOrder:[]};
+  let prev = null;
+  const hs = Object.keys(a.hist).sort().map(d => {
+    const s = Object.assign({id:'h:' + d, date:d, people:a.hist[d].map(withId), locked:true}, info(d));
+    matchIds(s.people, prev); prev = s; return s;
+  });
+  const di = info('작성중');
+  const dr = Object.assign({id:'draft', date:st.draftDate || today(), people:a.current.map(withId), draft:true}, di);
+  matchIds(dr.people, hs.filter(s => s.date <= dr.date).pop() || hs[hs.length - 1]);
+  D.snapshots = [dr, ...hs];
+  ver = a.version; sheetUrl = a.sheetUrl; dirty = false; conflict = false; loadErr = '';
+  if (!S()) cur = 'draft';
+  if (!isAdmin() && cur === 'draft' && hs.length) cur = hs[hs.length - 1].id;   // 보기 전용: 최신 확정 기준일
+}
+async function load() {
+  try { fromServer(await call('api_load')); syncedAt = nowTime(); }
+  catch (e) { loadErr = e.message || String(e); }
+  renderAll();
+}
+function touch() {
+  if (!isAdmin()) return;
+  dirty = true; editSeq++; renderStatus();
+  clearTimeout(saveTimer); saveTimer = setTimeout(save, 1500);
+}
+function payload() {
+  const s = draft();
+  return {people:s.people.map(p => ({team:p.team, position:p.position, role:p.role, name:p.name, status:p.status, note:p.note})),
+    store:s.store, notes:s.notes, teamOrder:teams(s),
+    settings:Object.assign({}, D.settings, {maxRows:String(D.settings.maxRows), showGroups:D.settings.showGroups ? 'TRUE' : 'FALSE', draftDate:s.date})};
+}
+async function save(force) {
+  clearTimeout(saveTimer);
+  if (saving) { saveTimer = setTimeout(save, 800); return; }
+  if (!dirty && !force) return;
+  saving = true; renderStatus();
+  const seq = editSeq;
+  try {
+    const r = await call('api_saveDraft', token, payload(), ver, !!force);
+    if (r.conflict) conflict = true;
+    else {
+      ver = r.version; conflict = false; syncedAt = nowTime();
+      if (seq === editSeq) dirty = false; else saveTimer = setTimeout(save, 800);
+    }
+  } catch (e) { saving = false; if (!authFail(e)) alert('시트에 저장하지 못했습니다: ' + (e.message || e)); }
+  saving = false; renderStatus();
+}
+async function checkRemote() {
+  if (dirty || saving || conflict || !ver || document.hidden) return;
+  try { const v = await call('api_version'); if (v !== ver && !dirty && !saving) await load(); } catch (e) {}
+}
+async function confirmDate() {
+  const date = $('#cfDate').value, dr = draft();
+  if (!dr) return;
+  if (!date) return alert('확정할 기준일을 고르세요.');
+  if (saving) return alert('시트에 저장 중입니다. 잠시 후 다시 눌러 주세요.');
+  if (conflict) return alert('먼저 위 안내에서 시트 내용과 화면 내용 중 하나를 고르세요.');
+  const w = warnings(dr), exists = hist().some(s => s.date === date);
+  if (!confirm(`작성 중 명단 ${dr.people.length}명을 ${date} 기준일로 확정합니다.` +
+    (exists ? `\n이미 있는 ${date} 명단은 새 명단으로 바뀝니다.` : '') +
+    (w.length ? `\n아직 점검 항목 ${w.length}건이 남아 있습니다.` : ''))) return;
+  clearTimeout(saveTimer); saving = true; dr.date = date; renderStatus();
+  try {
+    const r = await call('api_confirm', token, date, payload(), ver, false);
+    saving = false;
+    if (r.conflict) { conflict = true; return renderStatus(); }
+    fromServer(r); syncedAt = nowTime(); cur = 'h:' + date; tab = 'chart'; renderAll();
+  } catch (e) { saving = false; renderStatus(); if (!authFail(e)) alert('확정하지 못했습니다: ' + (e.message || e)); }
+}
+async function deleteDate(s) {
+  if (!confirm(`${s.date} 기준일을 시트의 조직도_이력 탭에서 지울까요?`)) return;
+  if (dirty) await save();
+  if (conflict || saving) return;
+  try {
+    const r = await call('api_deleteDate', token, s.date, ver);
+    if (r.conflict) { conflict = true; return renderStatus(); }
+    fromServer(r); syncedAt = nowTime(); cur = 'draft'; tab = 'chart'; renderAll();
+  } catch (e) { if (!authFail(e)) alert('삭제하지 못했습니다: ' + (e.message || e)); }
+}
+
+/* ---------- 관리자 로그인·계정 ---------- */
+function authFail(e) {
+  if (!/로그인이 필요/.test((e && e.message) || '')) return false;
+  alert('관리자 로그인이 끝났습니다. 다시 로그인해 주세요. 저장하지 못한 내용은 화면에 남아 있습니다.');
+  setAdmin('', '');
+  return true;
+}
+function setAdmin(t, name) {
+  token = t; adminName = name;
+  try {
+    if (t) { sessionStorage.setItem('orgToken', t); sessionStorage.setItem('orgAdmin', name); }
+    else { sessionStorage.removeItem('orgToken'); sessionStorage.removeItem('orgAdmin'); }
+  } catch (e) {}
+  document.body.classList.toggle('admin', !!t);
+  if (!t && S() && S().draft && hist().length) cur = hist()[0].id;
+  renderAll();
+}
+async function doLogin() {
+  const id = $('#lgId').value.trim(), pw = $('#lgPw').value;
+  if (!id || !pw) { $('#lgMsg').textContent = '아이디와 비밀번호를 입력하세요.'; return; }
+  $('#lgMsg').textContent = '확인 중…';
+  try {
+    const r = await call('api_login', id, pw);
+    if (!r.ok) { $('#lgMsg').textContent = r.msg; return; }
+    $('#lgPw').value = ''; $('#dlgLogin').close();
+    setAdmin(r.token, r.name);
+    if (dirty) save();
+  } catch (e) { $('#lgMsg').textContent = e.message || String(e); }
+}
+async function logout() {
+  if (dirty && !confirm('시트에 저장되지 않은 변경이 있습니다. 그래도 로그아웃할까요?')) return;
+  const t = token;
+  clearTimeout(saveTimer); dirty = false; setAdmin('', '');
+  try { await call('api_logout', t); } catch (e) {}
+}
+async function loadUsers() {
+  const box = $('#userList'); if (!box) return;
+  try {
+    const list = await call('api_listUsers', token);
+    box.innerHTML = `<table class="list"><tr><th>아이디</th><th>이름</th><th></th></tr>${list.map(u => `<tr><td>${esc(u.id)}</td><td>${esc(u.name)}</td>
+      <td style="text-align:right">${u.self ? '<span class="hint">지금 로그인한 계정</span>' : `<button class="ghost" data-deluser="${esc(u.id)}">삭제</button>`}</td></tr>`).join('')}</table>`;
+  } catch (e) { if (!authFail(e)) box.textContent = e.message || String(e); }
+}
+async function accountAction(fn, args, done) {
+  try { await call(fn, token, ...args); if (done) done(); loadUsers(); }
+  catch (e) { if (!authFail(e)) alert(e.message || String(e)); }
+}
+
+/* ---------- 집계 ---------- */
+const coachRoles = () => String(D.settings.coachRoles).split(',').map(x => x.trim()).filter(Boolean);
+const isCoach = p => coachRoles().includes(p.role.trim());
+const isTop = p => p.team.trim() === D.settings.topUnit;
+const isLead = p => !isTop(p) && rank(p.position) <= 2;
+function teams(s) {
+  const names = [...new Set(s.people.map(p => p.team.trim()).filter(t => t && t !== D.settings.topUnit))];
+  const order = s.teamOrder.filter(t => names.includes(t));
+  return order.concat(names.filter(t => !order.includes(t)));
+}
+function counts(s) {
+  const c = {exec:0, lead:0, staff:0, coach:0, leave:0, team:{}};
+  s.people.forEach(p => {
+    const t = p.team.trim();
+    if (p.status !== '재직') { if (p.status === '휴직') c.leave++; return; }
+    if (isTop(p) && rank(p.position) <= 1) c.exec++;
+    else if (isLead(p)) c.lead++;
+    else if (isCoach(p)) c.coach++;
+    else c.staff++;
+    if (!isTop(p) && !isCoach(p)) c.team[t] = (c.team[t] || 0) + 1;
+  });
+  c.total = c.exec + c.lead + c.staff + c.coach;
+  c.store = s.store.reduce((a, x) => a + (+x.n || 0), 0);
+  return c;
+}
+
+/* ---------- 조직도(인쇄 화면) ---------- */
+function delta(a, b) {
+  if (b == null) return '–';
+  const d = a - b; return d > 0 ? '▲' + d : d < 0 ? '▼' + (-d) : '–';
+}
+const nameHtml = p => esc(p.name) + (p.note ? `<small>(${esc(p.note)})</small>` : '');
+function execLabel(p) {
+  const pos = p.position.trim();
+  return pos.endsWith('사업부장') && D.settings.orgName.endsWith('사업부') ? D.settings.orgName.replace(/사업부$/, '') + pos : pos;
+}
+function teamHtml(s, t) {
+  const act = s.people.filter(p => p.team.trim() === t && p.status === '재직');
+  const leads = act.filter(isLead), staff = act.filter(p => !isLead(p) && !isCoach(p)), coach = act.filter(p => !isLead(p) && isCoach(p));
+  const items = [];
+  if (D.settings.showGroups) {
+    const g = new Map();
+    staff.concat(coach).forEach(p => { const r = p.role.trim() && p.role.trim() !== '-' ? p.role.trim() : '팀원'; if (!g.has(r)) g.set(r, []); g.get(r).push(p); });
+    g.forEach((arr, r) => { items.push({h:r}); arr.forEach(p => items.push({p})); });
+  } else staff.concat(coach).forEach(p => items.push({p}));
+  const max = Math.max(5, +D.settings.maxRows || 15), ncol = Math.max(1, Math.ceil(items.length / max)), per = Math.ceil(items.length / ncol);
+  const cols = [[]];
+  items.forEach(it => {
+    let col = cols[cols.length - 1];
+    if (cols.length < ncol && (col.length >= per || (it.h && col.length >= per - 1))) { col = []; cols.push(col); }
+    col.push(it);
+  });
+  const cnt = `${leads.length + staff.length}명 = 팀장 ${leads.length} + 팀원 ${staff.length}` + (coach.length ? ` · 코칭 ${coach.length}` : '');
+  return `<div class="oc-team"><div class="oc-tn">${esc(t)}</div><div class="oc-tc">${cnt}</div>
+    <div class="oc-lead">${leads.length ? leads.map(p => `<small>${esc(p.position)}</small>${esc(p.name)}`).join(' ') : '<small>팀장</small>공석'}</div>
+    <div class="oc-cols">${cols.map(col => `<div class="oc-col">${col.map(it => it.h ? `<div class="oc-h">${esc(it.h)}</div>` : `<div class="oc-n">${nameHtml(it.p)}</div>`).join('')}</div>`).join('')}</div></div>`;
+}
+function chartHtml(s) {
+  const c = counts(s), pv = prevOf(s), ya = yearAgo(s), pc = pv && counts(pv), yc = ya && counts(ya);
+  const top = s.people.filter(p => isTop(p) && p.status === '재직').sort((a, b) => rank(a.position) - rank(b.position));
+  const barList = top.filter(p => rank(p.position) <= 1).map(p => `<div class="oc-bar l${Math.min(rank(p.position), 1)}">${esc(execLabel(p))} ${esc(p.name)}</div>`);
+  // 임원·부서장이 많으면 첫 줄만 가로 전체, 나머지는 한 줄에 여러 칸으로 묶는다
+  const bars = barList.length <= 2 ? barList.join('') : barList[0] + `<div class="oc-barrow">${barList.slice(1).join('')}</div>`;
+  const g = new Map();
+  top.filter(p => rank(p.position) > 1).forEach(p => { const k = [p.position, p.role].map(x => x.trim()).filter(x => x && x !== '-').join(' · '); if (!g.has(k)) g.set(k, []); g.get(k).push(p); });
+  const staff = g.size ? `<div class="oc-staff">${[...g].map(([k, arr]) => `<span><small>${esc(k)}</small>${arr.map(nameHtml).join(' · ')}</span>`).join('')}</div>` : '';
+
+  const rows = [['부사업부장 이상','exec'],['팀장','lead'],['팀원(Staff)','staff'],['코칭매니저','coach']];
+  let sum = rows.map(([l, k]) => `<tr><td>${l}</td><td>${c[k]}</td><td>${delta(c[k], pc && pc[k])}</td><td>${delta(c[k], yc && yc[k])}</td></tr>`).join('');
+  sum += `<tr class="tot"><td>합계</td><td>${c.total}</td><td>${delta(c.total, pc && pc.total)}</td><td>${delta(c.total, yc && yc.total)}</td></tr>`;
+  if (s.store.length) {
+    const sv = (x, lab) => { const f = x && x.store.find(y => y.label === lab); return f ? +f.n || 0 : null; };
+    sum += s.store.map(x => `<tr class="sub"><td>${esc(x.label)}</td><td>${+x.n || 0}</td><td>${delta(+x.n || 0, sv(pv, x.label))}</td><td>${delta(+x.n || 0, sv(ya, x.label))}</td></tr>`).join('');
+    sum += `<tr class="tot"><td>점포 포함 총원</td><td>${c.total + c.store}</td><td>${delta(c.total + c.store, pc && pc.total + pc.store)}</td><td>${delta(c.total + c.store, yc && yc.total + yc.store)}</td></tr>`;
+  }
+  sum += `<tr class="sub"><td>휴직자 (인원 외)</td><td>${c.leave}</td><td>${delta(c.leave, pc && pc.leave)}</td><td>${delta(c.leave, yc && yc.leave)}</td></tr>`;
+
+  const leaves = s.people.filter(p => p.status === '휴직');
+  const boxes = [];
+  if (leaves.length) boxes.push(['휴직자 현황', leaves.map(p => `${p.name} (${isTop(p) ? D.settings.orgName : p.team}) ${p.note}`.trim()).join('\n')]);
+  if (s.notes.moves.trim()) boxes.push(['당월 퇴사 및 부서이동', s.notes.moves.trim()]);
+  if (s.notes.leaves.trim()) boxes.push(['휴·복직 현황', s.notes.leaves.trim()]);
+
+  return `<div class="oc" id="oc">
+    <div class="oc-head"><div class="oc-title">${esc(D.settings.orgName)} 조직현황</div><div class="oc-date">기준일 ${esc(s.date.replace(/-/g, '.'))}${s.draft ? ' · 작성 중' : ''}</div><div class="oc-brand">파리크라상</div></div>
+    <div class="oc-rule"><i></i><b></b></div>
+    <div class="oc-top"><div class="oc-exec">${bars}${staff}</div>
+      <table class="oc-sum"><tr><th>구분</th><th>인원</th><th>직전 대비<br><small>${pv ? short(pv.date) : '없음'}</small></th><th>전년 대비<br><small>${ya ? short(ya.date) : '없음'}</small></th></tr>${sum}</table></div>
+    <div class="oc-teams">${teams(s).map(t => teamHtml(s, t)).join('')}</div>
+    ${boxes.length ? `<div class="oc-bottom">${boxes.map(([h, b]) => `<div class="oc-box"><h4>${h}</h4>${esc(b)}</div>`).join('')}</div>` : ''}
+  </div>`;
+}
+function fit() {
+  const sheet = $('#sheet'), oc = $('#oc'); if (!sheet || !oc) return;
+  const W = sheet.clientWidth, H = sheet.clientHeight, box = oc.querySelector('.oc-teams');
+  const cards = oc._cards || (oc._cards = [...box.querySelectorAll('.oc-team')]);
+  oc.style.transform = 'none';
+  // 팀이 많으면 팀을 2~3줄로 나눠(줄마다 너비가 비슷하게) 글자가 가장 크게 나오는 배치를 고른다
+  const layout = lines => {
+    oc.style.width = 'max-content'; box.innerHTML = '';
+    const one = document.createElement('div'); one.className = 'oc-trow'; cards.forEach(t => one.appendChild(t)); box.appendChild(one);
+    if (lines > 1) {
+      const w = cards.map(t => t.offsetWidth + 8), target = w.reduce((a, b) => a + b, 0) / lines;
+      box.innerHTML = '';
+      let idx = -1, acc = 0, rowEl = null;
+      cards.forEach((t, i) => {
+        if (idx < 0 || (acc + w[i] / 2 > target * (idx + 1) && idx < lines - 1)) { idx++; rowEl = document.createElement('div'); rowEl.className = 'oc-trow'; box.appendChild(rowEl); }
+        rowEl.appendChild(t); acc += w[i];
+      });
+    }
+    return Math.min(W / oc.offsetWidth, H / oc.offsetHeight, 1.4);
+  };
+  let best = 1, bestK = layout(1);
+  for (let lines = 2; lines <= 3 && cards.length >= lines * 4; lines++) {
+    const k2 = layout(lines);
+    if (k2 > bestK * 1.05) { best = lines; bestK = k2; }
+  }
+  let k = layout(best);
+  if (W / oc.offsetWidth > k) { oc.style.width = (W / k) + 'px'; k = Math.min(k, H / oc.offsetHeight); }
+  oc.style.transform = `scale(${k})`;
+  const info = $('#scaleInfo');
+  if (info) info.textContent = `A4 가로 1장에 맞춤 · 글자 배율 ${Math.round(k * 100)}%` + (k < 0.6 ? ' — 글자가 작습니다. 팀당 최대 줄 수를 늘려 보세요.' : '');
+  const wrap = $('#sheetWrap'), sc = $('#sheetScaler');
+  const z = Math.min(1, wrap.clientWidth / sheet.offsetWidth);
+  sc.style.transform = `scale(${z})`; wrap.style.height = sheet.offsetHeight * z + 'px';
+}
+
+/* ---------- 변동 계산 ---------- */
+function diff(a, b) {
+  const A = new Map(a.people.map(p => [p.id, p])), B = new Set(b.people.map(p => p.id));
+  const d = {join:[], out:[], move:[], pos:[], role:[], leave:[], back:[]};
+  b.people.forEach(p => {
+    const q = A.get(p.id);
+    if (!q) return d.join.push(p);
+    if (q.team.trim() !== p.team.trim()) d.move.push([q, p]);
+    if (q.position.trim() !== p.position.trim()) d.pos.push([q, p]);
+    if (q.role.trim() !== p.role.trim() && p.role.trim() !== '-' && q.role.trim() !== '-') d.role.push([q, p]);
+    if (q.status === '재직' && p.status === '휴직') d.leave.push(p);
+    if (q.status === '휴직' && p.status === '재직') d.back.push(p);
+  });
+  a.people.forEach(q => { if (!B.has(q.id)) d.out.push(q); });
+  return d;
+}
+function autoNotes() {
+  const s = draft(), pv = prevOf(s);
+  if (!pv) return alert('비교할 확정 기준일이 없습니다. 먼저 한 번 확정해 두면 다음부터 자동 작성됩니다.');
+  if ((s.notes.moves.trim() || s.notes.leaves.trim()) && !confirm('지금 적힌 내용을 자동 작성 결과로 바꿀까요?')) return;
+  const d = diff(pv, s), [, m, dd] = s.date.split('-'), at = `${+m}/${+dd}부`;
+  const num = arr => arr.map((x, i) => `${i + 1}) ${x}`).join('\n');
+  s.notes.moves = num([
+    ...d.join.map(p => `${p.name} : ${at} ${p.team} 신규`),
+    ...d.out.map(p => `${p.name} : ${at} ${p.team} 제외(퇴사·전출)`),
+    ...d.move.map(([q, p]) => `${p.name} : ${at} ${q.team} → ${p.team}`),
+    ...d.pos.map(([q, p]) => `${p.name} : ${at} ${q.position} → ${p.position}`)]);
+  s.notes.leaves = num([...d.leave.map(p => `${p.name} : ${at} 휴직 ${p.note}`.trim()), ...d.back.map(p => `${p.name} : ${at} 복직`)]);
+  touch(); renderMain();
+}
+
+/* ---------- 점검 ---------- */
+function lev(a, b) {
+  const m = [...a], n = [...b], d = Array.from({length:m.length + 1}, (_, i) => [i]);
+  for (let j = 1; j <= n.length; j++) d[0][j] = j;
+  for (let i = 1; i <= m.length; i++) for (let j = 1; j <= n.length; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (m[i - 1] === n[j - 1] ? 0 : 1));
+  return d[m.length][n.length];
+}
+function warnings(s) {
+  const w = [], cnt = {};
+  s.people.forEach(p => { const t = p.team.trim(); cnt[t] = (cnt[t] || 0) + 1; });
+  if (s.people.some(p => !p.name.trim())) w.push({msg:'이름이 비어 있는 행이 있습니다.'});
+  const seen = {};
+  s.people.forEach(p => { const k = p.team.trim() + '|' + p.name.trim(); seen[k] = (seen[k] || 0) + 1; });
+  Object.entries(seen).forEach(([k, n]) => { if (n > 1 && k.split('|')[1]) { const [t, nm] = k.split('|'); w.push({msg:`<em>${esc(nm)}</em> — ${esc(t)}에 ${n}번 등록되어 인원이 중복 집계됩니다.`}); } });
+  Object.keys(cnt).forEach(t => {
+    if (!t || cnt[t] > 2) return;
+    const u = Object.keys(cnt).find(x => x !== t && cnt[x] > 2 && lev(x, t) <= 2);
+    if (u) w.push({msg:`팀명 <em>${esc(t)}</em>(${cnt[t]}명)은 <em>${esc(u)}</em>의 오타일 수 있습니다.`, from:t, to:u});
+  });
+  if (s.people.some(p => !p.team.trim())) w.push({msg:'팀명이 비어 있는 인원이 있습니다.'});
+  teams(s).forEach(t => { if (!s.people.some(p => p.team.trim() === t && p.status === '재직' && isLead(p))) w.push({msg:`<em>${esc(t)}</em>에 재직 중인 팀장이 없습니다.`}); });
+  s.people.forEach(p => {
+    if (!STATUS.includes(p.status)) w.push({msg:`<em>${esc(p.name)}</em>의 상태가 '${esc(p.status)}'입니다. 재직·휴직만 집계됩니다.`});
+    if (p.status !== '휴직') return;
+    const ds = [...p.note.matchAll(/(\d{2,4})\.(\d{1,2})\.(\d{1,2})/g)];
+    if (!ds.length) return;
+    const [, y, mo, da] = ds[ds.length - 1], end = new Date(y.length === 2 ? 2000 + +y : +y, mo - 1, da);
+    if (end < dnum(s.date)) w.push({msg:`<em>${esc(p.name)}</em>의 휴직 종료일(${esc(ds[ds.length - 1][0])})이 기준일보다 지났습니다. 복직 여부를 확인하세요.`});
+  });
+  return w;
+}
+
+/* ---------- 화면 ---------- */
+function renderStatus() {
+  $('#status').innerHTML = loadErr ? '<b>시트 연결 실패</b>' : saving ? '시트에 저장 중…' : dirty ? '변경 내용 저장 대기' :
+    syncedAt ? `${isAdmin() ? '시트와 동기화됨' : '보기 전용'} · ${esc(syncedAt)}` : '시트에서 불러오는 중…';
+  $('#adminBox').innerHTML = isAdmin()
+    ? `<b style="color:var(--p)">${esc(adminName)}</b><span class="hint">관리자</span><button id="btnLogout" class="ghost">로그아웃</button>`
+    : '<button id="btnLogin">관리자 로그인</button>';
+  const bn = $('#banner');
+  bn.hidden = !conflict;
+  if (conflict) bn.innerHTML = '<span>시트에서 명단이 따로 바뀌어 자동 저장을 멈췄습니다.</span><button id="bnLoad">시트 내용 불러오기</button><button id="bnForce" class="ghost">내 화면 내용으로 덮어쓰기</button>';
+  const a = $('#lnkSheet'); if (sheetUrl) a.href = sheetUrl;
+}
+function renderSide() {
+  const dr = draft();
+  $('#snapList').innerHTML = D.snapshots.length ? (isAdmin() || !hist().length ? [dr, ...hist()] : hist()).filter(Boolean).map(s => `<button class="snap${s.draft ? ' draft' : ''}${s.id === cur ? ' on' : ''}" data-id="${s.id}">
+    <span>${s.draft ? '작성 중' : esc(s.date)}</span><small>${s.draft ? '데이터 탭 · ' : ''}${counts(s).total}명</small></button>`).join('') : '';
+  if (dr && document.activeElement !== $('#cfDate')) $('#cfDate').value = dr.date;
+  $('#btnConfirm').disabled = !dr;
+  renderWho();
+}
+function renderWho() {
+  const q = $('#who').value.trim(), box = $('#whoRes');
+  if (!q) { box.innerHTML = ''; return; }
+  const by = new Map();
+  [...hist().reverse(), isAdmin() ? draft() : null].filter(Boolean).forEach(s => s.people.forEach(p => {
+    if (!p.name.includes(q)) return;
+    if (!by.has(p.id)) by.set(p.id, {name:p.name, rows:[]});
+    by.get(p.id).rows.push({s, p});
+  }));
+  const sig = r => [r.p.team, r.p.position, r.p.role, r.p.status].join('|');
+  box.innerHTML = [...by.values()].slice(0, 20).map(x => `<div class="who"><b>${esc(x.name)}</b>${x.rows.map((r, i) =>
+    `<div class="${i && sig(x.rows[i - 1]) !== sig(r) ? 'ch' : ''}">${r.s.draft ? '작성 중' : short(r.s.date)} · ${esc(r.p.team)} · ${esc(r.p.position)}${r.p.role && r.p.role !== '-' ? '/' + esc(r.p.role) : ''}${r.p.status !== '재직' ? ' · ' + esc(r.p.status) : ''}</div>`
+  ).join('')}</div>`).join('') || '<p class="hint">찾는 이름이 없습니다.</p>';
+}
+function renderAll() { renderStatus(); renderSide(); renderMain(); }
+function renderMain() {
+  if (!isAdmin() && (tab === 'edit' || tab === 'set')) tab = 'chart';
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === tab));
+  const s = S(), pane = $('#pane');
+  if (loadErr) {
+    pane.innerHTML = `<div class="card empty"><div class="sec" style="justify-content:center"><b>!</b>시트에 연결하지 못했습니다</div>
+      <p>${esc(loadErr)}</p><button class="pri" onclick="load()">다시 시도</button></div>`;
+    return;
+  }
+  if (!s) { pane.innerHTML = '<div class="card empty">시트에서 불러오는 중…</div>'; return; }
+  if (tab === 'chart') {
+    pane.innerHTML = `<div class="bar-tools">
+      <label><input type="checkbox" id="optGroups" ${D.settings.showGroups ? 'checked' : ''}> 직무별 소제목</label>
+      <label>팀당 최대 줄 <input type="number" id="optRows" min="5" max="60" value="${+D.settings.maxRows || 15}" style="width:64px"></label>
+      <span id="scaleInfo" class="hint"></span></div>
+      <div id="sheetWrap"><div id="sheetScaler"><div class="sheet" id="sheet">${chartHtml(s)}</div></div></div>`;
+    fit();
+  } else if (tab === 'edit') {
+    pane.innerHTML = s.locked ? paneLocked(s) : paneEdit(s);
+    if (!s.locked) { renderRows(); renderWarn(); }
+  } else if (tab === 'diff') pane.innerHTML = paneDiff(s);
+  else { pane.innerHTML = paneSet(); loadUsers(); }
+}
+function paneLocked(s) {
+  return `<div class="card"><div class="sec"><b>01</b>${esc(s.date)} 확정 명단</div><div class="rule"><i></i><span></span></div>
+    <p>확정된 기준일은 화면에서 고치지 않습니다. 고칠 일이 있으면 시트의 <b>조직도_이력</b> 탭에서 이 날짜 행을 직접 고친 뒤 [시트에서 새로고침]을 누르세요.</p>
+    <div class="row"><a class="btnlink" href="${esc(sheetUrl)}" target="_blank" rel="noopener">시트 열기</a><button id="btnDelSnap" class="ghost">이 기준일 삭제</button></div></div>
+    <div class="card"><div class="sec"><b>02</b>명단 <span class="hint">${s.people.length}명</span></div><div class="rule"><i></i><span></span></div>
+    <div class="tablewrap"><table class="list"><tr><th>팀명</th><th>직책</th><th>직무/역할</th><th>이름</th><th>상태</th><th>비고</th></tr>
+    ${s.people.map(p => `<tr><td>${esc(p.team)}</td><td>${esc(p.position)}</td><td>${esc(p.role)}</td><td>${esc(p.name)}</td><td>${esc(p.status)}</td><td>${esc(p.note)}</td></tr>`).join('')}</table></div></div>`;
+}
+function paneEdit(s) {
+  const all = [D.settings.topUnit, ...teams(s)];
+  const uniq = f => [...new Set(D.snapshots.flatMap(x => x.people.map(p => p[f].trim())).filter(Boolean))].sort();
+  return `<div class="card"><div class="sec"><b>01</b>작성 중 정보 <span class="hint">시트의 데이터 탭과 연결되어 있습니다</span></div><div class="rule"><i></i><span></span></div>
+    <div class="hint">점포 인원 (명단 없이 인원수만 관리)</div>
+    <div id="storeRows">${s.store.map((x, i) => `<div class="row" data-i="${i}"><input data-sf="label" value="${esc(x.label)}" placeholder="구분" style="width:200px"><input type="number" data-sf="n" value="${esc(x.n)}" style="width:90px"> 명<button data-sact="del" class="ghost">삭제</button></div>`).join('')}</div>
+    <button id="btnAddStore" class="ghost">+ 점포 인원 구분 추가</button>
+    <div class="notes"><label>당월 퇴사 및 부서이동<textarea id="nMoves" rows="4">${esc(s.notes.moves)}</textarea></label>
+      <label>휴·복직 현황<textarea id="nLeaves" rows="4">${esc(s.notes.leaves)}</textarea></label></div>
+    <button id="btnAuto">직전 확정 기준일과 비교해 자동 작성</button> <span class="hint">조직도 하단에 그대로 인쇄됩니다.</span></div>
+    <div class="card" id="warnBox"></div>
+    <div class="card"><div class="sec"><b>02</b>인원 명단 <span class="hint" id="cnt"></span></div><div class="rule"><i></i><span></span></div>
+    <div class="row"><select id="fTeam"><option value="">전체 팀</option>${all.map(t => `<option ${t === fTeam ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
+      <input id="fText" placeholder="이름·직무 검색" value="${esc(fText)}"><button id="btnAdd" class="pri">+ 인원 추가</button>
+      <span class="hint">팀명이 '${esc(D.settings.topUnit)}'인 인원은 조직도 상단(사업부장·부사업부장·담당)에 표시됩니다.</span></div>
+    <datalist id="dlTeam">${all.map(t => `<option value="${esc(t)}">`).join('')}</datalist>
+    <datalist id="dlPos">${[...new Set(Object.keys(POS_RANK).concat(uniq('position')))].map(t => `<option value="${esc(t)}">`).join('')}</datalist>
+    <datalist id="dlRole">${uniq('role').map(t => `<option value="${esc(t)}">`).join('')}</datalist>
+    <div class="tablewrap"><table class="grid"><thead><tr><th>순서</th><th>팀명</th><th>직책</th><th>직무/역할</th><th>이름</th><th>상태</th><th>비고 <span class="hint">(이름 옆 괄호로 인쇄)</span></th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>`;
+}
+function renderRows() {
+  const s = draft(), q = fText.trim();
+  const rows = s.people.filter(p => (!fTeam || p.team.trim() === fTeam) && (!q || (p.name + p.role).includes(q)));
+  $('#cnt').textContent = `${rows.length}명 표시 / 전체 ${s.people.length}명`;
+  $('#tb').innerHTML = rows.map(p => `<tr data-id="${p.id}" class="${p.status !== '재직' ? 'off' : ''}">
+    <td class="ord"><button data-act="up" title="위로">↑</button><button data-act="dn" title="아래로">↓</button></td>
+    <td><input data-f="team" list="dlTeam" value="${esc(p.team)}"></td>
+    <td><input data-f="position" list="dlPos" value="${esc(p.position)}" style="min-width:80px"></td>
+    <td><input data-f="role" list="dlRole" value="${esc(p.role)}"></td>
+    <td><input data-f="name" value="${esc(p.name)}" style="min-width:80px"></td>
+    <td><select data-f="status">${[...new Set(STATUS.concat(p.status))].map(x => `<option ${x === p.status ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></td>
+    <td><input data-f="note" value="${esc(p.note)}" style="min-width:160px"></td>
+    <td><button data-act="del" class="ghost">삭제</button></td></tr>`).join('');
+}
+function renderWarn() {
+  const w = warnings(draft());
+  $('#warnBox').innerHTML = `<div class="sec"><b>!</b>점검 ${w.length ? w.length + '건' : '— 문제 없음'}</div>` +
+    w.map(x => `<div class="warn"><span>${x.msg}</span>${x.from ? `<button data-from="${esc(x.from)}" data-to="${esc(x.to)}">‘${esc(x.to)}’로 바꾸기</button>` : ''}</div>`).join('');
+}
+function paneDiff(s) {
+  const others = D.snapshots.filter(x => x.id !== s.id && (isAdmin() || !x.draft)).sort((a, b) => b.date.localeCompare(a.date));
+  if (!others.length) return `<div class="card empty">비교할 다른 기준일이 없습니다.<br><span class="hint">작성 중 명단을 한 번 확정하면 그다음부터 변동 내역이 자동으로 계산됩니다.</span></div>`;
+  const base = others.find(x => x.id === cmpId) || prevOf(s) || others[0];
+  const [a, b] = base.date < s.date || (base.date === s.date && s.draft) ? [base, s] : [s, base];
+  const d = diff(a, b), ca = counts(a), cb = counts(b);
+  const lab = x => x.draft ? `작성 중(${x.date})` : x.date;
+  const li = arr => arr.length ? `<ul>${arr.map(x => `<li>${x}</li>`).join('')}</ul>` : '<p class="hint">없음</p>';
+  const tp = p => `${esc(p.name)} <span class="hint">${esc(p.team)}</span>`;
+  const sec = [
+    ['신규', d.join.map(tp)], ['제외 (퇴사·전출)', d.out.map(tp)],
+    ['팀 이동', d.move.map(([q, p]) => `${esc(p.name)} : ${esc(q.team)} → ${esc(p.team)}`)],
+    ['직책 변경', d.pos.map(([q, p]) => `${esc(p.name)} : ${esc(q.position)} → ${esc(p.position)}`)],
+    ['직무 변경', d.role.map(([q, p]) => `${esc(p.name)} : ${esc(q.role)} → ${esc(p.role)}`)],
+    ['휴직', d.leave.map(tp)], ['복직', d.back.map(tp)]];
+  const tms = [...new Set([...teams(a), ...teams(b)])];
+  const tr = (l, x, y) => `<tr><td>${l}</td><td class="num">${x}</td><td class="num">${y}</td><td class="num">${delta(y, x)}</td></tr>`;
+  return `<div class="card"><div class="row"><div class="sec" style="margin:0"><b>01</b>변동 내역</div><span style="flex:1"></span>
+      <label>비교 기준 <select id="cmpSel">${others.map(x => `<option value="${x.id}" ${x.id === base.id ? 'selected' : ''}>${esc(lab(x))}</option>`).join('')}</select></label></div>
+    <div class="rule" style="margin-top:8px"><i></i><span></span></div>
+    <p class="hint">${esc(lab(a))} → ${esc(lab(b))}</p>
+    <div class="chg">${sec.map(([h, arr]) => `<div><h3>${h} ${arr.length}</h3>${li(arr)}</div>`).join('')}</div></div>
+    <div class="card"><div class="sec"><b>02</b>인원 비교</div><div class="rule"><i></i><span></span></div>
+    <table class="list"><tr><th>구분</th><th class="num">${esc(lab(a))}</th><th class="num">${esc(lab(b))}</th><th class="num">증감</th></tr>
+    ${tr('부사업부장 이상', ca.exec, cb.exec)}${tr('팀장', ca.lead, cb.lead)}${tr('팀원(Staff)', ca.staff, cb.staff)}${tr('코칭매니저', ca.coach, cb.coach)}
+    ${tr('<b>합계</b>', ca.total, cb.total)}${tr('휴직자', ca.leave, cb.leave)}
+    ${tms.map(t => tr(esc(t) + ' <span class="hint">(팀장+팀원)</span>', ca.team[t] || 0, cb.team[t] || 0)).join('')}</table></div>`;
+}
+function paneSet() {
+  const st = D.settings, s = draft(), f = (k, l, h) => `<label style="display:block;margin:8px 0">${l}<br><input data-set="${k}" value="${esc(st[k])}" style="width:min(420px,100%)"> <span class="hint">${h || ''}</span></label>`;
+  return `<div class="card"><div class="sec"><b>01</b>기본 설정 <span class="hint">시트의 조직도_설정 탭에 저장됩니다</span></div><div class="rule"><i></i><span></span></div>
+    ${f('orgName', '조직명', '조직도 제목에 쓰입니다.')}
+    ${f('topUnit', '최상위 단위 팀명', '이 팀명의 인원은 상단(사업부장·부사업부장·담당)에 표시됩니다.')}
+    ${f('coachRoles', '별도 집계할 직무', '쉼표로 구분. 팀 인원에서 빼고 코칭매니저로 집계합니다.')}
+    ${f('owner', '관리 담당자', '인수인계 시 바꿔 주세요.')}</div>
+    <div class="card"><div class="sec"><b>02</b>팀 표시 순서 <span class="hint">작성 중 명단에 적용, 확정하면 그 기준일에 함께 기록</span></div><div class="rule"><i></i><span></span></div>
+    <table class="list">${teams(s).map((t, i, arr) => `<tr data-team="${esc(t)}"><td>${i + 1}</td><td>${esc(t)}</td><td class="hint">${counts(s).team[t] || 0}명</td>
+      <td style="text-align:right"><button data-tact="up" class="ghost" ${i ? '' : 'disabled'}>↑</button><button data-tact="dn" class="ghost" ${i < arr.length - 1 ? '' : 'disabled'}>↓</button><button data-tact="ren" class="ghost">팀명 변경</button></td></tr>`).join('')}</table></div>
+    <div class="card"><div class="sec"><b>03</b>관리자 계정 <span class="hint">여기 등록된 사람만 명단 수정과 확정을 할 수 있습니다</span></div><div class="rule"><i></i><span></span></div>
+    <div id="userList" class="hint">불러오는 중…</div>
+    <div class="row" style="margin-top:10px"><input id="nuId" placeholder="아이디 (영문·숫자)" style="width:150px"><input id="nuName" placeholder="이름" style="width:110px">
+      <input id="nuPw" type="password" placeholder="초기 비밀번호 8자 이상" style="width:180px"><button id="btnAddUser">관리자 추가</button></div>
+    <div class="row"><input id="cpOld" type="password" placeholder="현재 비밀번호" style="width:150px"><input id="cpNew" type="password" placeholder="새 비밀번호 8자 이상" style="width:180px"><button id="btnChangePw">내 비밀번호 변경</button></div></div>`;
+}
+function renameTeam(from, to) {
+  const s = draft();
+  s.people.forEach(p => { if (p.team.trim() === from) p.team = to; });
+  s.teamOrder = teams(s).map(t => t === from ? to : t).filter((t, i, a) => a.indexOf(t) === i);
+  touch(); renderSide(); renderMain();
+}
+function showHelp() {
+  $('#helpBody').innerHTML = `<p>관리 담당자: <b>${esc(D.settings.owner || '미지정 (설정 탭에서 적어 두세요)')}</b></p>
+  <h3>01 구성</h3><ul><li>모든 것이 구글 시트 파일 하나에 들어 있습니다. <b>데이터</b> 탭은 현재 명단, <b>조직도_이력</b> 탭은 확정된 기준일별 명단입니다.</li>
+  <li>이 화면은 시트에 붙은 Apps Script 웹 앱입니다. 설치·서버·비용이 없습니다.</li>
+  <li><b>보기·과거 조회·인쇄</b>는 주소를 아는 누구나 로그인 없이 할 수 있습니다.</li>
+  <li><b>명단 수정·기준일 확정</b>은 관리자 로그인이 필요합니다. 관리자 계정은 설정 탭에서 추가·삭제합니다.</li></ul>
+  <h3>02 매월 업데이트 순서</h3><ol><li>명단 수정: 시트의 데이터 탭에서 고치거나, 이 화면의 [인원 편집]에서 고칩니다. 어느 쪽이든 서로 반영됩니다.</li>
+  <li>화면에서 고친 내용은 몇 초 뒤 자동으로 시트에 저장됩니다. 시트에서 고친 내용은 [시트에서 새로고침]을 누르거나 1분 안에 자동 반영됩니다.</li>
+  <li>[직전 확정 기준일과 비교해 자동 작성]으로 이동·휴복직 문구를 만들고 다듬습니다.</li>
+  <li>점검 항목(중복·오타·휴직 종료일)을 확인합니다.</li>
+  <li>왼쪽 [기준일 확정]에서 날짜를 고르고 확정합니다. 조직도_이력 탭에 날짜와 함께 기록됩니다.</li>
+  <li>[인쇄 / PDF]에서 A4 가로를 확인하고 인쇄하거나 PDF로 저장합니다.</li></ol>
+  <h3>03 인수인계</h3><ol><li>설정 탭에서 후임자를 관리자로 추가하고, 설정 탭의 관리 담당자를 바꿉니다. 떠나는 사람의 계정은 후임자가 삭제합니다.</li>
+  <li>후임자에게 시트 편집 권한을 주고, 필요하면 시트 소유권을 넘깁니다.</li>
+  <li>이 화면은 웹 앱을 배포한 사람의 계정으로 실행됩니다. 배포한 사람이 퇴사하기 전에 후임자가 Apps Script에서 새로 배포하고, 허브 링크를 새 주소로 바꿉니다.</li>
+  <li>관리자 비밀번호를 모두 잊었으면 시트 메뉴 [조직도 관리 > admin 비밀번호 초기화]를 실행합니다.</li>
+  <li>화면 코드를 고칠 일이 있으면 시트 메뉴 [확장 프로그램 > Apps Script]에서 수정 후 배포를 새 버전으로 갱신합니다.</li></ol>
+  <h3>04 집계 규칙</h3><ul><li>재직자만 인원에 넣고, 휴직자는 따로 셉니다.</li>
+  <li>부사업부장 이상 = 최상위 단위의 사업부장·부사업부장. 팀장 = 각 팀의 팀장. 코칭매니저 = 설정의 별도 집계 직무. 나머지는 팀원(Staff).</li>
+  <li>팀 인원(예: 14명 = 팀장 1 + 팀원 13)에는 코칭매니저가 들어가지 않습니다.</li>
+  <li>직전 대비는 바로 이전 확정 기준일, 전년 대비는 1년 전 ±45일 안의 확정 기준일과 비교합니다.</li></ul>`;
+  $('#dlgHelp').showModal();
+}
+
+/* ---------- 이벤트 ---------- */
+$('#btnReload').onclick = () => { if (dirty && !confirm('아직 시트에 저장되지 않은 변경이 있습니다. 시트 내용으로 새로고침할까요?')) return; clearTimeout(saveTimer); load(); };
+$('#btnHelp').onclick = showHelp;
+$('#adminBox').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.id === 'btnLogin') { $('#lgMsg').textContent = ''; $('#dlgLogin').showModal(); $('#lgId').focus(); }
+  if (b.id === 'btnLogout') logout();
+};
+$('#lgGo').onclick = doLogin;
+$('#lgPw').onkeydown = e => { if (e.key === 'Enter') doLogin(); };
+$('#btnConfirm').onclick = confirmDate;
+$('#btnPrint').onclick = () => { if (!S()) return; tab = 'chart'; renderMain(); setTimeout(() => window.print(), 60); };
+$('#banner').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.id === 'bnLoad' && confirm('화면에서 고친 내용은 사라지고 시트 내용을 불러옵니다. 계속할까요?')) { clearTimeout(saveTimer); dirty = false; conflict = false; load(); }
+  if (b.id === 'bnForce' && confirm('시트에서 따로 바뀐 명단을 지금 화면 내용으로 덮어씁니다. 계속할까요?')) { dirty = true; save(true); }
+};
+$('#cfDate').onchange = e => { const dr = draft(); if (dr && e.target.value) { dr.date = e.target.value; touch(); renderSide(); if (cur === 'draft') renderMain(); } };
+window.addEventListener('beforeprint', () => { if (S() && tab !== 'chart') { tab = 'chart'; renderMain(); } fit(); });
+window.addEventListener('resize', fit);
+window.addEventListener('focus', checkRemote);
+window.addEventListener('beforeunload', e => { if (dirty || saving) { e.preventDefault(); e.returnValue = ''; } });
+setInterval(checkRemote, 60000);
+
+$('#tabs').onclick = e => { const t = e.target.closest('button'); if (t) { tab = t.dataset.t; renderMain(); } };
+$('#snapList').onclick = e => { const b = e.target.closest('.snap'); if (b) { cur = b.dataset.id; cmpId = ''; renderSide(); renderMain(); } };
+$('#who').oninput = renderWho;
+
+const pane = $('#pane');
+pane.addEventListener('input', e => {
+  const t = e.target, s = draft(); if (!s) return;
+  if (t.dataset.set) { D.settings[t.dataset.set] = t.value; return touch(); }
+  if (t.id === 'fText') { fText = t.value; return renderRows(); }
+  if (t.id === 'optRows') { D.settings.maxRows = +t.value || 15; touch(); return renderMain(); }
+  if (S() !== s) return;
+  if (t.dataset.f) {
+    const p = s.people.find(x => x.id === t.closest('tr').dataset.id); p[t.dataset.f] = t.value;
+    if (t.dataset.f === 'status') t.closest('tr').className = t.value !== '재직' ? 'off' : '';
+    touch(); renderWarn(); renderSide(); return;
+  }
+  if (t.dataset.sf) { const x = s.store[+t.closest('[data-i]').dataset.i]; x[t.dataset.sf] = t.dataset.sf === 'n' ? t.value.replace(/\D/g, '') : t.value; return touch(); }
+  if (t.id === 'nMoves') { s.notes.moves = t.value; return touch(); }
+  if (t.id === 'nLeaves') { s.notes.leaves = t.value; return touch(); }
+});
+pane.addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'fTeam') { fTeam = t.value; renderRows(); }
+  if (t.id === 'optGroups') { D.settings.showGroups = t.checked; touch(); renderMain(); }
+  if (t.id === 'cmpSel') { cmpId = t.value; renderMain(); }
+});
+pane.addEventListener('click', e => {
+  const b = e.target.closest('button'), s = draft(); if (!b || !s) return;
+  if (b.id === 'btnDelSnap') return deleteDate(S());
+  if (b.id === 'btnAddUser') return accountAction('api_addUser', [$('#nuId').value, $('#nuName').value, $('#nuPw').value], () => {
+    $('#nuId').value = $('#nuName').value = $('#nuPw').value = '';
+    alert('관리자를 추가했습니다. 아이디와 초기 비밀번호는 본인에게 따로 전달하고, 로그인 후 바꾸도록 안내하세요.');
+  });
+  if (b.dataset.deluser) { if (confirm(`${b.dataset.deluser} 관리자 계정을 삭제할까요?`)) accountAction('api_removeUser', [b.dataset.deluser]); return; }
+  if (b.id === 'btnChangePw') return accountAction('api_changePassword', [$('#cpOld').value, $('#cpNew').value], () => {
+    $('#cpOld').value = $('#cpNew').value = ''; alert('비밀번호를 바꿨습니다.');
+  });
+  const act = b.dataset.act;
+  if (act) {
+    const id = b.closest('tr').dataset.id, i = s.people.findIndex(p => p.id === id), p = s.people[i];
+    if (act === 'del') { if (!confirm(`${p.name || '이 행'}을(를) 작성 중 명단에서 삭제할까요?`)) return; s.people.splice(i, 1); }
+    else {
+      const step = act === 'up' ? -1 : 1;
+      let j = i + step; while (j >= 0 && j < s.people.length && s.people[j].team.trim() !== p.team.trim()) j += step;
+      if (j < 0 || j >= s.people.length) return;
+      [s.people[i], s.people[j]] = [s.people[j], s.people[i]];
+    }
+    touch(); renderRows(); renderWarn(); renderSide(); return;
+  }
+  if (b.id === 'btnAdd') {
+    const p = {id:uid(), team:fTeam, position:'팀원', role:'', name:'', status:'재직', note:''};
+    s.people.push(p); fText = ''; $('#fText').value = ''; touch(); renderRows(); renderWarn();
+    const inp = $(`tr[data-id="${p.id}"] input[data-f="${fTeam ? 'name' : 'team'}"]`); inp.focus(); inp.scrollIntoView({block:'center'}); return;
+  }
+  if (b.id === 'btnAuto') return autoNotes();
+  if (b.id === 'btnAddStore') { s.store.push({label:'', n:''}); touch(); return renderMain(); }
+  if (b.dataset.sact === 'del') { s.store.splice(+b.closest('[data-i]').dataset.i, 1); touch(); return renderMain(); }
+  if (b.dataset.from) return renameTeam(b.dataset.from, b.dataset.to);
+  if (b.dataset.tact) {
+    const t = b.closest('tr').dataset.team, order = teams(s), i = order.indexOf(t);
+    if (b.dataset.tact === 'ren') { const n = prompt('새 팀명', t); if (n && n.trim() && n.trim() !== t) renameTeam(t, n.trim()); return; }
+    const j = b.dataset.tact === 'up' ? i - 1 : i + 1;
+    [order[i], order[j]] = [order[j], order[i]]; s.teamOrder = order; touch(); renderMain();
+  }
+});
+
+document.body.classList.toggle('admin', isAdmin());
+load();
+if (document.fonts) document.fonts.ready.then(fit);
+</script>
+</body>
+</html>
