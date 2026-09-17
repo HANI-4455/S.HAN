@@ -12,14 +12,15 @@ const SET_KEYS = {
   showGroups: '직무별 소제목', owner: '관리 담당자', draftDate: '작성중 기준일'
 };
 const SET_DEFAULTS = {orgName: 'PAS사업부', topUnit: '사업부', coachRoles: '코칭매니저', maxRows: '15', showGroups: 'TRUE', owner: '', draftDate: ''};
-const USERS_KEY = 'ADMIN_USERS', TOKEN_SECONDS = 6 * 3600, MAX_FAILS = 5, LOCK_SECONDS = 600;
+// 주 관리자 아이디는 스크립트 속성 MAIN_ADMIN 에 둔다(공개 저장소에 아이디를 남기지 않기 위해). 없으면 admin
+const USERS_KEY = 'ADMIN_USERS', MAIN_KEY = 'MAIN_ADMIN', TOKEN_SECONDS = 6 * 3600, MAX_FAILS = 5, LOCK_SECONDS = 600;
 
 /* ---------- 시트 메뉴 ---------- */
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('조직도 관리')
     .addItem('조직도 화면 열기', 'openApp')
     .addItem('초기 설정 (처음 한 번)', 'menuSetup')
-    .addItem('admin 비밀번호 초기화', 'menuResetAdminPassword')
+    .addItem('주 관리자 비밀번호 초기화', 'menuResetAdminPassword')
     .addToUi();
 }
 
@@ -40,7 +41,7 @@ function openApp() {
 }
 
 /**
- * 필요한 탭을 만들고, 관리자 계정이 하나도 없으면 admin 계정을 임시 비밀번호로 만든다. 여러 번 실행해도 안전.
+ * 필요한 탭을 만들고, 관리자 계정이 하나도 없으면 주 관리자 계정을 임시 비밀번호로 만든다. 여러 번 실행해도 안전.
  * 편집기에서 실행하면 결과가 [실행 로그]에 나온다. 알림창을 띄우지 않는다
  * (편집기에서 알림창을 띄우면 열린 시트 탭에서 확인을 누를 때까지 멈춰 6분 시간 초과가 난다)
  */
@@ -56,8 +57,8 @@ function setup() {
   let temp = '', msg = '초기 설정이 끝났습니다. 조직도_이력, 조직도_기준일정보, 조직도_설정 탭을 확인하세요.';
   if (!Object.keys(users_()).length) {
     temp = tempPassword_();
-    setUser_('admin', '관리자', temp);
-    msg += '\n\n첫 관리자 계정을 만들었습니다.\n아이디: admin\n임시 비밀번호: ' + temp + '\n\n조직도 화면에서 로그인한 뒤 설정 탭에서 비밀번호를 바꾸세요.';
+    setUser_(mainId_(), '관리자', temp);
+    msg += '\n\n첫 관리자 계정을 만들었습니다.\n아이디: ' + mainId_() + '\n임시 비밀번호: ' + temp + '\n\n조직도 화면에서 로그인한 뒤 설정 탭에서 비밀번호를 바꾸세요.';
   } else {
     msg += '\n\n관리자 계정이 이미 있습니다. 비밀번호를 모르면 resetAdminPassword 를 실행하세요.';
   }
@@ -65,11 +66,11 @@ function setup() {
   return {ok: true, tempPassword: temp, message: msg};
 }
 
-/** 비밀번호를 잊었을 때: 편집기에서 실행하면 admin 계정 비밀번호를 새 임시 비밀번호로 바꾸고 [실행 로그]에 보여 준다 */
+/** 비밀번호를 잊었을 때: 편집기에서 실행하면 주 관리자 계정 비밀번호를 새 임시 비밀번호로 바꾸고(없으면 만들고) [실행 로그]에 보여 준다 */
 function resetAdminPassword() {
-  const temp = tempPassword_(), u = users_();
-  setUser_('admin', (u.admin && u.admin.name) || '관리자', temp);
-  console.log('admin 계정 비밀번호를 초기화했습니다.\n아이디: admin\n임시 비밀번호: ' + temp + '\n\n로그인한 뒤 설정 탭에서 바꾸세요.');
+  const temp = tempPassword_(), u = users_(), id = mainId_();
+  setUser_(id, (u[id] && u[id].name) || '관리자', temp);
+  console.log('주 관리자 계정 비밀번호를 초기화했습니다.\n아이디: ' + id + '\n임시 비밀번호: ' + temp + '\n\n로그인한 뒤 설정 탭에서 바꾸세요.');
   return temp;
 }
 
@@ -80,9 +81,9 @@ function menuSetup() {
 
 function menuResetAdminPassword() {
   const ui = SpreadsheetApp.getUi();
-  if (ui.alert('admin 계정 비밀번호를 새 임시 비밀번호로 바꿀까요?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  if (ui.alert('주 관리자(' + mainId_() + ') 계정 비밀번호를 새 임시 비밀번호로 바꿀까요?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
   const temp = resetAdminPassword();
-  ui.alert('admin 계정 비밀번호를 초기화했습니다.\n임시 비밀번호: ' + temp + '\n\n로그인한 뒤 설정 탭에서 바꾸세요.');
+  ui.alert('주 관리자(' + mainId_() + ') 계정 비밀번호를 초기화했습니다.\n임시 비밀번호: ' + temp + '\n\n로그인한 뒤 설정 탭에서 바꾸세요.');
 }
 
 /* ---------- 누구나 부르는 함수 ---------- */
@@ -147,13 +148,15 @@ function api_deleteDate(token, date, baseVersion) {
   });
 }
 
+/** 주 관리자에게만 계정 목록을 준다. 다른 관리자는 {canManage:false} 만 받는다 */
 function api_listUsers(token) {
   const me = who_(token), u = users_();
-  return Object.keys(u).sort().map(k => ({id: k, name: u[k].name, self: k === me}));
+  if (me !== mainId_()) return {canManage: false, users: []};
+  return {canManage: true, users: Object.keys(u).sort().map(k => ({id: k, name: u[k].name, self: k === me}))};
 }
 
 function api_addUser(token, id, name, pw) {
-  who_(token);
+  manager_(token);
   id = String(id || '').trim();
   if (!/^[A-Za-z0-9._-]{3,30}$/.test(id)) throw new Error('아이디는 영문·숫자 3~30자로 입력하세요.');
   if (users_()[id]) throw new Error('이미 있는 아이디입니다.');
@@ -163,7 +166,7 @@ function api_addUser(token, id, name, pw) {
 }
 
 function api_removeUser(token, id) {
-  const me = who_(token);
+  const me = manager_(token);
   if (id === me) throw new Error('지금 로그인한 계정은 지울 수 없습니다.');
   const u = users_();
   delete u[id];
@@ -206,6 +209,15 @@ function who_(token) {
   const id = token ? CacheService.getScriptCache().get('tok:' + token) : null;
   if (!id || !users_()[id]) throw new Error('관리자 로그인이 필요합니다. 다시 로그인해 주세요.');
   return id;
+}
+
+function mainId_() { return PropertiesService.getScriptProperties().getProperty(MAIN_KEY) || 'admin'; }
+
+/** 계정 추가·삭제는 주 관리자만 */
+function manager_(token) {
+  const me = who_(token);
+  if (me !== mainId_()) throw new Error('관리자 계정 추가·삭제는 주 관리자만 할 수 있습니다.');
+  return me;
 }
 
 function tempPassword_() { return Utilities.getUuid().replace(/-/g, '').slice(0, 10); }
