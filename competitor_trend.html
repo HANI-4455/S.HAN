@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>경쟁사 동향 모니터 · 안내</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary:#15237A; --secondary:#2F497D; --accent:#F26300; --text:#272727;
+    --bg:#F8F8F8; --card:#FFFFFF; --border:#2F497D; --muted:#6B7280; --light:#E8ECF4; --radius:6px;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; padding:24px 16px 60px; background:var(--bg); color:var(--text);
+    font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-serif; line-height:1.6;
+  }
+  .wrap { max-width:840px; margin:0 auto; }
+  .back { display:inline-block; margin-bottom:16px; color:var(--secondary); text-decoration:none; font-size:14px; }
+  .back:hover { text-decoration:underline; }
+  h1 { font-size:24px; color:var(--primary); margin:0 0 6px; }
+  .lead { color:var(--muted); font-size:14px; margin:0 0 24px; }
+  .box { background:var(--card); border:1px solid var(--light); border-radius:var(--radius); padding:20px 22px; margin-bottom:16px; }
+  h2 { font-size:17px; color:var(--primary); margin:0 0 12px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--light); vertical-align:top; }
+  th { background:var(--light); color:var(--primary); font-weight:700; white-space:nowrap; }
+  code { background:var(--light); padding:2px 6px; border-radius:4px; font-size:13px; }
+  pre { background:#1E293B; color:#E2E8F0; padding:14px 16px; border-radius:var(--radius); overflow-x:auto; font-size:13px; position:relative; }
+  pre code { background:none; color:inherit; padding:0; }
+  .copy { position:absolute; top:8px; right:8px; background:var(--secondary); color:#fff; border:0;
+          border-radius:4px; padding:5px 10px; font-size:12px; cursor:pointer; font-family:inherit; }
+  .copy:hover { background:var(--primary); }
+  ol { padding-left:20px; margin:0; } li { margin-bottom:8px; }
+  .note { background:#FFF7ED; border-left:4px solid var(--accent); padding:12px 14px; border-radius:4px; font-size:14px; }
+  a.btn { display:inline-block; background:var(--primary); color:#fff; text-decoration:none;
+          padding:9px 16px; border-radius:var(--radius); font-size:14px; font-weight:500; }
+  a.btn:hover { background:var(--secondary); }
+  .muted { color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./">← 업무 모음으로</a>
+  <h1>☕ 경쟁사 동향 모니터</h1>
+  <p class="lead">투썸플레이스 · 스타벅스 · 메가MGC커피의 신제품과 구글 · 네이버 뉴스 트렌드를 한 화면에서 확인하는 도구입니다.</p>
+
+  <div class="box">
+    <h2>무엇을 할 수 있나요</h2>
+    <table>
+      <tr><th>신제품 요약(홈)</th><td>세 브랜드 신제품을 한 번에 수집해 제품 이미지 카드로 모아 보기 · 전체 CSV 다운로드</td></tr>
+      <tr><th>경쟁사 제품 동향</th><td>브랜드별 전체 메뉴를 카테고리별로 조회 — 제품명 · 제품 이미지 · 제품 설명(설명 이미지 포함)</td></tr>
+      <tr><th>뉴스 트렌드</th><td>키워드 뉴스 검색 후 일자별 기사량 · 연관 키워드 · 주요 언론사 분석, 결과는 카드 뉴스로 정리</td></tr>
+    </table>
+  </div>
+
+  <div class="box">
+    <h2>내 PC에서 실행하기</h2>
+    <ol>
+      <li>소스 내려받기 — <a class="btn" href="https://github.com/HANI-4455/S.HAN/tree/main/competitor_trend" target="_blank" rel="noopener">GitHub에서 보기</a></li>
+      <li>필요한 라이브러리 설치
+        <pre><button class="copy" onclick="copyCode(this)">복사</button><code>pip install -r requirements.txt</code></pre>
+      </li>
+      <li>앱 실행 — 브라우저에서 <code>http://localhost:8501</code> 이 열립니다.
+        <pre><button class="copy" onclick="copyCode(this)">복사</button><code>streamlit run app.py</code></pre>
+      </li>
+    </ol>
+  </div>
+
+  <div class="box">
+    <h2>참고</h2>
+    <p class="note">네이버는 뉴스 검색 RSS를 폐지해, 안정적으로 쓰려면 네이버 검색 Open API 키(무료)를 발급받아 앱 화면에 입력하는 것이 좋습니다. 키가 없어도 네이버 뉴스 검색 결과를 읽어 대체 수집합니다.</p>
+    <p class="muted" style="margin-bottom:0">수집 결과는 30분간 캐시되며, 각 화면의 실행 버튼을 다시 누르면 새로 수집합니다. 경쟁사를 추가하려면 크롤러 파일 하나를 만들고 <code>app.py</code>의 <code>COMPETITORS</code> 목록에 한 줄만 추가하면 됩니다.</p>
+  </div>
+</div>
+<script>
+  function copyCode(btn) {
+    const text = btn.parentElement.querySelector('code').innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '복사됨';
+      setTimeout(() => btn.textContent = '복사', 1500);
+    });
+  }
+</script>
+</body>
+</html>
