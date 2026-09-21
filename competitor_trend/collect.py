@@ -22,6 +22,10 @@ BRANDS = {
 }
 NEWS_KEYWORDS = ["투썸플레이스", "스타벅스 신제품", "메가MGC커피", "카페 신메뉴"]
 NEWS_LIMIT = 40
+# 네이버 검색 Open API 키 (GitHub Actions Secrets 또는 환경변수).
+# 없으면 네이버 뉴스 검색 페이지 파싱으로 자동 대체된다.
+NAVER_ID = os.getenv("NAVER_CLIENT_ID", "")
+NAVER_SECRET = os.getenv("NAVER_CLIENT_SECRET", "")
 
 
 def load_previous() -> dict:
@@ -61,12 +65,16 @@ def collect_products(previous: dict, now: str) -> dict:
     return brands
 
 
+def search_naver_with_key(keyword: str, limit: int) -> list:
+    return news_trend.search_naver(keyword, limit, NAVER_ID, NAVER_SECRET)
+
+
 def collect_news(previous: dict) -> dict:
     prev_news = previous.get("news", {})
     result = {}
     for kw in NEWS_KEYWORDS:
         rows = []
-        for name, fetch in (("구글", news_trend.search_google), ("네이버", news_trend.search_naver)):
+        for name, fetch in (("구글", news_trend.search_google), ("네이버", search_naver_with_key)):
             try:
                 rows += fetch(kw, NEWS_LIMIT)
             except Exception as e:
@@ -89,7 +97,7 @@ def main():
 
     print("제품 수집")
     products = collect_products(previous, now)
-    print("뉴스 수집")
+    print("뉴스 수집 (네이버: " + ("Open API" if NAVER_ID and NAVER_SECRET else "검색 페이지 파싱") + ")")
     news = collect_news(previous)
 
     payload = {

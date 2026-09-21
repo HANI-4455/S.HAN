@@ -25,6 +25,9 @@ jobs:
 
       - name: 데이터 수집
         working-directory: competitor_trend
+        env:  # 저장소 Secrets 에 등록하면 네이버 Open API 로 수집, 없으면 검색 페이지 파싱
+          NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+          NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
         run: python collect.py
 
       - name: 변경분 커밋
