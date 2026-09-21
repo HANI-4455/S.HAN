@@ -8,6 +8,9 @@
    GitHub Actions가 매일 오전 8시에 `collect.py`를 실행해 `data/competitor_data.json`을 갱신하고,
    정적 페이지가 그 JSON을 읽어 카드로 보여준다. 즉시 갱신하려면 저장소 Actions 탭에서
    `경쟁사 동향 수집` 워크플로를 수동 실행한다.
+   단, GitHub Actions 러너는 해외 IP라 **투썸 사이트 접속이 차단**된다. 이때는 직전 투썸 데이터를
+   그대로 유지하고 페이지에 `⚠ 기준 시각` 배지를 표시한다. 투썸까지 최신으로 만들려면 국내 PC에서
+   저장소를 clone 한 뒤 `competitor_trend/수집_실행.bat`을 실행하면 수집 후 자동으로 push 된다.
 2. **Streamlit 앱으로 직접 실행** — 아래 설치·실행 방법 참고. 수집 시점을 직접 고르고 싶을 때 쓴다.
 
 ## 화면 구성
@@ -37,6 +40,7 @@ streamlit run app.py
 | `mega_crawler.py` | 메가MGC커피 메뉴 목록 수집기 (신상품 카테고리 포함) |
 | `news_trend.py` | 구글 뉴스 RSS · 네이버 뉴스 검색 + 트렌드 분석 |
 | `collect.py` | 정적 페이지용 `data/competitor_data.json` 생성 (GitHub Actions가 매일 실행) |
+| `수집_실행.bat` | 국내 PC에서 수집 후 GitHub에 바로 반영 (투썸 포함 전체 갱신) |
 
 각 크롤러는 단독 실행도 가능합니다. 예: `python starbucks_crawler.py`
 
