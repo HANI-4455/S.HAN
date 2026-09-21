@@ -24,20 +24,45 @@ NEWS_KEYWORDS = ["투썸플레이스", "스타벅스 신제품", "메가MGC커�
 NEWS_LIMIT = 40
 
 
-def collect_products() -> dict:
+def load_previous() -> dict:
+    """직전 수집 결과 — 수집 실패한 브랜드는 이 값을 그대로 유지한다."""
+    try:
+        with open(os.path.join(DATA_DIR, "competitor_data.json"), encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def collect_products(previous: dict, now: str) -> dict:
+    prev_brands = previous.get("brands", {})
     brands = {}
     for key, (title, url, crawl) in BRANDS.items():
-        try:
-            items = crawl(True)
+        items, error = [], ""
+        for attempt in (1, 2, 3):  # 해외 IP 차단·일시 오류 대비 재시도
+            try:
+                items = crawl(True)
+                if items:
+                    break
+            except Exception as e:
+                error = str(e)[:120]
+            print(f"  {key}: {attempt}차 시도 실패 - {error or '수집 결과 없음'}")
+
+        prev = prev_brands.get(key, {})
+        if items:
             print(f"  {key}: {len(items)}개")
-        except Exception as e:  # 한 브랜드가 실패해도 나머지는 저장
-            print(f"  {key}: 실패 - {e}")
-            items = []
-        brands[key] = {"title": title, "source": url, "products": items}
+            brands[key] = {"title": title, "source": url, "products": items,
+                           "updated_at": now, "stale": False}
+        elif prev.get("products"):  # 실패 시 이전 데이터 유지
+            print(f"  {key}: 수집 실패 → 이전 데이터 유지 ({prev.get('updated_at', '시각 미상')})")
+            brands[key] = {**prev, "title": title, "source": url, "stale": True}
+        else:
+            brands[key] = {"title": title, "source": url, "products": [],
+                           "updated_at": "", "stale": True}
     return brands
 
 
-def collect_news() -> dict:
+def collect_news(previous: dict) -> dict:
+    prev_news = previous.get("news", {})
     result = {}
     for kw in NEWS_KEYWORDS:
         rows = []
@@ -46,6 +71,10 @@ def collect_news() -> dict:
                 rows += fetch(kw, NEWS_LIMIT)
             except Exception as e:
                 print(f"  {kw}/{name}: 실패 - {e}")
+        if not rows:  # 전부 실패하면 이전 뉴스 유지
+            result[kw] = prev_news.get(kw, [])
+            print(f"  {kw}: 수집 실패 → 이전 데이터 유지 ({len(result[kw])}건)")
+            continue
         df = news_trend.to_dataframe(rows)
         df["published"] = df["published"].dt.strftime("%Y-%m-%d %H:%M").fillna("")
         result[kw] = df.to_dict("records")
@@ -56,11 +85,12 @@ def collect_news() -> dict:
 def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     now = datetime.now(KST).strftime("%Y-%m-%d %H:%M")
+    previous = load_previous()
 
     print("제품 수집")
-    products = collect_products()
+    products = collect_products(previous, now)
     print("뉴스 수집")
-    news = collect_news()
+    news = collect_news(previous)
 
     payload = {
         "collected_at": now,

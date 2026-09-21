@@ -42,6 +42,8 @@
   .metric .sub { font-size:12px; color:var(--muted); }
   h2 { font-size:18px; color:var(--primary); margin:26px 0 12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   h2 .count { font-size:13px; font-weight:400; color:var(--muted); }
+  .stale { font-size:12px; font-weight:500; color:#92400E; background:#FEF3C7;
+           border-radius:999px; padding:2px 10px; }
   .empty { color:var(--muted); font-size:14px; padding:20px 0; }
 
   /* 제품 카드 */
@@ -147,6 +149,13 @@ function productGrid(list) {
   return `<div class="grid">${list.map(productCard).join("")}</div>`;
 }
 
+/* 수집이 실패해 이전 데이터를 그대로 쓰는 브랜드는 기준 시각을 표시한다 */
+function staleNote(b) {
+  if (!b.stale) return "";
+  const when = b.updated_at ? `${esc(b.updated_at)} 자료` : "수집 실패";
+  return `<span class="stale" title="최근 수집에 실패해 이전 데이터를 보여줍니다">⚠ ${when}</span>`;
+}
+
 const uniqueByName = (list) => {
   const seen = new Set();
   return list.filter(p => !seen.has(p.name) && seen.add(p.name));
@@ -164,7 +173,7 @@ function renderHome() {
   const sections = Object.entries(brands).map(([key, b]) => {
     const news = uniqueByName(b.products.filter(p => p.is_new));
     return `<h2>${esc(b.title)} <span class="count">신제품 ${news.length}개 ·
-      <a href="${esc(b.source)}" target="_blank" rel="noopener">출처</a></span></h2>${productGrid(news)}`;
+      <a href="${esc(b.source)}" target="_blank" rel="noopener">출처</a></span>${staleNote(b)}</h2>${productGrid(news)}`;
   }).join("");
 
   return `<div class="metrics">${metrics}</div>${sections}`;
@@ -197,7 +206,8 @@ function renderBrand() {
       <div class="metric"><div class="label">전체 제품</div><div class="value">${uniqueByName(b.products).length}</div></div>
       <div class="metric"><div class="label">신제품</div><div class="value">${uniqueByName(b.products.filter(p => p.is_new)).length}</div></div>
       <div class="metric"><div class="label">카테고리</div><div class="value">${sections.length}</div></div>
-      <div class="metric"><div class="label">출처</div><div class="sub" style="margin-top:6px">
+      <div class="metric"><div class="label">${b.stale ? "기준 시각(수집 실패)" : "출처"}</div>
+        <div class="sub" style="margin-top:6px">${b.stale ? esc(b.updated_at || "-") + " 자료 · " : ""}
         <a href="${esc(b.source)}" target="_blank" rel="noopener">사이트 열기</a></div></div>
     </div>
     <h2>${q ? `‘${esc(state.q)}’ 검색 결과` : esc(section)} <span class="count">${uniqueByName(list).length}개</span></h2>
