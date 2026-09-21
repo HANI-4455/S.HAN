@@ -3,84 +3,353 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>경쟁사 동향 모니터 · 안내</title>
+<title>경쟁사 동향 모니터</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --primary:#15237A; --secondary:#2F497D; --accent:#F26300; --text:#272727;
     --bg:#F8F8F8; --card:#FFFFFF; --border:#2F497D; --muted:#6B7280; --light:#E8ECF4; --radius:6px;
+    --google:#4285F4; --naver:#03C75A;
   }
   * { box-sizing:border-box; }
-  body {
-    margin:0; padding:24px 16px 60px; background:var(--bg); color:var(--text);
-    font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-serif; line-height:1.6;
-  }
-  .wrap { max-width:840px; margin:0 auto; }
-  .back { display:inline-block; margin-bottom:16px; color:var(--secondary); text-decoration:none; font-size:14px; }
+  body { margin:0; padding:20px 16px 60px; background:var(--bg); color:var(--text);
+         font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-serif; line-height:1.55; }
+  .wrap { max-width:1180px; margin:0 auto; }
+  .back { display:inline-block; margin-bottom:12px; color:var(--secondary); text-decoration:none; font-size:14px; }
   .back:hover { text-decoration:underline; }
-  h1 { font-size:24px; color:var(--primary); margin:0 0 6px; }
-  .lead { color:var(--muted); font-size:14px; margin:0 0 24px; }
-  .box { background:var(--card); border:1px solid var(--light); border-radius:var(--radius); padding:20px 22px; margin-bottom:16px; }
-  h2 { font-size:17px; color:var(--primary); margin:0 0 12px; }
-  table { width:100%; border-collapse:collapse; font-size:14px; }
-  th, td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--light); vertical-align:top; }
-  th { background:var(--light); color:var(--primary); font-weight:700; white-space:nowrap; }
-  code { background:var(--light); padding:2px 6px; border-radius:4px; font-size:13px; }
-  pre { background:#1E293B; color:#E2E8F0; padding:14px 16px; border-radius:var(--radius); overflow-x:auto; font-size:13px; position:relative; }
-  pre code { background:none; color:inherit; padding:0; }
-  .copy { position:absolute; top:8px; right:8px; background:var(--secondary); color:#fff; border:0;
-          border-radius:4px; padding:5px 10px; font-size:12px; cursor:pointer; font-family:inherit; }
-  .copy:hover { background:var(--primary); }
-  ol { padding-left:20px; margin:0; } li { margin-bottom:8px; }
-  .note { background:#FFF7ED; border-left:4px solid var(--accent); padding:12px 14px; border-radius:4px; font-size:14px; }
-  a.btn { display:inline-block; background:var(--primary); color:#fff; text-decoration:none;
-          padding:9px 16px; border-radius:var(--radius); font-size:14px; font-weight:500; }
-  a.btn:hover { background:var(--secondary); }
-  .muted { color:var(--muted); font-size:13px; }
+  h1 { font-size:24px; color:var(--primary); margin:0 0 4px; }
+  .lead { color:var(--muted); font-size:14px; margin:0 0 16px; }
+  .lead b { color:var(--secondary); }
+
+  /* 탭 */
+  .tabs { display:flex; gap:8px; flex-wrap:wrap; border-bottom:2px solid var(--light); margin-bottom:18px; }
+  .tab { background:none; border:0; border-bottom:3px solid transparent; padding:10px 14px; margin-bottom:-2px;
+         font:inherit; font-size:15px; color:var(--muted); cursor:pointer; }
+  .tab:hover { color:var(--primary); }
+  .tab.active { color:var(--primary); font-weight:700; border-bottom-color:var(--primary); }
+
+  /* 공통 */
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px; }
+  select, input[type=search] {
+    font:inherit; font-size:14px; padding:8px 12px; border:1px solid var(--light);
+    border-radius:var(--radius); background:var(--card); color:var(--text); min-width:180px;
+  }
+  select:focus, input:focus { outline:2px solid var(--secondary); outline-offset:-1px; }
+  .metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:20px; }
+  .metric { background:var(--card); border:1px solid var(--light); border-radius:var(--radius); padding:14px 16px; }
+  .metric .label { font-size:12px; color:var(--muted); }
+  .metric .value { font-size:24px; font-weight:700; color:var(--primary); }
+  .metric .sub { font-size:12px; color:var(--muted); }
+  h2 { font-size:18px; color:var(--primary); margin:26px 0 12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  h2 .count { font-size:13px; font-weight:400; color:var(--muted); }
+  .empty { color:var(--muted); font-size:14px; padding:20px 0; }
+
+  /* 제품 카드 */
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
+  .pcard { background:var(--card); border:1px solid var(--light); border-radius:var(--radius);
+           overflow:hidden; display:flex; flex-direction:column; }
+  .pcard img.thumb { width:100%; aspect-ratio:1/1; object-fit:cover; background:var(--light); display:block; }
+  .pcard .body { padding:12px 13px 14px; display:flex; flex-direction:column; gap:6px; }
+  .pcard .name { font-weight:700; font-size:14px; color:var(--text); text-decoration:none; line-height:1.4; }
+  .pcard .name:hover { color:var(--primary); text-decoration:underline; }
+  .pcard .meta { font-size:12px; color:var(--accent); font-weight:500; }
+  .pcard .desc { font-size:12px; color:var(--muted); display:-webkit-box; -webkit-line-clamp:3;
+                 -webkit-box-orient:vertical; overflow:hidden; }
+  .newbadge { display:inline-block; background:var(--accent); color:#fff; font-size:11px; font-weight:700;
+              padding:1px 7px; border-radius:999px; margin-right:4px; vertical-align:2px; }
+  details.descimg { font-size:12px; }
+  details.descimg summary { cursor:pointer; color:var(--secondary); }
+  details.descimg img { width:100%; margin-top:8px; border-radius:4px; }
+
+  /* 뉴스 카드 */
+  .ngrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; }
+  .ncard { background:var(--card); border:1px solid var(--light); border-radius:var(--radius);
+           padding:14px 16px; display:flex; flex-direction:column; gap:7px; }
+  .ncard:hover { border-color:var(--secondary); }
+  .ncard .top { font-size:12px; color:var(--muted); display:flex; gap:7px; align-items:center; flex-wrap:wrap; }
+  .badge { color:#fff; font-size:11px; font-weight:700; padding:1px 8px; border-radius:999px; }
+  .badge.g { background:var(--google); } .badge.n { background:var(--naver); }
+  .ncard .title { font-weight:700; font-size:14px; color:var(--text); text-decoration:none; line-height:1.45;
+                  display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  .ncard .title:hover { color:var(--primary); text-decoration:underline; }
+  .ncard .sum { font-size:12px; color:var(--muted); display:-webkit-box; -webkit-line-clamp:3;
+                -webkit-box-orient:vertical; overflow:hidden; }
+
+  /* 막대 차트 */
+  .charts { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; margin-bottom:8px; }
+  .chartbox { background:var(--card); border:1px solid var(--light); border-radius:var(--radius); padding:16px 18px; }
+  .chartbox h3 { margin:0 0 12px; font-size:14px; color:var(--primary); }
+  .bars { display:flex; flex-direction:column; gap:6px; }
+  .bar { display:grid; grid-template-columns:96px 1fr 34px; align-items:center; gap:8px; font-size:12px; }
+  .bar .lab { color:var(--muted); text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bar .track { background:var(--light); border-radius:3px; height:14px; overflow:hidden; }
+  .bar .fill { background:var(--secondary); height:100%; border-radius:3px; }
+  .bar .fill.g { background:var(--google); } .bar .fill.n { background:var(--naver); }
+  .bar .num { color:var(--text); font-weight:500; }
+  .stack { display:flex; height:14px; border-radius:3px; overflow:hidden; background:var(--light); }
+
+  .foot { margin-top:30px; font-size:12px; color:var(--muted); border-top:1px solid var(--light); padding-top:14px; }
+  .foot code { background:var(--light); padding:2px 6px; border-radius:4px; }
+  .loading { color:var(--muted); padding:40px 0; text-align:center; }
+  @media (max-width:520px) { .bar { grid-template-columns:76px 1fr 30px; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <a class="back" href="./">← 업무 모음으로</a>
   <h1>☕ 경쟁사 동향 모니터</h1>
-  <p class="lead">투썸플레이스 · 스타벅스 · 메가MGC커피의 신제품과 구글 · 네이버 뉴스 트렌드를 한 화면에서 확인하는 도구입니다.</p>
+  <p class="lead">투썸플레이스 · 스타벅스 · 메가MGC커피 신제품과 뉴스 트렌드 —
+    <b id="collectedAt">불러오는 중…</b> 기준 (매일 오전 8시 자동 갱신)</p>
 
-  <div class="box">
-    <h2>무엇을 할 수 있나요</h2>
-    <table>
-      <tr><th>신제품 요약(홈)</th><td>세 브랜드 신제품을 한 번에 수집해 제품 이미지 카드로 모아 보기 · 전체 CSV 다운로드</td></tr>
-      <tr><th>경쟁사 제품 동향</th><td>브랜드별 전체 메뉴를 카테고리별로 조회 — 제품명 · 제품 이미지 · 제품 설명(설명 이미지 포함)</td></tr>
-      <tr><th>뉴스 트렌드</th><td>키워드 뉴스 검색 후 일자별 기사량 · 연관 키워드 · 주요 언론사 분석, 결과는 카드 뉴스로 정리</td></tr>
-    </table>
+  <div class="tabs">
+    <button class="tab active" data-tab="home">🆕 신제품 요약</button>
+    <button class="tab" data-tab="brand">브랜드별 제품</button>
+    <button class="tab" data-tab="news">뉴스 트렌드</button>
   </div>
 
-  <div class="box">
-    <h2>내 PC에서 실행하기</h2>
-    <ol>
-      <li>소스 내려받기 — <a class="btn" href="https://github.com/HANI-4455/S.HAN/tree/main/competitor_trend" target="_blank" rel="noopener">GitHub에서 보기</a></li>
-      <li>필요한 라이브러리 설치
-        <pre><button class="copy" onclick="copyCode(this)">복사</button><code>pip install -r requirements.txt</code></pre>
-      </li>
-      <li>앱 실행 — 브라우저에서 <code>http://localhost:8501</code> 이 열립니다.
-        <pre><button class="copy" onclick="copyCode(this)">복사</button><code>streamlit run app.py</code></pre>
-      </li>
-    </ol>
-  </div>
+  <div id="view"><div class="loading">데이터를 불러오는 중…</div></div>
 
-  <div class="box">
-    <h2>참고</h2>
-    <p class="note">네이버는 뉴스 검색 RSS를 폐지해, 안정적으로 쓰려면 네이버 검색 Open API 키(무료)를 발급받아 앱 화면에 입력하는 것이 좋습니다. 키가 없어도 네이버 뉴스 검색 결과를 읽어 대체 수집합니다.</p>
-    <p class="muted" style="margin-bottom:0">수집 결과는 30분간 캐시되며, 각 화면의 실행 버튼을 다시 누르면 새로 수집합니다. 경쟁사를 추가하려면 크롤러 파일 하나를 만들고 <code>app.py</code>의 <code>COMPETITORS</code> 목록에 한 줄만 추가하면 됩니다.</p>
+  <div class="foot">
+    데이터는 GitHub Actions가 매일 오전 8시에 수집해 저장합니다.
+    바로 갱신하려면 저장소 Actions 탭에서 <code>경쟁사 동향 수집</code> 워크플로를 실행하세요.
+    상세 분석이 필요하면 <code>competitor_trend</code> 폴더의 Streamlit 앱을 쓰면 됩니다.
   </div>
 </div>
+
 <script>
-  function copyCode(btn) {
-    const text = btn.parentElement.querySelector('code').innerText;
-    navigator.clipboard.writeText(text).then(() => {
-      btn.textContent = '복사됨';
-      setTimeout(() => btn.textContent = '복사', 1500);
-    });
+const DATA_URL = "competitor_trend/data/competitor_data.json";
+const STOPWORDS = new Set(["있다","했다","한다","위해","통해","대한","등","이번","올해","지난","오는","열림",
+  "관련","기자","뉴스","종합","속보","단독","포토","사진","영상","the","and","for","with","서울","기사"]);
+let DATA = null, tab = "home";
+
+const el = (h) => { const d = document.createElement("div"); d.innerHTML = h.trim(); return d.firstElementChild; };
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => (
+  {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ---------- 제품 카드 ---------- */
+function productCard(p) {
+  const img = p.image ? `<img class="thumb" src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy"
+      onerror="this.style.display='none'">` : "";
+  const badge = p.is_new ? `<span class="newbadge">NEW</span>` : "";
+  const meta = p.extra ? `<div class="meta">${esc(p.extra)}</div>` : "";
+  const desc = p.desc_text ? `<div class="desc">${esc(p.desc_text)}</div>` : "";
+  const descImg = (p.desc_images || []).length
+    ? `<details class="descimg"><summary>제품 설명 이미지 보기</summary>
+         ${p.desc_images.map(s => `<img src="${esc(s)}" alt="제품 설명" loading="lazy">`).join("")}</details>`
+    : "";
+  return `<div class="pcard">${img}<div class="body">
+      <a class="name" href="${esc(p.link)}" target="_blank" rel="noopener">${badge}${esc(p.name)}</a>
+      ${meta}${desc}${descImg}</div></div>`;
+}
+
+function productGrid(list) {
+  if (!list.length) return `<div class="empty">표시할 제품이 없습니다.</div>`;
+  return `<div class="grid">${list.map(productCard).join("")}</div>`;
+}
+
+const uniqueByName = (list) => {
+  const seen = new Set();
+  return list.filter(p => !seen.has(p.name) && seen.add(p.name));
+};
+
+/* ---------- 1. 신제품 요약 ---------- */
+function renderHome() {
+  const brands = DATA.brands;
+  const metrics = Object.entries(brands).map(([key, b]) => {
+    const all = uniqueByName(b.products), news = uniqueByName(b.products.filter(p => p.is_new));
+    return `<div class="metric"><div class="label">${esc(b.title)} 신제품</div>
+      <div class="value">${news.length}</div><div class="sub">전체 ${all.length}개</div></div>`;
+  }).join("");
+
+  const sections = Object.entries(brands).map(([key, b]) => {
+    const news = uniqueByName(b.products.filter(p => p.is_new));
+    return `<h2>${esc(b.title)} <span class="count">신제품 ${news.length}개 ·
+      <a href="${esc(b.source)}" target="_blank" rel="noopener">출처</a></span></h2>${productGrid(news)}`;
+  }).join("");
+
+  return `<div class="metrics">${metrics}</div>${sections}`;
+}
+
+/* ---------- 2. 브랜드별 제품 ---------- */
+function renderBrand() {
+  const keys = Object.keys(DATA.brands);
+  const brand = state.brand && keys.includes(state.brand) ? state.brand : keys[0];
+  const b = DATA.brands[brand];
+  const sections = [...new Set(b.products.map(p => p.section))];
+  const section = sections.includes(state.section) ? state.section : sections[0];
+  const q = (state.q || "").trim().toLowerCase();
+
+  let list = b.products.filter(p => p.section === section);
+  if (q) list = b.products.filter(p => p.name.toLowerCase().includes(q));  // 검색 시 전체 섹션 대상
+
+  const counts = {};
+  b.products.forEach(p => counts[p.section] = (counts[p.section] || 0) + 1);
+
+  return `
+    <div class="row">
+      <select id="brandSel">${keys.map(k =>
+        `<option value="${esc(k)}"${k === brand ? " selected" : ""}>${esc(DATA.brands[k].title)}</option>`).join("")}</select>
+      <select id="sectionSel"${q ? " disabled" : ""}>${sections.map(s =>
+        `<option value="${esc(s)}"${s === section ? " selected" : ""}>${esc(s)} (${counts[s]})</option>`).join("")}</select>
+      <input type="search" id="prodSearch" placeholder="제품명 검색 (예: 케이크, 라떼)" value="${esc(state.q || "")}">
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="label">전체 제품</div><div class="value">${uniqueByName(b.products).length}</div></div>
+      <div class="metric"><div class="label">신제품</div><div class="value">${uniqueByName(b.products.filter(p => p.is_new)).length}</div></div>
+      <div class="metric"><div class="label">카테고리</div><div class="value">${sections.length}</div></div>
+      <div class="metric"><div class="label">출처</div><div class="sub" style="margin-top:6px">
+        <a href="${esc(b.source)}" target="_blank" rel="noopener">사이트 열기</a></div></div>
+    </div>
+    <h2>${q ? `‘${esc(state.q)}’ 검색 결과` : esc(section)} <span class="count">${uniqueByName(list).length}개</span></h2>
+    ${productGrid(uniqueByName(list))}`;
+}
+
+/* ---------- 3. 뉴스 트렌드 ---------- */
+function tokenize(text, exclude) {
+  const ex = (exclude.match(/[가-힣A-Za-z0-9]{2,}/g) || []).map(s => s.toLowerCase());
+  const out = new Set();
+  (text.match(/[가-힣A-Za-z0-9]{2,}/g) || []).forEach(raw => {
+    let t = raw.length >= 3 ? raw.replace(/(으로|에서|에게|까지|부터|이다|은|는|이|가|을|를|의|에|와|과|도|로)$/, "") : raw;
+    const low = t.toLowerCase();
+    if (t.length >= 2 && !STOPWORDS.has(low) && !ex.some(x => low.includes(x))) out.add(t);
+  });
+  return out;
+}
+
+function barRow(label, value, max, cls) {
+  const pct = max ? Math.max(2, Math.round(value / max * 100)) : 0;
+  return `<div class="bar"><div class="lab" title="${esc(label)}">${esc(label)}</div>
+    <div class="track"><div class="fill ${cls || ""}" style="width:${pct}%"></div></div>
+    <div class="num">${value}</div></div>`;
+}
+
+function renderNews() {
+  const keywords = DATA.news_keywords;
+  const kw = keywords.includes(state.kw) ? state.kw : keywords[0];
+  const all = DATA.news[kw] || [];
+  const portal = state.portal || "전체";
+  const q = (state.nq || "").trim().toLowerCase();
+
+  let list = all.filter(n => portal === "전체" || n.portal === portal);
+  if (q) list = list.filter(n => n.title.toLowerCase().includes(q));
+
+  // 일자별 기사량 (최근 14일, 포털 누적)
+  const byDate = {};
+  all.forEach(n => {
+    const d = (n.published || "").slice(0, 10);
+    if (!d) return;
+    byDate[d] = byDate[d] || {구글: 0, 네이버: 0};
+    byDate[d][n.portal] = (byDate[d][n.portal] || 0) + 1;
+  });
+  const dates = Object.keys(byDate).sort().slice(-14);
+  const maxDay = Math.max(1, ...dates.map(d => byDate[d].구글 + byDate[d].네이버));
+  const dailyBars = dates.map(d => {
+    const v = byDate[d], total = v.구글 + v.네이버;
+    const w = (n) => `${Math.round(n / maxDay * 100)}%`;
+    return `<div class="bar"><div class="lab">${d.slice(5)}</div>
+      <div class="stack"><div class="fill g" style="width:${w(v.구글)}"></div>
+        <div class="fill n" style="width:${w(v.네이버)}"></div></div>
+      <div class="num">${total}</div></div>`;
+  }).join("") || `<div class="empty">날짜 정보가 없습니다.</div>`;
+
+  // 연관 키워드 Top 15
+  const counter = new Map();
+  all.forEach(n => tokenize(`${n.title} ${n.summary || ""}`, kw)
+    .forEach(t => counter.set(t, (counter.get(t) || 0) + 1)));
+  const top = [...counter.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15);
+  const maxKw = top.length ? top[0][1] : 1;
+
+  // 언론사 Top 10
+  const src = new Map();
+  all.forEach(n => src.set(n.source, (src.get(n.source) || 0) + 1));
+  const topSrc = [...src.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const maxSrc = topSrc.length ? topSrc[0][1] : 1;
+
+  const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
+  const recent = all.filter(n => (n.published || "") >= weekAgo).length;
+  const latest = all.map(n => n.published).filter(Boolean).sort().pop() || "-";
+
+  const cards = list.length ? `<div class="ngrid">${list.map(n => `
+    <div class="ncard">
+      <div class="top"><span class="badge ${n.portal === "구글" ? "g" : "n"}">${esc(n.portal)}</span>
+        <span>${esc(n.source)}</span><span>· ${esc(n.published || "")}</span></div>
+      <a class="title" href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.title)}</a>
+      ${n.summary ? `<div class="sum">${esc(n.summary)}</div>` : ""}
+    </div>`).join("")}</div>` : `<div class="empty">검색 결과가 없습니다.</div>`;
+
+  return `
+    <div class="row">
+      <select id="kwSel">${keywords.map(k =>
+        `<option value="${esc(k)}"${k === kw ? " selected" : ""}>${esc(k)}</option>`).join("")}</select>
+      <select id="portalSel">${["전체", "구글", "네이버"].map(p =>
+        `<option value="${p}"${p === portal ? " selected" : ""}>${p}</option>`).join("")}</select>
+      <input type="search" id="newsSearch" placeholder="제목 검색" value="${esc(state.nq || "")}">
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="label">전체 기사</div><div class="value">${all.length}</div></div>
+      <div class="metric"><div class="label">최근 7일</div><div class="value">${recent}</div></div>
+      <div class="metric"><div class="label">언론사 수</div><div class="value">${src.size}</div></div>
+      <div class="metric"><div class="label">최신 기사</div><div class="value" style="font-size:17px">${esc(latest)}</div></div>
+    </div>
+    <div class="charts">
+      <div class="chartbox"><h3>일자별 기사량 (최근 14일)
+        <span style="font-weight:400;color:var(--muted)">■ 구글 ■ 네이버</span></h3>
+        <div class="bars">${dailyBars}</div></div>
+      <div class="chartbox"><h3>연관 키워드 Top 15 (검색어 제외)</h3>
+        <div class="bars">${top.map(([t, c]) => barRow(t, c, maxKw)).join("") ||
+          `<div class="empty">키워드가 없습니다.</div>`}</div></div>
+      <div class="chartbox"><h3>주요 언론사 Top 10</h3>
+        <div class="bars">${topSrc.map(([t, c]) => barRow(t, c, maxSrc)).join("")}</div></div>
+    </div>
+    <h2>📰 카드 뉴스 <span class="count">${list.length}건</span></h2>
+    ${cards}`;
+}
+
+/* ---------- 화면 전환 ---------- */
+const state = {brand: null, section: null, q: "", kw: null, portal: "전체", nq: ""};
+
+function render() {
+  const view = document.getElementById("view");
+  view.innerHTML = tab === "home" ? renderHome() : tab === "brand" ? renderBrand() : renderNews();
+  bind();
+}
+
+function bind() {
+  const on = (id, ev, fn) => { const e = document.getElementById(id); if (e) e.addEventListener(ev, fn); };
+  on("brandSel", "change", e => { state.brand = e.target.value; state.section = null; state.q = ""; render(); });
+  on("sectionSel", "change", e => { state.section = e.target.value; render(); });
+  on("prodSearch", "input", e => {
+    state.q = e.target.value; render();
+    const s = document.getElementById("prodSearch"); s.focus(); s.setSelectionRange(s.value.length, s.value.length);
+  });
+  on("kwSel", "change", e => { state.kw = e.target.value; state.nq = ""; render(); });
+  on("portalSel", "change", e => { state.portal = e.target.value; render(); });
+  on("newsSearch", "input", e => {
+    state.nq = e.target.value; render();
+    const s = document.getElementById("newsSearch"); s.focus(); s.setSelectionRange(s.value.length, s.value.length);
+  });
+}
+
+document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => {
+  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b === btn));
+  tab = btn.dataset.tab;
+  render();
+}));
+
+(async function init() {
+  try {
+    const res = await fetch(DATA_URL + "?t=" + Date.now(), {cache: "no-store"});
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    DATA = await res.json();
+    document.getElementById("collectedAt").textContent = DATA.collected_at;
+    render();
+  } catch (e) {
+    document.getElementById("collectedAt").textContent = "불러오기 실패";
+    document.getElementById("view").innerHTML =
+      `<div class="empty">데이터를 불러오지 못했습니다 (${esc(e.message)}).<br>
+       저장소 Actions 탭에서 ‘경쟁사 동향 수집’ 워크플로를 한 번 실행해 주세요.</div>`;
   }
+})();
 </script>
 </body>
 </html>

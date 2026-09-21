@@ -2,6 +2,14 @@
 
 투썸플레이스 · 스타벅스 · 메가MGC커피의 **신제품 동향**과 **구글·네이버 뉴스 트렌드**를 한 화면에서 확인하는 Streamlit 도구입니다.
 
+## 두 가지 사용 방법
+
+1. **설치 없이 웹에서 보기** — <https://hani-4455.github.io/S.HAN/competitor_trend.html>
+   GitHub Actions가 매일 오전 8시에 `collect.py`를 실행해 `data/competitor_data.json`을 갱신하고,
+   정적 페이지가 그 JSON을 읽어 카드로 보여준다. 즉시 갱신하려면 저장소 Actions 탭에서
+   `경쟁사 동향 수집` 워크플로를 수동 실행한다.
+2. **Streamlit 앱으로 직접 실행** — 아래 설치·실행 방법 참고. 수집 시점을 직접 고르고 싶을 때 쓴다.
+
 ## 화면 구성
 
 | 메뉴 | 내용 |
@@ -28,6 +36,7 @@ streamlit run app.py
 | `starbucks_crawler.py` | 스타벅스 카테고리 JSON 수집기 (NEW 아이콘·출시일 포함) |
 | `mega_crawler.py` | 메가MGC커피 메뉴 목록 수집기 (신상품 카테고리 포함) |
 | `news_trend.py` | 구글 뉴스 RSS · 네이버 뉴스 검색 + 트렌드 분석 |
+| `collect.py` | 정적 페이지용 `data/competitor_data.json` 생성 (GitHub Actions가 매일 실행) |
 
 각 크롤러는 단독 실행도 가능합니다. 예: `python starbucks_crawler.py`
 
