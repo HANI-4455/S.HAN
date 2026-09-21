@@ -9,7 +9,7 @@ import html
 import re
 from collections import Counter
 from email.utils import parsedate_to_datetime
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 import feedparser
 import pandas as pd
@@ -31,6 +31,48 @@ TAG_RE = re.compile(r"<[^>]+>")
 TOKEN_RE = re.compile(r"[가-힣A-Za-z0-9]{2,}")
 # 조사 제거용(과도한 형태소 분석 대신 간단한 규칙)
 JOSA_RE = re.compile(r"(으로|에서|에게|까지|부터|이다|은|는|이|가|을|를|의|에|와|과|도|로)$")
+
+
+# 네이버 Open API는 언론사명을 주지 않으므로 원문 링크 도메인으로 추정한다.
+# 목록에 없는 도메인은 도메인 그대로 표시.
+PRESS_BY_DOMAIN = {
+    "yna.co.kr": "연합뉴스", "newsis.com": "뉴시스", "news1.kr": "뉴스1", "hankyung.com": "한국경제",
+    "mk.co.kr": "매일경제", "chosun.com": "조선일보", "biz.chosun.com": "조선비즈",
+    "news.tvchosun.com": "TV조선", "joongang.co.kr": "중앙일보", "donga.com": "동아일보",
+    "hani.co.kr": "한겨레", "khan.co.kr": "경향신문", "segye.com": "세계일보", "kmib.co.kr": "국민일보",
+    "seoul.co.kr": "서울신문", "munhwa.com": "문화일보", "hankookilbo.com": "한국일보",
+    "sedaily.com": "서울경제", "edaily.co.kr": "이데일리", "asiae.co.kr": "아시아경제",
+    "view.asiae.co.kr": "아시아경제", "fnnews.com": "파이낸셜뉴스", "heraldcorp.com": "헤럴드경제",
+    "biz.heraldcorp.com": "헤럴드경제", "mt.co.kr": "머니투데이", "news.mt.co.kr": "머니투데이",
+    "ajunews.com": "아주경제", "dailian.co.kr": "데일리안", "newsway.co.kr": "뉴스웨이",
+    "inews24.com": "아이뉴스24", "etnews.com": "전자신문", "zdnet.co.kr": "지디넷코리아",
+    "ekn.kr": "에너지경제", "ebn.co.kr": "EBN", "wowtv.co.kr": "한국경제TV", "sentv.co.kr": "서울경제TV",
+    "mydaily.co.kr": "마이데일리", "sportschosun.com": "스포츠조선", "starnewsk.com": "스타뉴스",
+    "biztribune.co.kr": "비즈트리뷴", "dnews.co.kr": "대한경제", "insight.co.kr": "인사이트",
+    "wikitree.co.kr": "위키트리", "ddaily.co.kr": "디지털데일리", "smedaily.co.kr": "중소기업신문",
+    "shinailbo.co.kr": "신아일보", "thepublic.kr": "더퍼블릭", "megaeconomy.co.kr": "메가경제",
+    "seoulfn.com": "서울파이낸스", "lcnews.co.kr": "라이센스뉴스", "popcornnews.net": "팝콘뉴스",
+    "slist.kr": "싱글리스트", "ibabynews.com": "베이비뉴스", "newsclaim.co.kr": "뉴스클레임",
+    "thefirstmedia.net": "더퍼스트", "4th.kr": "포쓰저널", "goodkyung.com": "굿모닝경제",
+    "financialpost.co.kr": "파이낸셜포스트", "inthenews.co.kr": "인더뉴스", "kbs.co.kr": "KBS",
+    "news.kbs.co.kr": "KBS", "imnews.imbc.com": "MBC", "news.sbs.co.kr": "SBS", "ytn.co.kr": "YTN",
+    "jtbc.co.kr": "JTBC", "news.jtbc.co.kr": "JTBC", "nocutnews.co.kr": "노컷뉴스",
+    "ohmynews.com": "오마이뉴스", "pressian.com": "프레시안", "bizwatch.co.kr": "비즈워치",
+    "news.bizwatch.co.kr": "비즈워치", "businesspost.co.kr": "비즈니스포스트", "thebell.co.kr": "더벨",
+    "dealsite.co.kr": "딜사이트", "etoday.co.kr": "이투데이", "fntimes.com": "한국금융신문",
+    "newspim.com": "뉴스핌", "g-enews.com": "글로벌이코노믹", "bloter.net": "블로터",
+    "foodnews.co.kr": "식품음료신문", "thinkfood.co.kr": "식품외식경제", "foodbank.co.kr": "식품저널",
+}
+
+
+def _press_from_link(link: str) -> str:
+    host = urlparse(link).netloc.lower()
+    for prefix in ("www.", "m.", "mobile."):
+        host = host.removeprefix(prefix)
+    if host in PRESS_BY_DOMAIN:
+        return PRESS_BY_DOMAIN[host]
+    base = ".".join(host.split(".")[-3:]) if host.endswith((".co.kr", ".or.kr")) else ".".join(host.split(".")[-2:])
+    return PRESS_BY_DOMAIN.get(base, host or "네이버뉴스")
 
 
 def _clean(text: str) -> str:
@@ -55,11 +97,12 @@ def _rows_from_feed(feed, portal: str) -> list[dict]:
         summary = _clean(e.get("description", ""))
         if portal == "구글":
             summary = ""  # 구글 RSS description은 제목 반복이라 제외
+        link = e.get("originallink") or e.get("link", "")
         rows.append({
             "portal": portal,
             "title": title,
-            "link": e.get("originallink") or e.get("link", ""),
-            "source": source or "네이버뉴스",
+            "link": link,
+            "source": source or _press_from_link(link),
             "published": _parse_date(e.get("published", "")),
             "summary": summary,
         })
