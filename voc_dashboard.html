@@ -380,7 +380,8 @@ e.classList.add('pc-seal--float');})();
           <button class="btn line" id="gasSave">주소 저장</button>
           <span id="gasState" class="hint"></span>
         </div>
-        <div class="hint" style="margin-top:6px">설치 방법은 저장소의 <code>voc_admin_gas.js</code> 파일 상단 주석을 참고하세요.</div>
+        <div class="hint" style="margin-top:6px">설치 방법은 저장소의 <code>voc_admin_gas.js</code> 파일 상단 주석을 참고하세요.
+          주소는 <code>voc_config.json</code>으로 저장소에 공유되어 <b>모든 PC에서 자동 적용</b>됩니다.</div>
       </div>
       <div class="step"><div class="sn">1</div><div>
         <label class="fld">대상 월 <b>(비워두면 파일에 있는 모든 월을 자동으로 분리)</b></label>
@@ -1617,8 +1618,11 @@ localStorage.removeItem("sbt_admin_pw");
 
 /* ===== 로그인 세션 (아이디/역할은 세션 보관, 비밀번호는 메모리에만) ===== */
 const GAS_KEY = 'voc_gas_url';
-let ME = null, MEPW = '';
-const gasUrl = ()=> (localStorage.getItem(GAS_KEY) || '').trim();
+let ME = null, MEPW = '', CFG = {};
+/* 저장소 공유 설정 — 모든 PC가 같은 연동 서버를 쓰도록 */
+const cfgReady = fetch('voc_config.json?t=' + Date.now(), {cache:'no-store'})
+  .then(r => r.ok ? r.json() : {}).then(j => { CFG = j || {}; }).catch(()=>{});
+const gasUrl = ()=> (localStorage.getItem(GAS_KEY) || CFG.gasUrl || '').trim();
 
 /* Apps Script 호출 — text/plain 으로 보내 preflight 회피 */
 async function gas(action, extra){
@@ -1661,6 +1665,7 @@ function openAdmin(){
 g('gateBtn').onclick = async ()=>{
   const id = g('gateId').value.trim(), pw = g('gatePw').value;
   g('gateErr').textContent = '확인 중...';
+  await cfgReady;
   try{
     if(gasUrl()){
       ME = {id}; MEPW = pw;
@@ -1684,10 +1689,21 @@ g('gateBtn').onclick = async ()=>{
 };
 ['gateId','gatePw'].forEach(id => g(id).onkeydown = e=>{ if(e.key==='Enter') g('gateBtn').click(); });
 
-g('gasSave').onclick = ()=>{
+g('gasSave').onclick = async ()=>{
   const v = g('gasUrl').value.trim();
   if(v) localStorage.setItem(GAS_KEY, v); else localStorage.removeItem(GAS_KEY);
-  g('gasState').textContent = v ? '✓ 저장됨 — 다시 로그인하면 적용됩니다' : '해제됨';
+  g('gasState').textContent = v ? '✓ 이 PC에 저장됨' : '해제됨';
+  /* 다른 PC에서도 쓰도록 저장소 설정 파일에 반영 (GitHub 토큰 필요) */
+  if(v && ghToken()){
+    try{
+      await ghPut('voc_config.json',
+        b64utf8(JSON.stringify({gasUrl:v, updated:new Date().toISOString().slice(0,10)}, null, 1)),
+        '연동 서버 주소 갱신', ()=>{});
+      g('gasState').textContent = '✓ 저장됨 — 저장소에도 반영되어 모든 PC에 적용됩니다';
+    }catch(e){ g('gasState').textContent = '✓ 이 PC에만 저장됨 (저장소 반영 실패: ' + e.message + ')'; }
+  } else if(v && !ghToken()){
+    g('gasState').textContent = '✓ 이 PC에만 저장됨 — 다른 PC에도 적용하려면 아래에 GitHub 토큰을 저장한 뒤 다시 눌러 주세요';
+  }
 };
 
 /* 내 비밀번호 변경 (연동 서버 사용 시) */
