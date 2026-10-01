@@ -147,6 +147,15 @@ td.c, th.c{text-align:center}
 .lc-wrap{position:relative}
 .lc-tip{position:absolute;pointer-events:none;background:#fff;border:1px solid var(--secondary);border-radius:4px;padding:6px 10px;font-size:12px;box-shadow:0 2px 8px rgba(21,35,122,.12);display:none;white-space:nowrap;z-index:5}
 .lc-tip b{color:var(--primary)}
+.wkbox{margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}
+.wkbox .wt{font-size:12px;font-weight:600;color:var(--secondary);margin-bottom:7px}
+.wka{display:flex;gap:9px;align-items:flex-start;margin:6px 0;font-size:12.5px;line-height:1.6}
+.wka .wb{flex:0 0 auto;font-size:11px;font-weight:600;color:#fff;background:var(--accent);
+  border-radius:3px;padding:2px 8px;white-space:nowrap}
+.wka .wb.dn{background:var(--secondary)}
+.wka .wd{flex:1}
+.wka .wd b{color:var(--primary);font-weight:600}
+.wkok{font-size:12.5px;color:#6B7280;font-weight:300}
 
 /* admin upload */
 .admin{border:1px dashed var(--secondary);background:#FBFCFE}
@@ -230,6 +239,7 @@ e.classList.add('pc-seal--float');})();
       <div class="sec-rule"><div class="o"></div><div class="b"></div></div>
       <div class="card">
         <div class="lc-wrap" id="lineChart"></div>
+        <div id="wkAnalysis"></div>
       </div>
     </div>
 
@@ -645,7 +655,23 @@ function render(m, prev){
   html += `<div class="kpi alert"><div class="t">주요 이슈</div><div class="v">${m.issues.length}</div><div class="d">${ics||'—'}</div></div>`;
   g('kpis').innerHTML = html;
 
+  const alerts = m.weekAlerts || [];
+  ALERT_W = new Set(alerts.map(a=>a.w));
   lineChart(g('lineChart'), m.weekly);
+  g('wkAnalysis').innerHTML = alerts.length ? `<div class="wkbox">
+      <div class="wt">일평균 대비 편차가 큰 주 ${alerts.length}건 — 별도 확인 권장 <span style="font-weight:300;color:#8A93A3">(월 경계의 1~2일짜리 부분 주는 제외)</span></div>` +
+    alerts.map(a=>{
+      const up = a.gap > 0;
+      const why = [];
+      if(a.subs.length) why.push('주요 유형 ' + a.subs.map(x=>`${escHtml(x[0])} ${x[1]}건`).join(' · '));
+      if(a.stores.length) why.push('집중 매장 ' + a.stores.map(x=>`${escHtml(x[0])} ${x[1]}건`).join(' · '));
+      return `<div class="wka">
+        <span class="wb${up?'':' dn'}">${up?'▲':'▼'} ${Math.abs(a.gap)}%</span>
+        <span class="wd"><b>${escHtml(a.w)} 주</b> ${a.b}건 / ${a.days}일
+          (일평균 ${(a.b/a.days).toFixed(1)}건, 당월 평균 대비 ${up?'높음':'낮음'})
+          ${why.length ? '<br>' + why.join(' | ') : ''}</span></div>`;
+    }).join('') + '</div>'
+    : (m.weekAlerts ? '<div class="wkbox"><span class="wkok">모든 주가 당월 일평균 대비 ±40% 이내입니다.</span></div>' : '');
 
   /* 유형(대) 전월 비교 */
   const CATS = ['제품','판매서비스','인적서비스','점포서비스','이벤트','이물질'];
@@ -760,6 +786,7 @@ function hbars(el, rows, color, flagColor){
   }).join('');
 }
 
+let ALERT_W = new Set();
 function lineChart(wrap, data){
   const W=1100, H=260, P={l:36,r:20,t:14,b:30};
   const n = data.length;
@@ -775,8 +802,10 @@ function lineChart(wrap, data){
   data.forEach((d,i)=>{ s += `<text x="${x(i)}" y="${H-8}" font-size="11" fill="#6B7280" text-anchor="middle">${d.w}</text>`; });
   s += `<path d="${path}" fill="none" stroke="${ORANGE}" stroke-width="2"/>`;
   data.forEach((d,i)=>{
-    s += `<circle cx="${x(i)}" cy="${y(d.b)}" r="3.5" fill="${ORANGE}" stroke="#fff" stroke-width="2"/>`;
-    s += `<text x="${x(i)}" y="${y(d.b)-10}" font-size="11.5" font-weight="600" fill="#15237A" text-anchor="middle">${d.b}</text>`;
+    const hot = ALERT_W.has(d.w);
+    if(hot) s += `<circle cx="${x(i)}" cy="${y(d.b)}" r="7.5" fill="none" stroke="${ORANGE}" stroke-width="1.5" opacity=".45"/>`;
+    s += `<circle cx="${x(i)}" cy="${y(d.b)}" r="${hot?5:3.5}" fill="${ORANGE}" stroke="#fff" stroke-width="2"/>`;
+    s += `<text x="${x(i)}" y="${y(d.b) - (hot?14:10)}" font-size="11.5" font-weight="600" fill="${hot?ORANGE:'#15237A'}" text-anchor="middle">${d.b}</text>`;
   });
   s += `<line id="lcCross" x1="0" y1="${P.t}" x2="0" y2="${H-P.b}" stroke="#2F497D" stroke-dasharray="3,3" style="display:none"/></svg>
         <div class="lc-tip" id="lcTip"></div>`;
@@ -895,12 +924,34 @@ g('pptBtn').onclick = ()=>{
   s.addText('주 시작일(월요일) 기준 · 불만 VOC만 집계',
             {x:ML,y:1.15,w:CW,h:0.28,fontFace:F,fontSize:10,color:GRAY,margin:0});
   const wl=m.weekly.map(w=>w.w);
+  const wkA = m.weekAlerts || [];
+  const chH = wkA.length ? Math.max(3.2, 5.3 - wkA.length*0.62) : 5.3;
   s.addChart(pres.ChartType.line, [
     {name:'불만 VOC', labels:wl, values:m.weekly.map(w=>w.b)}
   ], opt({
-    x:ML, y:1.5, w:CW, h:5.3, lineSize:2, lineDataSymbolSize:7, chartColors:[A],
+    x:ML, y:1.5, w:CW, h:chH, lineSize:2, lineDataSymbolSize:7, chartColors:[A],
     showLegend:false, showValue:true, dataLabelPosition:'t'
   }));
+  if(wkA.length){
+    let ay = 1.5 + chH + 0.18;
+    s.addText('일평균 대비 편차가 큰 주 — 별도 확인 권장 (월 경계의 1~2일짜리 부분 주는 제외)',
+      {x:ML,y:ay,w:CW,h:0.26,fontFace:F,fontSize:11,bold:true,color:S,margin:0});
+    ay += 0.3;
+    wkA.forEach(x=>{
+      const up = x.gap > 0;
+      const why = [];
+      if(x.subs.length) why.push('주요 유형 ' + x.subs.map(v=>`${v[0]} ${v[1]}건`).join(' · '));
+      if(x.stores.length) why.push('집중 매장 ' + x.stores.map(v=>`${v[0]} ${v[1]}건`).join(' · '));
+      s.addShape('roundRect',{x:ML,y:ay,w:0.72,h:0.26,rectRadius:0.04,fill:{color:up?A:S}});
+      s.addText(`${up?'▲':'▼'} ${Math.abs(x.gap)}%`,
+        {x:ML,y:ay,w:0.72,h:0.26,fontFace:F,fontSize:9,bold:true,color:'FFFFFF',align:'center',valign:'middle',margin:0});
+      s.addText([{text:`${x.w} 주 `,options:{bold:true,color:P}},
+                 {text:`${x.b}건 / ${x.days}일 (일평균 ${(x.b/x.days).toFixed(1)}건)`,options:{color:T}},
+                 {text:why.length ? `  —  ${why.join(' | ')}` : '',options:{color:GRAY,fontSize:9}}],
+        {x:ML+0.82,y:ay,w:CW-0.82,h:0.26,fontFace:F,fontSize:10,valign:'middle',margin:0});
+      ay += 0.34;
+    });
+  }
 
   /* ─────────── S4 03 유형별 현황 ─────────── */
   s = pres.addSlide(); s.background={color:'FFFFFF'};
@@ -1290,11 +1341,43 @@ function aggregate(month, rows){
   /* 행사/단순 반품은 고객 불만이 아니므로 반복 발생 집계에서 제외 */
   const OPS = ['행사 반품','단순 반품'];
   const bizRows = bul.filter(r=>!OPS.includes(r._sub));
-  const wkKey = d=>{ const s=new Date(d); s.setDate(d.getDate()-((d.getDay()+6)%7));
-    return `${String(s.getMonth()+1).padStart(2,'0')}/${String(s.getDate()).padStart(2,'0')}`; };
-  const wA=cnt(rows.map(r=>({k:wkKey(r._d)})),'k'), wB=cnt(bul.map(r=>({k:wkKey(r._d)})),'k');
-  const weekly = Object.keys(wA).sort().map(w=>({w, t:wA[w], b:wB[w]||0}));
   const stripStore = s=>s.replace(' 파스쿠찌','');
+  const wkStart = d=>{ const s=new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    s.setDate(s.getDate()-((s.getDay()+6)%7)); return s; };
+  const wkFmt = s=>`${String(s.getMonth()+1).padStart(2,'0')}/${String(s.getDate()).padStart(2,'0')}`;
+  const wkKey = d=>wkFmt(wkStart(d));
+  const wA=cnt(rows.map(r=>({k:wkKey(r._d)})),'k'), wB=cnt(bul.map(r=>({k:wkKey(r._d)})),'k');
+  /* 월 경계의 부분 주는 건수가 적을 수밖에 없으므로 '당월 포함 일수'로 보정 */
+  const mStart = new Date(+month.slice(0,4), +month.slice(5)-1, 1);
+  const mEnd   = new Date(+month.slice(0,4), +month.slice(5), 0);
+  const DAY = 86400000;
+  const weekly = Object.keys(wA).sort().map(w=>{
+    const [mm,dd] = w.split('/').map(Number);
+    let ws = new Date(mStart.getFullYear(), mm-1, dd);
+    if(mm === 12 && mStart.getMonth() === 0) ws = new Date(mStart.getFullYear()-1, 11, dd);  /* 전년 12월 걸침 */
+    const we = new Date(ws.getTime() + 6*DAY);
+    const from = ws < mStart ? mStart : ws, to = we > mEnd ? mEnd : we;
+    const days = Math.max(1, Math.round((to - from)/DAY) + 1);
+    return {w, t:wA[w], b:wB[w]||0, days};
+  });
+  /* 일평균 대비 편차가 큰 주 탐지 (±40% 이상, 5건 이상) */
+  const totDays = mEnd.getDate();
+  const meanRate = totDays ? bul.length/totDays : 0;
+  const byWeek = {};
+  bul.forEach(r=>{ const k = wkKey(r._d); (byWeek[k] = byWeek[k] || []).push(r); });
+  const weekAlerts = [];
+  weekly.forEach(wk=>{
+    if(!meanRate || wk.b < 5 || wk.days < 3) return;   /* 1~2일짜리 부분 주는 표본이 작아 제외 */
+    const gap = (wk.b/wk.days - meanRate)/meanRate;
+    if(Math.abs(gap) < 0.4) return;
+    const items = byWeek[wk.w] || [];
+    weekAlerts.push({
+      w: wk.w, b: wk.b, days: wk.days, gap: Math.round(gap*100),
+      subs: topN(cnt(items,'_sub'), 3).filter(x=>x[1] >= 2),
+      stores: topN(cnt(items,'매장명',stripStore), 2).filter(x=>x[1] >= 2),
+      cats: topN(cnt(items,'유형(대)'), 2),
+    });
+  });
   const forbRows = rows.filter(r=>r['유형(대)']==='이물질').sort((a,b)=>a._d-b._d);
   const md = d=>`${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const forb = forbRows.map(r=>[md(r._d), stripStore(String(r['매장명']||'')), String(r['제품명']||''), String(r['유형(소)']||''),
@@ -1376,7 +1459,7 @@ function aggregate(month, rows){
   }));
 
   return { key:month, label, total:rows.length,
-    reqtype:cnt(rows,'요구유형'), weekly,
+    reqtype:cnt(rows,'요구유형'), weekly, weekAlerts,
     /* 02~04 분석 지표는 불만 VOC 기준 */
     cat:cnt(bul,'유형(대)'),
     subtype_top:topN(cnt(bul,'_sub')),
