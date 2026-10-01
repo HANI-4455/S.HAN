@@ -166,6 +166,21 @@ td.c, th.c{text-align:center}
 .admin input[type=file]{font-family:inherit;font-size:12.5px}
 .admin .hint{font-size:11.5px;color:#8A93A3;font-weight:300;margin-top:4px;line-height:1.6}
 .admin .hint code{background:#EEF1F6;padding:1px 5px;border-radius:3px;font-size:11px}
+.whobar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding-bottom:11px;margin-bottom:13px;border-bottom:1px solid var(--line)}
+.whobar .nm{font-size:13px;font-weight:600;color:var(--primary)}
+.whobar .rl{font-size:11px;font-weight:600;padding:2px 9px;border-radius:3px;color:#fff;background:var(--secondary)}
+.whobar .rl.sub{background:#fff;color:var(--secondary);border:1px solid var(--secondary)}
+.whobar .sp{flex:1}
+.whobar button{font-family:inherit;font-size:11.5px;background:#fff;border:1px solid var(--line);
+  color:#6B7280;border-radius:4px;padding:4px 10px;cursor:pointer}
+.mainonly{border:1px dashed var(--secondary);border-radius:6px;padding:12px 14px;margin-bottom:14px;background:#fff}
+.usr{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:5px;
+  padding:7px 11px;margin-bottom:6px;font-size:12.5px;background:#fff}
+.usr .uid{font-weight:600;color:var(--primary);min-width:90px}
+.usr .unm{color:var(--text);flex:1}
+.usr button{font-family:inherit;font-size:11.5px;border-radius:4px;padding:2px 9px;cursor:pointer;
+  background:#fff;border:1px solid var(--line);color:#6B7280}
+.usr button.del{border-color:#C0392B;color:#C0392B}
 #upStatus{font-size:12.5px;margin-top:8px;color:var(--secondary)}
 #upStatus.err{color:#C0392B}
 .iss-edit{background:#fff;border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin:8px 0}
@@ -346,16 +361,27 @@ e.classList.add('pc-seal--float');})();
     <div class="sec-rule"><div class="o"></div><div class="b"></div></div>
 
     <div class="card admin" id="gate">
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span style="font-size:13px;color:var(--secondary)">🔒 관리자 전용 기능입니다.</span>
-        <input type="password" id="gatePw" placeholder="관리자 비밀번호" style="font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:5px;padding:7px 10px;width:200px">
-        <button class="btn line" id="gateBtn">확인</button>
+        <input id="gateId" placeholder="아이디" autocomplete="username" style="font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:5px;padding:7px 10px;width:130px">
+        <input type="password" id="gatePw" placeholder="비밀번호" autocomplete="current-password" style="font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:5px;padding:7px 10px;width:170px">
+        <button class="btn line" id="gateBtn">로그인</button>
         <span id="gateErr" class="hint" style="color:#C0392B"></span>
       </div>
       <div class="hint" style="margin-top:8px">사업지원팀 허브와 동일한 비밀번호입니다. 열람만 하실 분은 위 대시보드만 보시면 됩니다.</div>
     </div>
 
     <div class="card admin" id="adminPanel" style="display:none">
+      <div id="whoBar" class="whobar"></div>
+      <div id="mainOnlySetup" class="mainonly" style="display:none">
+        <label class="fld">연동 서버(Apps Script) 주소 — 설정하면 보조 관리자는 삭제가 차단됩니다</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input id="gasUrl" placeholder="https://script.google.com/macros/s/.../exec" style="font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:5px;padding:7px 10px;width:420px">
+          <button class="btn line" id="gasSave">주소 저장</button>
+          <span id="gasState" class="hint"></span>
+        </div>
+        <div class="hint" style="margin-top:6px">설치 방법은 저장소의 <code>voc_admin_gas.js</code> 파일 상단 주석을 참고하세요.</div>
+      </div>
       <div class="step"><div class="sn">1</div><div>
         <label class="fld">대상 월 <b>(비워두면 파일에 있는 모든 월을 자동으로 분리)</b></label>
         <input type="month" id="upMonth">
@@ -382,7 +408,8 @@ e.classList.add('pc-seal--float');})();
           <div class="hint" id="bulkHint" style="margin-top:8px"></div>
         </div></div>
         <div class="step"><div class="sn">5</div><div style="flex:1">
-          <label class="fld">원클릭 배포 — GitHub에 자동 반영 (1~2분 후 대시보드 갱신)</label>
+          <label class="fld">원클릭 배포 — GitHub에 자동 반영 (1~2분 후 대시보드 갱신)
+            <span class="hint" id="depMode"></span></label>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
             <input type="password" id="ghToken" placeholder="GitHub 토큰 (최초 1회 입력)" style="font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:5px;padding:7px 10px;width:280px">
             <button class="btn line" id="ghSave">토큰 저장</button>
@@ -393,12 +420,28 @@ e.classList.add('pc-seal--float');})();
             <button class="btn line" id="upPublish">voc_data.json만 다운로드 (수동 배포용)</button>
           </div>
           <div id="deployLog" class="hint" style="margin-top:8px"></div>
-          <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px">
-            <label class="fld">등록된 월 데이터 관리 — 잘못 올린 월을 삭제할 수 있습니다</label>
+          <div id="monthAdminWrap" style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px">
+            <label class="fld">등록된 월 데이터 관리 — 잘못 올린 월을 삭제할 수 있습니다 <span class="hint">(메인 관리자 전용)</span></label>
             <div id="monthAdmin"></div>
             <div class="hint" style="margin-top:6px">같은 월을 다시 올려 배포하면 <b>덮어쓰기</b>되므로, 재업로드만 할 때는 삭제하지 않아도 됩니다. 삭제는 잘못된 월로 올라간 탭을 없앨 때 쓰세요.</div>
             <div id="delLog" class="hint" style="margin-top:6px"></div>
           </div>
+          <div id="userAdminWrap" style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px;display:none">
+            <label class="fld">관리자 계정 관리 <span class="hint">(메인 관리자 전용)</span></label>
+            <div id="userList"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
+              <input id="nuId" placeholder="아이디" style="font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:5px;padding:6px 10px;width:110px">
+              <input id="nuName" placeholder="이름" style="font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:5px;padding:6px 10px;width:110px">
+              <input type="password" id="nuPw" placeholder="초기 비밀번호 (8자 이상)" style="font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:5px;padding:6px 10px;width:190px">
+              <select id="nuRole" style="font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:5px;padding:6px 10px">
+                <option value="sub">보조 관리자</option><option value="main">메인 관리자</option>
+              </select>
+              <button class="btn line" id="nuAdd">계정 추가</button>
+              <span id="nuMsg" class="hint"></span>
+            </div>
+            <div class="hint" style="margin-top:6px">보조 관리자는 <b>매월 업데이트·수정</b>만 가능하고 <b>월 데이터 삭제와 계정 관리는 차단</b>됩니다.</div>
+          </div>
+
           <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px">
             <label class="fld">관리자 비밀번호 변경 — 저장소에 반영되어 <b>모든 사용자·모든 PC에 동일 적용</b>됩니다</label>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -1570,18 +1613,143 @@ async function commitAuth(payload){
 }
 
 localStorage.removeItem("sbt_admin_pw");
+
+/* ===== 로그인 세션 (아이디/역할은 세션 보관, 비밀번호는 메모리에만) ===== */
+const GAS_KEY = 'voc_gas_url';
+let ME = null, MEPW = '';
+const gasUrl = ()=> (localStorage.getItem(GAS_KEY) || '').trim();
+
+/* Apps Script 호출 — text/plain 으로 보내 preflight 회피 */
+async function gas(action, extra){
+  const url = gasUrl();
+  if(!url) throw new Error('연동 서버 주소가 설정되지 않았습니다.');
+  const body = Object.assign({action, id:(ME?ME.id:''), pw:MEPW}, extra||{});
+  const res = await fetch(url, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(body)});
+  if(!res.ok) throw new Error('서버 응답 오류 (HTTP ' + res.status + ')');
+  const j = await res.json();
+  if(!j.ok) throw new Error(j.error || '요청이 거부되었습니다.');
+  return j;
+}
+
 function openAdmin(){
   g('gate').style.display='none';
   g('adminPanel').style.display='block';
-  sessionStorage.setItem('voc_admin','1');
+  const isMain = !ME || ME.role === 'main';
+  /* 메인 전용 영역 */
+  g('mainOnlySetup').style.display = isMain ? 'block' : 'none';
+  g('monthAdminWrap').style.display = isMain ? 'block' : 'none';
+  g('userAdminWrap').style.display = (isMain && gasUrl()) ? 'block' : 'none';
+  g('whoBar').innerHTML = ME
+    ? `<span class="nm">${escHtml(ME.name||ME.id)}</span>
+       <span class="rl${isMain?'':' sub'}">${isMain?'메인 관리자':'보조 관리자'}</span>
+       <span class="hint">${escHtml(ME.id)}</span><span class="sp"></span>
+       <button id="pwSelf">내 비밀번호 변경</button><button id="logout">로그아웃</button>`
+    : `<span class="nm">관리자</span><span class="rl">메인 관리자</span>
+       <span class="hint">연동 서버 미설정 — 단일 비밀번호 모드</span><span class="sp"></span>
+       <button id="logout">로그아웃</button>`;
+  g('logout').onclick = ()=>{ sessionStorage.removeItem('voc_me'); ME=null; MEPW='';
+    g('adminPanel').style.display='none'; g('gate').style.display='block'; };
+  if(g('pwSelf')) g('pwSelf').onclick = changeMyPw;
+  if(isMain && gasUrl()) loadUsers();
+  g('gasUrl').value = gasUrl();
+  g('gasState').textContent = gasUrl() ? '✓ 연동됨 — 보조 관리자 삭제 차단 적용' : '미설정 — 기존 토큰 방식으로 동작';
+  g('depMode').textContent = gasUrl() ? '· 연동 서버를 통해 반영됩니다 (개인 토큰 불필요)' : '· 개인 GitHub 토큰으로 반영됩니다';
 }
+
 g('gateBtn').onclick = async ()=>{
-  g('gateErr').textContent='확인 중...';
-  if(await verifyAdminPw(g('gatePw').value)){ g('gateErr').textContent=''; openAdmin(); }
-  else { g('gateErr').textContent='비밀번호가 틀렸습니다.'; g('gatePw').value=''; g('gatePw').focus(); }
+  const id = g('gateId').value.trim(), pw = g('gatePw').value;
+  g('gateErr').textContent = '확인 중...';
+  try{
+    if(gasUrl()){
+      ME = {id}; MEPW = pw;
+      const r = await gas('login');
+      ME = {id:r.id, name:r.name, role:r.role};
+      sessionStorage.setItem('voc_me', JSON.stringify(ME));
+      g('gateErr').textContent=''; g('gatePw').value=''; openAdmin();
+    } else {
+      /* 폴백: 연동 서버 설정 전에는 기존 단일 비밀번호로 동작 */
+      if(await verifyAdminPw(pw)){
+        ME = null; MEPW = '';
+        sessionStorage.setItem('voc_admin','1');
+        g('gateErr').textContent=''; g('gatePw').value=''; openAdmin();
+      } else throw new Error('비밀번호가 올바르지 않습니다.');
+    }
+  }catch(e){
+    ME = null; MEPW = '';
+    g('gateErr').textContent = e.message;
+    g('gatePw').value=''; g('gatePw').focus();
+  }
 };
-g('gatePw').onkeydown = e=>{ if(e.key==='Enter') g('gateBtn').click(); };
-if(sessionStorage.getItem('voc_admin')==='1') openAdmin();
+['gateId','gatePw'].forEach(id => g(id).onkeydown = e=>{ if(e.key==='Enter') g('gateBtn').click(); });
+
+g('gasSave').onclick = ()=>{
+  const v = g('gasUrl').value.trim();
+  if(v) localStorage.setItem(GAS_KEY, v); else localStorage.removeItem(GAS_KEY);
+  g('gasState').textContent = v ? '✓ 저장됨 — 다시 로그인하면 적용됩니다' : '해제됨';
+};
+
+/* 내 비밀번호 변경 (연동 서버 사용 시) */
+async function changeMyPw(){
+  if(!gasUrl() || !ME){ alert('연동 서버 설정 후 사용할 수 있습니다.'); return; }
+  const a = prompt('새 비밀번호 (8자 이상)'); if(!a) return;
+  if(a.length < 8){ alert('8자 이상으로 입력해 주세요.'); return; }
+  if(a !== prompt('확인을 위해 한 번 더 입력해 주세요')){ alert('입력이 일치하지 않습니다.'); return; }
+  try{ await gas('changePw', {newPw:a}); MEPW = a; alert('변경되었습니다.'); }
+  catch(e){ alert('오류: ' + e.message); }
+}
+
+/* 계정 관리 (메인 전용) */
+async function loadUsers(){
+  const box = g('userList');
+  try{
+    const r = await gas('listUsers');
+    box.innerHTML = r.users.map(u=>`<div class="usr">
+        <span class="uid">${escHtml(u.id)}</span>
+        <span class="unm">${escHtml(u.name||'')}</span>
+        <span class="rl${u.role==='main'?'':' sub'}" style="font-size:11px;font-weight:600;padding:2px 9px;border-radius:3px;${u.role==='main'?'background:var(--secondary);color:#fff':'border:1px solid var(--secondary);color:var(--secondary)'}">${u.role==='main'?'메인':'보조'}</span>
+        <button data-rst="${escHtml(u.id)}">비번 재설정</button>
+        ${u.id===ME.id ? '' : `<button class="del" data-del="${escHtml(u.id)}">삭제</button>`}
+      </div>`).join('');
+    box.querySelectorAll('[data-rst]').forEach(b=> b.onclick = async ()=>{
+      const np = prompt(`${b.dataset.rst} 계정의 새 비밀번호 (8자 이상)`); if(!np) return;
+      if(np.length < 8){ alert('8자 이상으로 입력해 주세요.'); return; }
+      try{ await gas('saveUser', {target:{id:b.dataset.rst, pw:np}}); alert('재설정했습니다.'); loadUsers(); }
+      catch(e){ alert('오류: ' + e.message); }
+    });
+    box.querySelectorAll('[data-del]').forEach(b=> b.onclick = async ()=>{
+      if(!confirm(`${b.dataset.del} 계정을 삭제할까요?`)) return;
+      try{ await gas('deleteUser', {targetId:b.dataset.del}); loadUsers(); }
+      catch(e){ alert('오류: ' + e.message); }
+    });
+  }catch(e){ box.innerHTML = `<span class="hint" style="color:#C0392B">계정 목록을 불러오지 못했습니다: ${escHtml(e.message)}</span>`; }
+}
+
+g('nuAdd').onclick = async ()=>{
+  const id=g('nuId').value.trim(), nm=g('nuName').value.trim(),
+        pw=g('nuPw').value, role=g('nuRole').value, msg=g('nuMsg');
+  msg.style.color='#C0392B';
+  if(!id){ msg.textContent='아이디를 입력하세요.'; return; }
+  if(pw.length < 8){ msg.textContent='초기 비밀번호는 8자 이상이어야 합니다.'; return; }
+  msg.style.color=''; msg.textContent='추가 중...';
+  try{
+    await gas('saveUser', {target:{id, name:nm||id, role, pw}});
+    g('nuId').value=''; g('nuName').value=''; g('nuPw').value='';
+    msg.style.color='#15237A'; msg.textContent='✓ 추가되었습니다.';
+    loadUsers();
+  }catch(e){ msg.style.color='#C0392B'; msg.textContent=e.message; }
+};
+
+/* 세션 복원 */
+(function(){
+  const saved = sessionStorage.getItem('voc_me');
+  if(saved && gasUrl()){
+    /* 비밀번호는 보관하지 않으므로 재로그인 필요 */
+    sessionStorage.removeItem('voc_me');
+  } else if(sessionStorage.getItem('voc_admin')==='1' && !gasUrl()){
+    openAdmin();
+  }
+})();
 
 g('pwChange').onclick = async ()=>{
   const msg = g('pwMsg'), a = g('pwNew').value, b = g('pwNew2').value;
@@ -1656,11 +1824,12 @@ async function deleteMonth(key){
   if(!m) return;
   if(!confirm(`${m.label} 데이터(${m.total}건)를 삭제할까요?
 대시보드에서 해당 월 탭이 사라집니다. 되돌리려면 그 달 엑셀을 다시 올려야 합니다.`)) return;
-  if(!ghToken()){ log('<span style="color:#C0392B">GitHub 토큰이 없습니다. 위에서 토큰을 먼저 저장해 주세요.</span>'); return; }
+  if(!gasUrl() && !ghToken()){ log('<span style="color:#C0392B">GitHub 토큰이 없습니다. 위에서 토큰을 먼저 저장해 주세요.</span>'); return; }
   try{
     log('삭제 중...');
     const out = {updated:new Date().toISOString().slice(0,10), months:DATA.months.filter(x=>x.key!==key)};
-    await ghPut('voc_data.json', b64utf8(JSON.stringify(out,null,1)), `VOC ${key} 데이터 삭제`, ()=>{});
+    if(gasUrl()) await gas('deleteMonth', {key});          /* 서버가 역할을 확인해 거부할 수 있음 */
+    else await ghPut('voc_data.json', b64utf8(JSON.stringify(out,null,1)), `VOC ${key} 데이터 삭제`, ()=>{});
     DATA = out;
     if(DATA.months.length){ init(); }
     else { g('app').style.display='none'; }
@@ -1674,7 +1843,7 @@ g('upDeploy').onclick = async ()=>{
   const log = s=>{ lg.innerHTML += s+'<br>'; };
   lg.innerHTML='';
   if(!upBlocks.length){ lg.innerHTML='먼저 3단계 [집계 실행]을 눌러 주세요.'; return; }
-  if(!ghToken()){ lg.innerHTML='GitHub 토큰이 없습니다. 아래 안내대로 토큰을 만들어 저장한 뒤 다시 눌러 주세요.'; g('ghToken').focus(); return; }
+  if(!gasUrl() && !ghToken()){ lg.innerHTML='GitHub 토큰이 없습니다. 아래 안내대로 토큰을 만들어 저장한 뒤 다시 눌러 주세요.'; g('ghToken').focus(); return; }
   const keys = upBlocks.map(b=>b.key);
   const month = keys.length===1 ? keys[0] : `${keys[0]}~${keys[keys.length-1]}`;
   const btn = g('upDeploy'); btn.disabled = true;
@@ -1682,7 +1851,8 @@ g('upDeploy').onclick = async ()=>{
     log(`배포 시작 — ${month} (${keys.length}개월 / 총 ${upBlocks.reduce((a,b)=>a+b.total,0)}건)`);
     const out = buildMerged();
     const msg = `VOC ${month} 업데이트 (대시보드 원클릭 배포)`;
-    await ghPut('voc_data.json', b64utf8(JSON.stringify(out,null,1)), msg, log);
+    if(gasUrl()){ await gas('publish', {data: out}); log('✓ voc_data.json 반영 완료 (연동 서버 경유)'); }
+    else await ghPut('voc_data.json', b64utf8(JSON.stringify(out,null,1)), msg, log);
     log('· 원본 엑셀은 개인정보 보호를 위해 저장소에 업로드하지 않습니다 (집계 결과만 반영)');
     DATA = out;
     init();
