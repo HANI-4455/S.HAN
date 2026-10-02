@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>도면 3D 시안</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+:root{--pri:#15237A;--sec:#2F497D;--acc:#F26300;--txt:#272727;--bg:#F7F8FA}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:Pretendard,'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:14px}
+header{padding:16px 20px 0;max-width:1600px;margin:0 auto;position:relative}
+.brand{position:absolute;right:20px;top:18px;font-size:12px;font-weight:600;color:var(--pri);letter-spacing:.5px}
+.no{color:var(--acc);font-weight:600;font-size:20px}
+h1{margin:2px 0 0;color:var(--pri);font-weight:600;font-size:24px}
+.sub{font-size:12px;color:#888;font-weight:300;margin-top:4px}
+.rule{display:flex;margin-top:12px;height:2px}.rule i{width:48px;background:var(--acc)}.rule b{flex:1;background:var(--sec);opacity:.35}
+main{max-width:1600px;margin:0 auto;padding:12px 20px 32px}
+.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
+.bar .sep{width:1px;height:24px;background:var(--sec);opacity:.25;margin:0 4px}
+button,.btn{font:inherit;font-size:13px;padding:6px 11px;border:1px solid var(--sec);border-radius:4px;background:#fff;color:var(--sec);cursor:pointer;white-space:nowrap}
+button:hover,.btn:hover{background:#eef1f6}
+button.on{background:var(--sec);color:#fff}
+button.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+input[type=number],input[type=text],select{font:inherit;font-size:13px;padding:5px 7px;border:1px solid #c5ccd8;border-radius:4px;background:#fff;color:var(--txt)}
+input[type=number]{width:84px}
+label.inl{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--sec)}
+.chip{font-size:12px;padding:4px 9px;border-radius:4px;border:1px solid var(--sec);color:var(--sec);background:#fff}
+.chip.warn{color:var(--acc);border-color:var(--acc)}
+.panes{display:grid;grid-template-columns:52px 1fr 1fr;gap:10px}
+@media (max-width:1000px){.panes{grid-template-columns:52px 1fr}.pane3d{grid-column:1/-1}}
+.tools{display:flex;flex-direction:column;gap:5px}
+.tools button{padding:7px 0;font-size:11px;line-height:1.25;width:52px;white-space:normal}
+.tools button kbd{display:block;font-size:9px;opacity:.6;font-family:inherit}
+.pane{position:relative;height:66vh;min-height:420px;border:1px solid var(--sec);border-radius:6px;overflow:hidden;background:#fff}
+.pane canvas{display:block;width:100%;height:100%}
+#c2d{cursor:crosshair;touch-action:none}
+.ov{position:absolute;left:10px;bottom:8px;font-size:11px;color:#555;background:rgba(255,255,255,.9);padding:4px 8px;border-radius:4px;pointer-events:none;max-width:calc(100% - 20px)}
+.ov3{position:absolute;right:8px;top:8px;display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.ov3 button{font-size:12px;padding:4px 8px;background:rgba(255,255,255,.92)}
+.ov3 button.on{background:var(--sec);color:#fff}
+.empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:#888;font-size:13px;pointer-events:none;text-align:center;padding:20px}
+.empty b{color:var(--pri);font-weight:600;font-size:16px}
+.lower{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+@media (max-width:1000px){.lower{grid-template-columns:1fr}}
+.card{background:#fff;border:1px solid var(--sec);border-radius:6px;padding:14px 16px}
+.card h3{margin:0 0 10px;color:var(--pri);font-weight:600;font-size:16px}
+.props{display:grid;grid-template-columns:110px 1fr;gap:8px 10px;align-items:center;font-size:13px}
+.props .k{color:var(--sec)}
+.muted{color:#999;font-size:12px;font-weight:300}
+ol.steps{margin:0;padding:0;list-style:none;counter-reset:s}
+ol.steps li{counter-increment:s;display:flex;gap:10px;margin-bottom:8px;line-height:1.5;font-size:13px}
+ol.steps li::before{content:counter(s);color:var(--acc);font-weight:600;min-width:14px}
+.legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:5px;margin-top:10px}
+.legend span{display:flex;gap:6px;align-items:center;font-size:12px}
+.legend i{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.15);flex:none}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<!-- pc-seal:v3 · 파리크라상 이성한 서명 -->
+<style>
+.pc-seal{display:flex;align-items:center;justify-content:flex-end;gap:9px;box-sizing:border-box;
+width:100%;margin:0;padding:9px 20px;border-bottom:1px solid rgba(47,73,125,.14);
+font-family:Pretendard,'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif}
+.pc-seal svg{height:24px;width:auto;flex:none;fill:#15237A;opacity:.92}
+.pc-seal span{font-size:10.5px;font-weight:400;letter-spacing:.4px;color:#2F497D;opacity:.85;white-space:nowrap}
+.pc-seal--float{position:fixed;right:0;top:0;width:auto;margin:0;padding:8px 14px;
+border-bottom:0;pointer-events:none;z-index:9990}
+@media print{.pc-seal{break-inside:avoid}.pc-seal--float{position:static;width:100%}}
+@media (max-width:480px){.pc-seal{padding:8px 14px}
+.pc-seal--float span{display:none}}
+</style>
+<div class="pc-seal">
+<svg viewBox="0 0 1673.6 1000" role="img" aria-label="이성한 서명"><path fill-rule="evenodd" d="M8.4,994.0C-26.7,964.9 123.5,830.6 251.3,776.9L261.9,772.4L265.4,755.5C272.3,721.9 299.1,635.2 310.6,609.1C312.2,605.3 315.2,597.6 317.2,591.9C342.2,521.6 400.2,403.1 489.2,240.7C550.5,128.9 578.1,75.4 573.6,77.1C557.4,83.3 499.3,128.3 479.6,149.9C465.1,165.8 464.8,163.5 479.0,144.8C525.1,83.9 586.4,33.6 603.7,42.5C620.0,51.0 618.1,64.5 594.4,107.4C592.8,110.3 588.5,118.6 584.7,126.0C575.6,144.0 535.1,217.0 466.6,338.8C455.4,358.7 439.6,387.8 431.4,403.4C423.3,419.1 416.0,430.9 415.2,429.6C414.3,428.1 413.3,428.5 412.5,430.7C411.7,432.7 412.1,433.6 413.2,432.8C417.0,430.5 415.5,433.8 379.1,505.5C359.2,544.7 343.0,575.7 343.0,574.2C343.0,570.5 341.5,572.5 337.8,581.4C335.8,586.2 335.4,588.7 336.9,587.7C339.8,586.0 337.8,593.4 333.3,601.2C330.2,606.6 330.4,603.4 333.6,594.0C334.9,590.4 334.8,590.3 332.7,593.4C328.7,599.7 299.5,673.3 298.7,679.2C297.8,686.4 292.0,702.3 289.1,705.8C284.4,711.4 267.9,769.3 271.4,767.9C325.4,745.0 356.5,735.4 380.2,734.4C397.2,733.8 397.3,733.8 384.3,735.4C360.0,738.3 319.1,751.3 285.6,766.7L267.2,775.1L263.7,795.1C261.8,806.1 260.2,819.3 260.2,824.4C260.1,832.3 259.8,833.0 258.1,828.8C256.1,823.8 258.7,785.3 261.3,781.1C267.1,771.8 207.5,803.7 160.1,835.3C81.5,887.7 18.6,952.2 18.6,980.3C18.6,996.2 61.1,976.6 186.0,902.9C422.5,763.3 715.2,631.1 998.0,536.2L1027.9,526.2L1043.4,502.2C1077.3,449.9 1133.7,378.1 1141.0,378.1C1151.7,378.1 1159.3,392.3 1152.4,399.3C1137.5,414.2 1072.3,500.5 1072.3,505.3C1072.3,505.8 1074.9,505.0 1078.1,503.3C1081.3,501.7 1089.4,498.4 1096.2,496.1C1102.9,493.8 1115.9,489.3 1125.0,486.0C1205.0,456.9 1324.7,431.1 1399.8,426.7C1411.2,426.0 1427.4,425.0 1436.0,424.4C1511.8,419.0 1592.9,442.0 1601.3,471.1C1605.9,487.2 1578.4,526.9 1562.6,526.9C1561.6,526.9 1556.6,529.5 1551.5,532.7C1514.6,556.1 1387.7,596.2 1354.7,594.9C1352.2,594.8 1364.7,591.6 1382.3,587.9C1609.6,540.0 1664.2,429.4 1460.7,428.9C1323.0,428.5 1068.6,510.7 1035.9,566.0C1024.9,584.6 1002.4,569.1 1012.3,549.8L1016.6,541.4L992.3,549.8C978.9,554.4 966.1,558.9 963.8,560.0C961.6,561.0 949.5,565.7 937.0,570.5C900.9,584.2 803.1,623.2 782.4,632.1C772.0,636.6 739.3,650.7 709.7,663.4C654.9,686.9 638.7,694.2 564.0,728.9C436.4,788.2 313.9,851.8 198.3,918.7C71.6,992.2 27.4,1009.7 8.4,994.0ZM83.7,603.6C39.1,582.4 58.9,525.5 139.0,444.5C215.7,367.1 278.0,336.7 283.7,374.0C284.3,377.5 286.3,379.4 290.7,380.6C312.0,386.1 317.6,416.0 302.7,444.6C260.7,524.8 125.1,623.4 83.7,603.6ZM437.8,586.0C423.9,555.6 534.0,399.5 670.4,256.1C681.8,244.2 696.2,229.0 702.3,222.3C719.0,204.4 731.7,203.4 741.2,219.2C748.6,231.6 746.9,233.8 673.5,307.0L605.2,375.0L613.8,376.5C649.3,382.6 670.2,426.3 657.4,467.5C649.6,492.5 645.1,487.4 633.2,440.2C626.4,413.3 612.4,393.2 601.8,395.2C599.2,395.7 596.0,394.8 594.7,393.2C591.6,389.5 586.4,394.5 543.7,442.1C525.9,462.0 506.7,482.9 500.9,488.6C466.3,523.0 434.9,578.7 444.6,588.4C446.6,590.4 446.3,590.9 443.6,590.9C441.6,590.9 439.0,588.7 437.8,586.0ZM122.5,572.7C213.1,528.3 310.3,424.6 288.6,395.7C283.3,388.6 240.7,402.8 220.4,418.3C216.6,421.2 212.0,423.6 210.3,423.6C191.9,423.6 103.9,525.7 89.6,563.5C80.0,589.1 85.7,590.7 122.5,572.7ZM350.0,556.3C351.9,552.6 352.9,549.6 352.4,549.6C351.2,549.6 345.0,561.0 345.0,563.3C345.0,565.4 346.2,563.8 350.0,556.3ZM743.3,535.9C733.5,528.9 732.5,525.2 736.4,511.8C743.0,489.0 778.4,448.9 802.7,436.8C814.6,430.8 814.7,430.7 819.6,415.3C822.3,406.8 827.3,391.1 830.7,380.4C834.2,369.7 846.1,339.7 857.2,313.7C870.0,284.0 876.1,267.4 873.8,269.1C871.8,270.5 860.6,278.7 848.9,287.2C829.6,301.3 812.1,312.9 757.2,348.4C747.0,355.0 732.8,366.3 725.6,373.4C718.5,380.5 711.8,386.4 710.8,386.4C701.8,386.4 690.1,373.0 690.1,362.6C690.1,354.1 712.1,332.6 722.0,331.5C724.6,331.2 730.4,328.6 734.9,325.6C739.4,322.6 750.5,317.0 759.5,313.2C820.3,287.6 905.0,224.4 905.0,204.6C905.0,193.9 925.2,190.6 935.8,199.6C943.1,205.7 943.8,210.9 938.3,218.7C932.8,226.7 883.6,319.4 861.7,363.3C851.3,384.2 842.2,400.8 841.6,400.1C839.6,398.1 824.4,419.4 824.4,424.3C824.4,424.8 830.2,423.4 837.3,421.2C890.8,404.7 876.7,461.2 815.5,508.6C773.9,540.9 758.5,546.7 743.3,535.9ZM781.6,510.0C808.3,492.1 856.3,438.3 850.7,432.6C846.6,428.6 814.0,452.6 814.0,459.6C814.0,464.4 808.3,467.8 804.8,465.0C798.9,460.0 758.3,508.4 758.3,520.4C758.3,523.8 766.8,520.0 781.6,510.0ZM393.7,470.9C396.6,465.1 398.7,460.0 398.3,459.6C397.8,459.1 395.0,463.9 392.0,470.1C388.9,476.3 386.8,481.4 387.4,481.4C387.9,481.4 390.8,476.7 393.7,470.9ZM1530.1,420.3C1525.4,415.6 1526.7,410.9 1533.7,407.1C1539.2,404.1 1539.7,404.2 1543.6,408.9C1550.9,417.8 1538.3,428.5 1530.1,420.3ZM436.0,388.4C438.3,383.9 439.7,380.2 439.1,380.2C438.6,380.2 436.2,383.9 433.9,388.4C431.6,393.0 430.1,396.7 430.7,396.7C431.3,396.7 433.6,393.0 436.0,388.4ZM1200.9,391.2C1190.1,386.8 1189.8,369.7 1200.2,358.5C1203.6,354.8 1208.0,345.9 1210.8,336.8C1253.6,198.6 1335.1,62.9 1360.8,87.0C1367.9,93.7 1367.0,100.4 1357.7,109.7C1322.6,144.8 1237.6,302.1 1237.6,331.9C1237.6,332.3 1242.1,330.4 1247.7,327.6C1310.3,295.9 1445.7,257.3 1530.7,247.0C1600.7,238.5 1673.6,243.0 1673.6,255.8C1673.6,256.9 1669.6,255.8 1664.8,253.4C1651.9,246.9 1583.0,247.0 1546.5,253.6C1501.9,261.5 1459.4,271.4 1464.5,272.6C1468.0,273.5 1464.3,275.1 1451.1,278.7C1346.6,307.2 1249.4,351.2 1222.6,382.4C1214.1,392.3 1208.9,394.4 1200.9,391.2ZM1048.2,382.7C1038.7,372.4 1043.6,350.6 1060.6,327.5C1063.1,324.1 1067.4,316.9 1070.1,311.6C1072.7,306.2 1084.3,292.4 1095.9,280.6C1107.5,268.9 1119.9,255.1 1123.5,250.0C1127.2,244.9 1136.6,232.8 1144.5,223.2C1152.4,213.5 1158.5,205.4 1158.2,205.0C1151.2,198.1 1038.9,258.8 1029.3,274.7C1022.9,285.5 1001.3,270.2 1005.9,258.1C1014.3,235.7 1155.8,172.6 1183.8,178.7C1191.4,180.4 1200.4,189.3 1200.4,195.0C1200.3,199.6 1167.8,238.7 1165.8,236.7C1165.1,236.1 1158.9,240.9 1151.9,247.4C1144.9,254.0 1135.7,261.9 1131.5,265.2C1122.0,272.3 1122.7,275.8 1133.7,276.0C1181.8,277.0 1164.1,326.7 1099.8,371.4C1070.7,391.6 1058.7,394.2 1048.2,382.7ZM1083.6,359.3C1120.4,334.7 1154.8,289.3 1136.7,289.3C1134.5,289.3 1131.7,290.6 1130.3,292.1C1129.0,293.7 1125.2,296.1 1121.9,297.5C1118.6,298.9 1115.3,301.8 1114.6,303.9C1113.9,306.0 1110.9,308.9 1107.9,310.4C1096.7,315.8 1058.4,369.8 1065.8,369.8C1066.9,369.8 1074.9,365.1 1083.6,359.3ZM1134.4,163.3C1122.9,156.2 1142.1,91.1 1170.7,40.3C1177.2,28.9 1184.3,16.1 1186.5,11.7C1191.8,1.7 1198.0,-1.3 1208.0,1.2C1221.8,4.7 1227.6,21.9 1218.3,31.4C1210.4,39.6 1181.6,84.5 1161.5,120.1C1157.9,126.5 1153.5,132.9 1151.8,134.3C1148.0,137.5 1140.5,154.1 1140.5,159.2C1140.5,163.9 1138.1,165.5 1134.4,163.3Z"/></svg>
+<span>파리크라상 · 이성한</span>
+</div>
+<script>
+/* body 가 flex(row)/grid 인 페이지는 흐름에서 빼내 레이아웃을 건드리지 않는다 */
+(function(){var e=document.querySelector('.pc-seal');if(!e)return;
+var c=getComputedStyle(document.body),d=c.display;
+if(d.indexOf('grid')>-1||(d.indexOf('flex')>-1&&c.flexDirection.indexOf('row')===0))
+e.classList.add('pc-seal--float');})();
+</script>
+<!-- /pc-seal:v3 -->
+
+<header>
+  <div class="brand">파리크라상</div>
+  <div class="no">01</div>
+  <h1>도면 3D 시안</h1>
+  <div class="sub">평면도(PDF·이미지)를 깔고 따라 그리면 바로 3D로 확인합니다 · 도면은 이 브라우저 안에서만 처리되고 외부로 전송되지 않습니다</div>
+  <div class="rule"><i></i><b></b></div>
+</header>
+
+<main>
+  <div class="bar">
+    <label class="btn">도면 불러오기<input id="fPlan" type="file" accept=".pdf,image/*" hidden></label>
+    <span id="pdfPick" class="hidden"><label class="inl">페이지 <select id="pdfPage"></select></label></span>
+    <button id="bCalib">축척 맞추기</button>
+    <span id="scaleChip" class="chip warn">축척 미설정</span>
+    <label class="inl">천장고 <input id="iCeil" type="number" value="2990" step="10"> mm</label>
+    <span class="sep"></span>
+    <label class="inl">이름 <input id="iName" type="text" placeholder="예: OO점" style="width:120px"></label>
+    <button id="bSave" class="pri">작업 저장 (.json)</button>
+    <label class="btn">작업 불러오기<input id="fProj" type="file" accept=".json,application/json" hidden></label>
+    <button id="bPng">3D 이미지 저장</button>
+    <button id="bNew">새로 만들기</button>
+  </div>
+
+  <div class="panes">
+    <div class="tools" id="tools"></div>
+    <div class="pane">
+      <canvas id="c2d"></canvas>
+      <div class="empty" id="empty2d"><b>도면을 불러오세요</b>PDF 또는 이미지(JPG·PNG) 평면도<br>도면 없이 바로 그려도 됩니다</div>
+      <div class="ov" id="hint2d"></div>
+      <div class="ov3"><button id="fit2d">화면 맞춤</button></div>
+    </div>
+    <div class="pane pane3d" id="p3d">
+      <div class="ov3">
+        <button id="vFit">전체 맞춤</button>
+        <button id="vTop">평면</button>
+        <button id="tCut" class="on">단면(외벽 1.2m)</button>
+        <button id="tCeil">천장</button>
+        <button id="tFloor" class="on">도면 바닥</button>
+      </div>
+      <div class="ov">드래그: 회전 · 휠: 확대 · 우클릭 드래그: 이동</div>
+    </div>
+  </div>
+
+  <div class="lower">
+    <div class="card">
+      <h3>선택한 요소</h3>
+      <div id="props"><span class="muted">왼쪽 [선택] 도구로 요소를 클릭하면 높이·재질을 바꿀 수 있습니다.</span></div>
+    </div>
+    <div class="card">
+      <h3>사용 순서</h3>
+      <ol class="steps">
+        <li><span><b>도면 불러오기</b> — PDF면 평면도 페이지를 고릅니다.</span></li>
+        <li><span><b>축척 맞추기</b> — 치수가 적힌 두 점을 클릭하고 실제 길이(mm)를 입력합니다. 예: 4,862 치수선 양 끝.</span></li>
+        <li><span><b>따라 그리기</b> — 왼쪽 도구를 고르고 점을 클릭합니다. <b>더블클릭·Enter</b>로 끝, <b>Esc</b> 취소, <b>Shift</b> 수평·수직 고정. 기존 점 근처는 자동으로 붙습니다.</span></li>
+        <li><span><b>수정</b> — [선택]으로 클릭 → 꼭짓점 드래그, 높이·재질 변경, Delete 삭제, Ctrl+Z 되돌리기.</span></li>
+        <li><span><b>저장</b> — 작업 저장(.json)을 다른 사람에게 주면 [작업 불러오기]로 이어서 수정할 수 있습니다.</span></li>
+      </ol>
+      <div class="legend" id="legend"></div>
+    </div>
+  </div>
+</main>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+"three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const $ = id => document.getElementById(id);
+
+/* ================= 데이터 정의 ================= */
+const MATS = {
+  burgundy: { n: 'MT01 럭스틸 버건디', c: '#5c1a2b' },
+  marble:   { n: 'AS01 인조대리석',    c: '#efedea' },
+  gold:     { n: 'PT07 메탈릭 골드',   c: '#b98a4a' },
+  wood:     { n: 'PT05 오일스테인 목재', c: '#c47a3d' },
+  graymist: { n: 'PT02 Gray Mist',     c: '#dcdad3' },
+  white:    { n: 'PT01 화이트',        c: '#f4f4f2' },
+  indigo:   { n: 'PT03 인디고 포실',   c: '#3b4150' },
+  slab:     { n: '우드슬랩',           c: '#9a6b45' },
+  steel:    { n: '스테인리스',         c: '#b9bcc0' },
+  dark:     { n: '블랙 메탈',          c: '#2a2a2a' },
+  glass:    { n: '투명 유리',          c: '#dfeef2' },
+  frost:    { n: '반투명 시트',        c: '#f4f4f2' },
+  screen:   { n: 'DID 화면',           c: '#2a3550' },
+};
+// kind: line(선·두께) / poly(면). h:null = 천장고. perim: 단면 보기에서 잘리는 외곽 요소
+const TYPES = {
+  wall:    { n: '벽체',      key: 'W', kind: 'line', t: 150, h: null, mat: 'graymist', perim: 1 },
+  glass:   { n: '유리창',    key: 'G', kind: 'line', t: 40,  h: null, mat: 'glass',    perim: 1 },
+  folding: { n: '폴딩도어',  key: 'F', kind: 'line', t: 60,  h: null, mat: 'wood',     perim: 1, door: 2140 },
+  column:  { n: '기둥',      key: 'C', kind: 'poly', h: null, mat: 'wood', perim: 1 },
+  counter: { n: '바 카운터', key: 'B', kind: 'poly', h: 930,  mat: 'burgundy' },
+  backbar: { n: '백바·주방', key: 'K', kind: 'poly', h: 850,  mat: 'steel' },
+  table:   { n: '테이블',    key: 'T', kind: 'poly', h: 750,  mat: 'slab' },
+  box:     { n: '장비·가구', key: 'E', kind: 'poly', h: 1000, mat: 'steel' },
+  screen:  { n: '메뉴보드',  key: 'M', kind: 'line', t: 50,  h: 610,  mat: 'screen', y0: 2100 },
+};
+
+/* ================= 상태 ================= */
+let st = blank();
+let bg = null;            // { img, url, w, h }
+let tool = 'select', sel = null, draft = null, rectMode = false;
+let calib = null;         // 축척 맞추기 중 클릭한 점들
+const hist = [];
+function blank() { return { v: 1, name: '', scale: null, ceil: 2990, els: [], nextId: 1 }; }
+const mmPerPx = () => st.scale || 10;     // 축척 미설정 시 1px = 10mm 로 가정
+const elH = e => e.h ?? st.ceil;
+
+function commit() {       // 변경 확정: 되돌리기 기록 + 3D 갱신 + 자동저장
+  hist.push(JSON.stringify(st)); if (hist.length > 60) hist.shift();
+  changed();
+}
+function changed() { draw2d(); queue3d(); showProps(); autosave(); }
+function undo() {
+  if (hist.length < 2) return;
+  hist.pop(); st = JSON.parse(hist[hist.length - 1]);
+  if (sel && !st.els.find(e => e.id === sel)) sel = null;
+  syncInputs(); draw2d(); queue3d(); showProps(); autosave();
+}
+
+/* ================= 2D 편집기 ================= */
+const cv = $('c2d'), cx = cv.getContext('2d');
+const view = { z: 1, ox: 0, oy: 0 };
+const toScr = ([x, y]) => [x * view.z + view.ox, y * view.z + view.oy];
+const toImg = (sx, sy) => [(sx - view.ox) / view.z, (sy - view.oy) / view.z];
+
+function resize2d() {
+  const r = cv.getBoundingClientRect(), d = devicePixelRatio || 1;
+  cv.width = r.width * d; cv.height = r.height * d; draw2d();
+}
+function fit2d() {
+  const r = cv.getBoundingClientRect();
+  let b = bg ? [0, 0, bg.w, bg.h] : bbox();
+  if (!b) { view.z = 1; view.ox = r.width / 2; view.oy = r.height / 2; return draw2d(); }
+  const w = b[2] - b[0] || 100, h = b[3] - b[1] || 100;
+  view.z = Math.min(r.width / w, r.height / h) * 0.94;
+  view.ox = (r.width - w * view.z) / 2 - b[0] * view.z;
+  view.oy = (r.height - h * view.z) / 2 - b[1] * view.z;
+  draw2d();
+}
+function bbox() {
+  const p = st.els.flatMap(e => e.pts); if (!p.length) return null;
+  const xs = p.map(q => q[0]), ys = p.map(q => q[1]);
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+}
+const colorOf = e => e.color || MATS[e.mat].c;
+
+function pathEl(pts, close) {
+  cx.beginPath(); pts.forEach((p, i) => { const [x, y] = toScr(p); i ? cx.lineTo(x, y) : cx.moveTo(x, y); });
+  if (close) cx.closePath();
+}
+function draw2d() {
+  const d = devicePixelRatio || 1;
+  cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, cv.width, cv.height);
+  cx.setTransform(d, 0, 0, d, 0, 0);
+  if (bg) { cx.globalAlpha = 0.85; cx.drawImage(bg.img, view.ox, view.oy, bg.w * view.z, bg.h * view.z); cx.globalAlpha = 1; }
+  $('empty2d').classList.toggle('hidden', !!bg || st.els.length > 0);
+  for (const e of st.els) {
+    const T = TYPES[e.type], c = colorOf(e), on = e.id === sel;
+    if (T.kind === 'poly') {
+      pathEl(e.pts, true); cx.fillStyle = c + 'b0'; cx.fill();
+      cx.lineWidth = on ? 2.5 : 1; cx.strokeStyle = on ? '#F26300' : '#2F497D'; cx.stroke();
+    } else {
+      pathEl(e.pts, false); cx.lineCap = 'square'; cx.lineJoin = 'miter';
+      cx.lineWidth = Math.max(3, e.t / mmPerPx() * view.z);
+      cx.strokeStyle = e.type === 'glass' || e.type === 'folding' ? '#7fb3c8' : c; cx.stroke();
+      if (on) { cx.lineWidth = 2; cx.strokeStyle = '#F26300'; cx.stroke(); }
+    }
+    if (on) for (const p of e.pts) { const [x, y] = toScr(p); cx.fillStyle = '#fff'; cx.strokeStyle = '#F26300'; cx.lineWidth = 2; cx.fillRect(x - 4, y - 4, 8, 8); cx.strokeRect(x - 4, y - 4, 8, 8); }
+  }
+  // 그리는 중
+  if (draft) {
+    const pts = draft.hover ? [...draft.pts, draft.hover] : draft.pts;
+    const T = TYPES[draft.type];
+    pathEl(pts, T.kind === 'poly' && pts.length > 2);
+    cx.setLineDash([6, 4]); cx.lineWidth = 2; cx.strokeStyle = '#F26300'; cx.stroke(); cx.setLineDash([]);
+    if (T.kind === 'poly' && pts.length > 2) { cx.fillStyle = MATS[T.mat].c + '60'; cx.fill(); }
+    for (const p of draft.pts) { const [x, y] = toScr(p); cx.fillStyle = '#F26300'; cx.fillRect(x - 3, y - 3, 6, 6); }
+    if (draft.hover && draft.pts.length) lenLabel(draft.pts[draft.pts.length - 1], draft.hover);
+  }
+  if (calib) {
+    const pts = calib.hover ? [...calib.pts, calib.hover] : calib.pts;
+    pathEl(pts, false); cx.lineWidth = 2; cx.strokeStyle = '#F26300'; cx.stroke();
+    for (const p of calib.pts) { const [x, y] = toScr(p); cx.beginPath(); cx.arc(x, y, 5, 0, 7); cx.fillStyle = '#F26300'; cx.fill(); }
+  }
+}
+function lenLabel(a, b) {
+  const mm = Math.hypot(b[0] - a[0], b[1] - a[1]) * mmPerPx();
+  const [x, y] = toScr(b);
+  const s = (st.scale ? '' : '≈') + Math.round(mm).toLocaleString() + ' mm';
+  cx.font = '600 12px Pretendard, sans-serif';
+  const w = cx.measureText(s).width + 10;
+  cx.fillStyle = 'rgba(21,35,122,.9)'; cx.fillRect(x + 10, y - 22, w, 18);
+  cx.fillStyle = '#fff'; cx.fillText(s, x + 15, y - 9);
+}
+
+/* 스냅: Shift = 수평/수직, 기존 꼭짓점 10px 이내면 붙임 */
+function snap(p, last, shift) {
+  let [x, y] = p;
+  if (shift && last) { if (Math.abs(x - last[0]) > Math.abs(y - last[1])) y = last[1]; else x = last[0]; }
+  const r = 10 / view.z;
+  const cand = st.els.flatMap(e => e.pts).concat(draft ? draft.pts.slice(0, 1) : []);
+  for (const q of cand) if (Math.hypot(q[0] - x, q[1] - y) < r) return [q[0], q[1]];
+  return [x, y];
+}
+function hit(p) {
+  const tol = 8 / view.z;
+  for (let i = st.els.length - 1; i >= 0; i--) {
+    const e = st.els[i];
+    if (TYPES[e.type].kind === 'poly') { if (inPoly(p, e.pts)) return e; }
+    else {
+      const half = Math.max(tol, e.t / mmPerPx() / 2);
+      for (let k = 0; k < e.pts.length - 1; k++) if (segDist(p, e.pts[k], e.pts[k + 1]) < half) return e;
+    }
+  }
+  return null;
+}
+function inPoly([x, y], pts) {
+  let c = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i], [xj, yj] = pts[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c;
+  }
+  return c;
+}
+function segDist(p, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy || 1;
+  const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L));
+  return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
+}
+
+/* 포인터 */
+let drag = null;   // {mode:'pan'|'vertex'|'move', ...}
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('pointerdown', e => {
+  cv.setPointerCapture(e.pointerId);
+  const p = toImg(e.offsetX, e.offsetY);
+  if (e.button === 1 || e.button === 2 || spaceDown) { drag = { mode: 'pan', sx: e.offsetX, sy: e.offsetY, ox: view.ox, oy: view.oy }; return; }
+  if (calib) {
+    calib.pts.push(p);
+    if (calib.pts.length === 2) finishCalib();
+    return draw2d();
+  }
+  if (tool === 'select') {
+    const s = sel && st.els.find(q => q.id === sel);
+    if (s) {
+      const vi = s.pts.findIndex(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 9 / view.z);
+      if (vi >= 0) { drag = { mode: 'vertex', el: s, vi }; return; }
+    }
+    const h = hit(p);
+    sel = h ? h.id : null;
+    if (h) drag = { mode: 'move', el: h, last: p, moved: false };
+    else drag = { mode: 'pan', sx: e.offsetX, sy: e.offsetY, ox: view.ox, oy: view.oy };
+    draw2d(); showProps(); return;
+  }
+  // 그리기
+  const T = TYPES[tool];
+  if (!draft) draft = { type: tool, pts: [] };
+  const q = snap(p, draft.pts[draft.pts.length - 1], e.shiftKey);
+  const last = draft.pts[draft.pts.length - 1];
+  if (last && Math.hypot(last[0] - q[0], last[1] - q[1]) < 2 / view.z) return;   // 더블클릭 중복점 무시
+  if (T.kind === 'poly' && draft.pts.length > 2 && Math.hypot(draft.pts[0][0] - q[0], draft.pts[0][1] - q[1]) < 1e-6) return finishDraft();
+  draft.pts.push(q);
+  if (rectMode && T.kind === 'poly' && draft.pts.length === 2) {
+    const [[x1, y1], [x2, y2]] = draft.pts;
+    draft.pts = [[x1, y1], [x2, y1], [x2, y2], [x1, y2]]; return finishDraft();
+  }
+  draw2d();
+});
+cv.addEventListener('pointermove', e => {
+  const p = toImg(e.offsetX, e.offsetY);
+  if (drag) {
+    if (drag.mode === 'pan') { view.ox = drag.ox + e.offsetX - drag.sx; view.oy = drag.oy + e.offsetY - drag.sy; }
+    else if (drag.mode === 'vertex') { drag.el.pts[drag.vi] = snapExcept(p, drag.el, e.shiftKey, drag.vi); queue3d(); }
+    else if (drag.mode === 'move') {
+      const dx = p[0] - drag.last[0], dy = p[1] - drag.last[1];
+      if (!drag.moved && Math.hypot(dx, dy) * view.z < 3) return;
+      drag.moved = true; drag.el.pts = drag.el.pts.map(([x, y]) => [x + dx, y + dy]); drag.last = p; queue3d();
+    }
+    return draw2d();
+  }
+  if (draft) { draft.hover = snap(p, draft.pts[draft.pts.length - 1], e.shiftKey); draw2d(); }
+  else if (calib) { calib.hover = p; draw2d(); }
+});
+cv.addEventListener('pointerup', () => {
+  if (drag && (drag.mode === 'vertex' || (drag.mode === 'move' && drag.moved))) commit();
+  drag = null;
+});
+cv.addEventListener('dblclick', () => { if (draft) finishDraft(); });
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  const f = Math.exp(-e.deltaY * 0.0015), [ix, iy] = toImg(e.offsetX, e.offsetY);
+  view.z *= f; view.ox = e.offsetX - ix * view.z; view.oy = e.offsetY - iy * view.z; draw2d();
+}, { passive: false });
+function snapExcept(p, el, shift, vi) {
+  const others = el.pts.filter((_, i) => i !== vi);
+  const saved = el.pts; el.pts = others;
+  const prev = saved[vi - 1] || saved[vi + 1];
+  const q = snap(p, prev, shift); el.pts = saved; return q;
+}
+
+function finishDraft() {
+  if (!draft) return;
+  const T = TYPES[draft.type], need = T.kind === 'poly' ? 3 : 2;
+  if (draft.pts.length >= need) {
+    const e = { id: st.nextId++, type: draft.type, pts: draft.pts, h: T.h, mat: T.mat, color: null };
+    if (T.kind === 'line') e.t = T.t;
+    if (T.y0) e.y0 = T.y0;
+    st.els.push(e);
+    draft = null; commit(); return;
+  }
+  draft = null; draw2d();
+}
+
+/* 축척 */
+function finishCalib() {
+  const [a, b] = calib.pts, px = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  setTimeout(() => {
+    const v = prompt('두 점 사이 실제 길이(mm)를 입력하세요.\n예: 도면 치수 4,862 → 4862', '');
+    const mm = parseFloat(String(v || '').replace(/,/g, ''));
+    calib = null; $('bCalib').classList.remove('on');
+    if (mm > 0 && px > 0) { st.scale = mm / px; commit(); syncInputs(); }
+    draw2d(); hint();
+  }, 30);
+}
+$('bCalib').onclick = () => {
+  if (calib) { calib = null; $('bCalib').classList.remove('on'); draw2d(); return hint(); }
+  draft = null; calib = { pts: [] }; $('bCalib').classList.add('on'); hint();
+};
+
+/* 도구 팔레트 */
+function buildTools() {
+  const box = $('tools');
+  const mk = (id, label, key) => {
+    const b = document.createElement('button'); b.dataset.t = id;
+    b.innerHTML = `${label}<kbd>${key}</kbd>`; b.onclick = () => setTool(id); box.appendChild(b);
+  };
+  mk('select', '선택', 'V');
+  for (const [id, T] of Object.entries(TYPES)) mk(id, T.n, T.key);
+  const r = document.createElement('button'); r.id = 'bRect'; r.innerHTML = '사각형<kbd>2점 R</kbd>';
+  r.title = '기둥·카운터·테이블 등을 두 점(대각선)으로 그립니다';
+  r.onclick = () => { rectMode = !rectMode; r.classList.toggle('on', rectMode); hint(); }; box.appendChild(r);
+  setTool('select');
+}
+function setTool(t) {
+  if (draft) finishDraft();
+  tool = t; calib = null; $('bCalib').classList.remove('on');
+  document.querySelectorAll('#tools [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  cv.style.cursor = t === 'select' ? 'default' : 'crosshair'; hint(); draw2d();
+}
+function hint() {
+  let s;
+  if (calib) s = '축척: 길이를 아는 두 점(치수선 양 끝)을 차례로 클릭하세요.';
+  else if (tool === 'select') s = '클릭: 선택 · 꼭짓점 드래그: 수정 · 빈 곳 드래그: 이동 · 휠: 확대';
+  else s = `${TYPES[tool].n}: 점 클릭 → 더블클릭/Enter 완료 · Esc 취소 · Backspace 점 지우기 · Shift 수평/수직${rectMode && TYPES[tool].kind === 'poly' ? ' · 사각형 모드(대각 2점)' : ''}`;
+  if (!st.scale && !calib) s = '⚠ 축척 미설정 — [축척 맞추기]를 먼저 하세요. · ' + s;
+  $('hint2d').textContent = s;
+}
+
+/* 키보드 */
+let spaceDown = false;
+addEventListener('keydown', e => {
+  if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  if (e.code === 'Space') { spaceDown = true; e.preventDefault(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); return undo(); }
+  if (e.key === 'Escape') { draft = null; calib = null; $('bCalib').classList.remove('on'); hint(); return draw2d(); }
+  if (e.key === 'Enter') return finishDraft();
+  if (e.key === 'Backspace' && draft) { draft.pts.pop(); e.preventDefault(); return draw2d(); }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && sel) { st.els = st.els.filter(q => q.id !== sel); sel = null; return commit(); }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key.toUpperCase();
+  if (k === 'V') return setTool('select');
+  if (k === 'R') return $('bRect').click();
+  const t = Object.entries(TYPES).find(([, T]) => T.key === k); if (t) setTool(t[0]);
+});
+addEventListener('keyup', e => { if (e.code === 'Space') spaceDown = false; });
+
+/* 속성 패널 */
+function showProps() {
+  const e = sel && st.els.find(q => q.id === sel), box = $('props');
+  if (!e) { box.innerHTML = '<span class="muted">왼쪽 [선택] 도구로 요소를 클릭하면 높이·재질을 바꿀 수 있습니다.</span>'; return; }
+  const T = TYPES[e.type];
+  const opts = Object.entries(MATS).map(([k, m]) => `<option value="${k}" ${k === e.mat ? 'selected' : ''}>${m.n}</option>`).join('');
+  let len = '';
+  if (T.kind === 'line') { let L = 0; for (let i = 0; i < e.pts.length - 1; i++) L += Math.hypot(e.pts[i + 1][0] - e.pts[i][0], e.pts[i + 1][1] - e.pts[i][1]); len = Math.round(L * mmPerPx()).toLocaleString() + ' mm'; }
+  box.innerHTML = `<div class="props">
+    <span class="k">종류</span><span><b>${T.n}</b> ${len ? `<span class="muted">· 길이 ${len}</span>` : ''}</span>
+    <span class="k">${e.type === 'folding' ? '상부 띠 재질' : e.type === 'counter' ? '전면 재질' : '재질'}</span><select id="pMat">${opts}</select>
+    <span class="k">색 직접 지정</span><span><input id="pColor" type="color" value="${colorOf(e)}"> <button id="pColorReset" style="padding:3px 8px">재질 기본색</button></span>
+    <span class="k">높이 (mm)</span><span><input id="pH" type="number" step="10" value="${e.h ?? ''}" placeholder="${st.ceil}"> <span class="muted">${e.h == null ? '비우면 천장고' : ''}</span></span>
+    <span class="k">바닥에서 띄움</span><span><input id="pY0" type="number" step="10" value="${e.y0 || 0}"> mm</span>
+    ${T.kind === 'line' ? `<span class="k">두께 (mm)</span><input id="pT" type="number" step="10" value="${e.t}">` : ''}
+    ${e.type === 'counter' ? `<span class="k"></span><span class="muted">상판 인조대리석 · 하부 골드 걸레받이 70mm + LED 간접조명 자동 적용</span>` : ''}
+    <span class="k"></span><span><button id="pDel">삭제 (Delete)</button></span></div>`;
+  $('pMat').onchange = ev => { e.mat = ev.target.value; e.color = null; commit(); };
+  $('pColor').onchange = ev => { e.color = ev.target.value; commit(); };
+  $('pColorReset').onclick = () => { e.color = null; commit(); };
+  $('pH').onchange = ev => { const v = parseFloat(ev.target.value); e.h = v > 0 ? v : null; commit(); };
+  $('pY0').onchange = ev => { e.y0 = Math.max(0, parseFloat(ev.target.value) || 0); commit(); };
+  if ($('pT')) $('pT').onchange = ev => { e.t = Math.max(10, parseFloat(ev.target.value) || 10); commit(); };
+  $('pDel').onclick = () => { st.els = st.els.filter(q => q.id !== e.id); sel = null; commit(); };
+}
+
+/* ================= 도면 불러오기 ================= */
+let pdfDoc = null;
+$('fPlan').onchange = async ev => {
+  const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
+  if (f.type === 'application/pdf' || /\.pdf$/i.test(f.name)) {
+    pdfDoc = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise;
+    const sel = $('pdfPage'); sel.innerHTML = '';
+    for (let i = 1; i <= pdfDoc.numPages; i++) sel.add(new Option(`${i} / ${pdfDoc.numPages}`, i));
+    $('pdfPick').classList.toggle('hidden', pdfDoc.numPages < 2);
+    await renderPdf(1);
+  } else {
+    pdfDoc = null; $('pdfPick').classList.add('hidden');
+    const url = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
+    await setBg(url, true);
+  }
+};
+$('pdfPage').onchange = ev => renderPdf(+ev.target.value);
+async function renderPdf(n) {
+  const page = await pdfDoc.getPage(n);
+  const v1 = page.getViewport({ scale: 1 });
+  const vp = page.getViewport({ scale: Math.min(4, 3200 / Math.max(v1.width, v1.height)) });
+  const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+  await page.render({ canvasContext: g, viewport: vp }).promise;
+  await setBg(c.toDataURL('image/jpeg', 0.85), true);
+}
+function setBg(url, isNew) {
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      const prevW = bg && bg.w;
+      bg = { img, url, w: img.naturalWidth, h: img.naturalHeight };
+      if (isNew && prevW && prevW !== bg.w && st.scale) { st.scale = null; syncInputs(); }   // 해상도 달라지면 축척 다시
+      fit2d(); hint(); queue3d(); autosave(); res();
+    };
+    img.src = url;
+  });
+}
+
+/* ================= 저장 / 불러오기 ================= */
+function syncInputs() {
+  $('iCeil').value = st.ceil; $('iName').value = st.name || '';
+  const c = $('scaleChip');
+  if (st.scale) { c.textContent = `축척 1px = ${st.scale.toFixed(2)}mm`; c.classList.remove('warn'); }
+  else { c.textContent = '축척 미설정'; c.classList.add('warn'); }
+  hint();
+}
+$('iCeil').onchange = ev => { st.ceil = Math.max(1000, parseFloat(ev.target.value) || 2990); commit(); };
+$('iName').onchange = ev => { st.name = ev.target.value.trim(); autosave(); };
+const fileName = ext => `${st.name || '도면3D'}_${new Date().toISOString().slice(0, 10)}.${ext}`;
+function download(url, name) { const a = document.createElement('a'); a.href = url; a.download = name; a.click(); }
+$('bSave').onclick = () => {
+  const data = { ...st, bg: bg ? { url: bg.url } : null };
+  download(URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' })), fileName('json'));
+};
+$('fProj').onchange = async ev => {
+  const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
+  try { await loadProject(JSON.parse(await f.text())); }
+  catch (err) { alert('작업 파일을 읽지 못했습니다: ' + err.message); }
+};
+async function loadProject(d) {
+  if (!d || !Array.isArray(d.els)) throw new Error('형식이 다릅니다');
+  st = { ...blank(), ...d }; delete st.bg; sel = null; draft = null;
+  st.els = st.els.filter(e => TYPES[e.type] && MATS[e.mat]);
+  bg = null; if (d.bg && d.bg.url) await setBg(d.bg.url, false);
+  hist.length = 0; hist.push(JSON.stringify(st));
+  syncInputs(); fit2d(); showProps(); queue3d(true); autosave();
+}
+$('bNew').onclick = () => {
+  if (st.els.length && !confirm('지금 작업을 지우고 새로 시작할까요? (저장하지 않은 내용은 사라집니다)')) return;
+  st = blank(); bg = null; sel = null; draft = null; hist.length = 0; hist.push(JSON.stringify(st));
+  syncInputs(); fit2d(); showProps(); queue3d(true); autosave();
+};
+const AS_KEY = 'floorplan3d_autosave';
+let asT = 0;
+function autosave() {
+  clearTimeout(asT);
+  asT = setTimeout(() => {
+    try { localStorage.setItem(AS_KEY, JSON.stringify({ ...st, bg: bg ? { url: bg.url } : null })); }
+    catch { try { localStorage.setItem(AS_KEY, JSON.stringify(st)); } catch {} }   // 도면 이미지가 커서 안 들어가면 요소만
+  }, 600);
+}
+$('bPng').onclick = () => { renderer.render(scene, camera); download(renderer.domElement.toDataURL('image/png'), fileName('png')); };
+
+/* ================= 3D ================= */
+const p3 = $('p3d');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.localClippingEnabled = true;
+p3.prepend(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#eef0f3');
+const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 400);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.maxPolarAngle = Math.PI * 0.495;
+scene.add(new THREE.HemisphereLight('#ffffff', '#b8a68e', 1.1));
+const sun = new THREE.DirectionalLight('#fff4e5', 1.8); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+scene.add(sun, sun.target);
+const CUT = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1.2);
+let model = new THREE.Group(); scene.add(model);
+
+function canvasTex(draw) {
+  const c = document.createElement('canvas'); c.width = c.height = 512; draw(c.getContext('2d'), 512, 512);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+}
+const grainTex = canvasTex((g, w, h) => {      // 흰 바탕 결무늬 → 재질 색과 곱해짐
+  g.fillStyle = '#fff'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 240; i++) {
+    g.strokeStyle = `rgba(80,50,30,${0.05 + Math.random() * 0.1})`; g.lineWidth = 1 + Math.random() * 2; g.beginPath();
+    const x = Math.random() * w; g.moveTo(x, 0); for (let y = 0; y <= h; y += 32) g.lineTo(x + Math.sin(y / 60 + i) * 4, y); g.stroke();
+  }
+  g.fillStyle = 'rgba(60,30,10,.4)'; g.fillRect(0, 0, 3, h);
+});
+const veinTex = canvasTex((g, w, h) => {
+  g.fillStyle = '#fff'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 18; i++) {
+    g.strokeStyle = `rgba(110,110,115,${0.15 + Math.random() * 0.25})`; g.lineWidth = 0.6 + Math.random() * 1.6; g.beginPath();
+    let x = Math.random() * w, y = 0; g.moveTo(x, y); while (y < h) { x += (Math.random() - 0.5) * 40; y += 20 + Math.random() * 30; g.lineTo(x, y); } g.stroke();
+  }
+});
+const matCache = new Map();
+function mat(key, color, clip) {
+  const id = `${key}|${color}|${clip ? 1 : 0}`;
+  if (matCache.has(id)) return matCache.get(id);
+  const o = { color, clippingPlanes: clip ? [CUT] : null }; let m;
+  switch (key) {
+    case 'glass': m = new THREE.MeshPhysicalMaterial({ ...o, transparent: true, opacity: 0.25, roughness: 0.05, side: THREE.DoubleSide }); break;
+    case 'frost': m = new THREE.MeshStandardMaterial({ ...o, transparent: true, opacity: 0.9, roughness: 0.8 }); break;
+    case 'wood': case 'slab': m = new THREE.MeshStandardMaterial({ ...o, map: grainTex, roughness: 0.5 }); break;
+    case 'marble': m = new THREE.MeshStandardMaterial({ ...o, map: veinTex, roughness: 0.25 }); break;
+    case 'burgundy': m = new THREE.MeshStandardMaterial({ ...o, roughness: 0.35, metalness: 0.4 }); break;
+    case 'gold': m = new THREE.MeshStandardMaterial({ ...o, roughness: 0.3, metalness: 0.9 }); break;
+    case 'steel': m = new THREE.MeshStandardMaterial({ ...o, roughness: 0.3, metalness: 0.8 }); break;
+    case 'dark': m = new THREE.MeshStandardMaterial({ ...o, roughness: 0.5, metalness: 0.5 }); break;
+    case 'screen': m = new THREE.MeshStandardMaterial({ ...o, emissive: color, emissiveIntensity: 0.6 }); break;
+    default: m = new THREE.MeshStandardMaterial({ ...o, roughness: 0.9 });
+  }
+  matCache.set(id, m); return m;
+}
+
+let CEN = [0, 0];
+const toM = ([x, y]) => [(x * mmPerPx() - CEN[0]) / 1000, (y * mmPerPx() - CEN[1]) / 1000];
+function add(mesh, shadow = true) { mesh.castShadow = shadow; mesh.receiveShadow = true; model.add(mesh); return mesh; }
+function prism(ptsM, y0, h, m) {
+  const g = new THREE.ExtrudeGeometry(new THREE.Shape(ptsM.map(p => new THREE.Vector2(...p))), { depth: h, bevelEnabled: false });
+  g.rotateX(Math.PI / 2); g.translate(0, y0 + h, 0); return add(new THREE.Mesh(g, m));
+}
+function seg(a, b, t, y0, h, m, ext = 0) {     // a,b: m 좌표. ext: 양 끝 연장(모서리 메움)
+  const len = Math.hypot(b[0] - a[0], b[1] - a[1]) + ext * 2; if (len < 0.01) return;
+  const g = new THREE.BoxGeometry(len, h, t);
+  const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * len, uv.getY(i) * h);
+  const mesh = new THREE.Mesh(g, m);
+  mesh.position.set((a[0] + b[0]) / 2, y0 + h / 2, (a[1] + b[1]) / 2);
+  mesh.rotation.y = -Math.atan2(b[1] - a[1], b[0] - a[0]);
+  return add(mesh, m.opacity === undefined || m.opacity === 1);
+}
+function offsetPoly(pts, d) {                  // 다각형 안쪽으로 d(m) 오프셋 (걸레받이용)
+  let area = 0; for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; area += a[0] * b[1] - b[0] * a[1]; }
+  const s = area > 0 ? 1 : -1, n = pts.length;
+  return pts.map((cur, i) => {
+    const prev = pts[(i - 1 + n) % n], next = pts[(i + 1) % n];
+    const e1 = [cur[0] - prev[0], cur[1] - prev[1]], e2 = [next[0] - cur[0], next[1] - cur[1]];
+    const l1 = Math.hypot(...e1) || 1, l2 = Math.hypot(...e2) || 1;
+    const n1 = [-e1[1] / l1 * s, e1[0] / l1 * s], n2 = [-e2[1] / l2 * s, e2[0] / l2 * s];
+    const p1 = [prev[0] + n1[0] * d, prev[1] + n1[1] * d], p2 = [cur[0] + n2[0] * d, cur[1] + n2[1] * d];
+    const cr = e1[0] * e2[1] - e1[1] * e2[0];
+    if (Math.abs(cr) < 1e-9) return [cur[0] + n1[0] * d, cur[1] + n1[1] * d];
+    const t = ((p2[0] - p1[0]) * e2[1] - (p2[1] - p1[1]) * e2[0]) / cr;
+    return [p1[0] + e1[0] * t, p1[1] + e1[1] * t];
+  });
+}
+
+let floorMesh = null, ceilMesh = null, firstFit = true, q3 = 0;
+function queue3d(refit) { if (refit) firstFit = true; cancelAnimationFrame(q3); q3 = requestAnimationFrame(build3d); }
+function build3d() {
+  scene.remove(model); model.traverse(o => o.geometry && o.geometry.dispose()); model = new THREE.Group(); scene.add(model);
+  const S = mmPerPx(), H = st.ceil / 1000;
+  const b = bbox() || (bg ? [0, 0, bg.w, bg.h] : [0, 0, 1000, 1000]);
+  CEN = [(b[0] + b[2]) / 2 * S, (b[1] + b[3]) / 2 * S];
+  const span = Math.max((b[2] - b[0]) * S, (b[3] - b[1]) * S) / 1000 || 10;
+
+  // 바닥 (도면 텍스처 선택)
+  const fm = new THREE.MeshStandardMaterial({ color: '#d9d7d2', roughness: 0.8 });
+  if (bg && $('tFloor').classList.contains('on')) {
+    const tex = new THREE.Texture(bg.img); tex.colorSpace = THREE.SRGBColorSpace; tex.needsUpdate = true;
+    fm.map = tex; fm.color.set('#ffffff'); fm.transparent = false;
+    const fw = bg.w * S / 1000, fh = bg.h * S / 1000;
+    floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(fw, fh), fm);
+    const [x0, z0] = toM([0, 0]); floorMesh.position.set(x0 + fw / 2, 0, z0 + fh / 2);
+  } else {
+    floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(span * 3, span * 3), fm);
+  }
+  floorMesh.rotation.x = -Math.PI / 2; floorMesh.receiveShadow = true; model.add(floorMesh);
+
+  let lights = 0;
+  for (const e of st.els) {
+    const T = TYPES[e.type], c = colorOf(e), clip = !!T.perim;
+    const h = elH(e) / 1000, y0 = (e.y0 || 0) / 1000, P = e.pts.map(toM);
+    const m = mat(e.mat, c, clip);
+    if (T.kind === 'line') {
+      const t = e.t / 1000;
+      for (let i = 0; i < P.length - 1; i++) {
+        const a = P[i], bb = P[i + 1];
+        if (e.type === 'folding') {
+          const door = Math.min(T.door / 1000, h);
+          seg(a, bb, t * 0.6, y0, door, mat('glass', MATS.glass.c, clip));
+          if (h > door) seg(a, bb, t, y0 + door, h - door, m, t / 2);
+          const L = Math.hypot(bb[0] - a[0], bb[1] - a[1]), n = Math.max(1, Math.round(L / 0.8));
+          for (let k = 0; k <= n; k++) {            // 문짝 프레임
+            const q = [a[0] + (bb[0] - a[0]) * k / n, a[1] + (bb[1] - a[1]) * k / n];
+            const dir = [(bb[0] - a[0]) / L * 0.02, (bb[1] - a[1]) / L * 0.02];
+            seg([q[0] - dir[0], q[1] - dir[1]], [q[0] + dir[0], q[1] + dir[1]], t, y0, door, mat('dark', MATS.dark.c, clip));
+          }
+        } else seg(a, bb, t, y0, h, m, e.type === 'wall' ? t / 2 : 0);
+      }
+    } else if (P.length > 2) {
+      if (e.type === 'counter') {
+        const kick = Math.min(0.07, h * 0.2), top = 0.014;
+        prism(offsetPoly(P, 0.06), y0, kick, mat('gold', MATS.gold.c));
+        prism(P, y0 + kick, Math.max(0.01, h - kick - top), m);
+        prism(P, y0 + h - top, top, mat('marble', MATS.marble.c));
+        prism(P, 0.001, 0.003, new THREE.MeshBasicMaterial({ color: '#ffcf86' }));
+      } else prism(P, y0, h, m);
+      if ((e.type === 'counter' || e.type === 'table') && lights < 6) {   // 3000K 웜 스팟
+        const cxm = P.reduce((s, p) => s + p[0], 0) / P.length, czm = P.reduce((s, p) => s + p[1], 0) / P.length;
+        const l = new THREE.PointLight('#ffd7a0', 5, 4.5, 1.6); l.position.set(cxm, H - 0.3, czm); model.add(l); lights++;
+      }
+    }
+  }
+  // 천장
+  ceilMesh = new THREE.Mesh(new THREE.PlaneGeometry(span * 1.2, span * 1.2), new THREE.MeshStandardMaterial({ color: '#dcdad3', side: THREE.DoubleSide }));
+  ceilMesh.rotation.x = Math.PI / 2; ceilMesh.position.y = H; ceilMesh.visible = $('tCeil').classList.contains('on'); model.add(ceilMesh);
+
+  sun.position.set(span * 0.4, span * 0.9 + 4, span * 0.8 + 3); sun.target.position.set(0, 0, 0);
+  Object.assign(sun.shadow.camera, { left: -span, right: span, top: span, bottom: -span, far: span * 4 + 20 });
+  sun.shadow.camera.updateProjectionMatrix();
+  if (firstFit) { firstFit = false; fit3d(span); }
+}
+let lastSpan = 10;
+function fit3d(span = lastSpan) {
+  lastSpan = span; camera.position.set(span * 0.35, span * 0.95, span * 0.85); controls.target.set(0, 0, 0); controls.update();
+}
+$('vFit').onclick = () => fit3d();
+$('fit2d').onclick = fit2d;
+$('vTop').onclick = () => { camera.position.set(0, lastSpan * 1.6, 0.01); controls.target.set(0, 0, 0); controls.update(); };
+$('tCut').onclick = ev => { const on = ev.target.classList.toggle('on'); CUT.constant = on ? 1.2 : 999; };
+$('tCeil').onclick = ev => { const on = ev.target.classList.toggle('on'); if (ceilMesh) ceilMesh.visible = on; };
+$('tFloor').onclick = ev => { ev.target.classList.toggle('on'); queue3d(); };
+function resize3d() {
+  const w = p3.clientWidth, h = p3.clientHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+
+/* ================= 시작 ================= */
+$('legend').innerHTML = Object.values(MATS).map(m => `<span><i style="background:${m.c}"></i>${m.n}</span>`).join('');
+buildTools();
+new ResizeObserver(() => { resize2d(); resize3d(); }).observe(document.querySelector('.panes'));
+resize2d(); resize3d();
+(async () => {
+  let saved = null; try { saved = JSON.parse(localStorage.getItem(AS_KEY) || 'null'); } catch {}
+  if (saved && saved.els && (saved.els.length || saved.bg)) { try { await loadProject(saved); return; } catch {} }
+  hist.push(JSON.stringify(st)); syncInputs(); fit2d(); queue3d(true);
+})();
+</script>
+</body>
+</html>
