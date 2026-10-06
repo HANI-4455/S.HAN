@@ -166,5 +166,13 @@
   "desc": "평면도(PDF·이미지)를 따라 그리면 3D로 확인 · 파스쿠찌 마감재 프리셋",
   "emoji": "🏗️",
   "tag": "도구"
+ },
+ {
+  "id": 25,
+  "path": "https://script.google.com/macros/s/AKfycbywC6iipu7O4EXltvK8a1ID5F4mjNUIkH4OBid2AGUDAUMRlLn4CrsHwHclQk-MRtPc2A/exec",
+  "title": "매출 분석",
+  "desc": "POS 자동 수집 · 전주·전년비 대시보드 · 날씨·이슈 사유 분석 · AI 질문 (계정 로그인)",
+  "emoji": "📈",
+  "tag": "대시보드"
  }
 ]
