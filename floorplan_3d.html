@@ -6,6 +6,7 @@
 <title>도면 3D 시안</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/polygon-clipping@0.15.7/dist/polygon-clipping.umd.min.js"></script>
 <style>
 :root{--pri:#15237A;--sec:#2F497D;--acc:#F26300;--txt:#272727;--bg:#F7F8FA}
 *{box-sizing:border-box}
@@ -56,6 +57,13 @@ ol.steps li::before{content:counter(s);color:var(--acc);font-weight:600;min-widt
 .legend span{display:flex;gap:6px;align-items:center;font-size:12px}
 .legend i{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.15);flex:none}
 .hidden{display:none!important}
+/* 기본 = 3D 중심. [수정하기] 누르면 body.edit → 편집 도구 표시 */
+body:not(.edit) .edit-only{display:none!important}
+body:not(.edit) .panes{grid-template-columns:1fr}
+body:not(.edit) .pane3d{height:72vh}
+.status{background:#fff;border:1px solid var(--sec);border-left:3px solid var(--acc);border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:13px;line-height:1.6}
+.status.warn{border-color:var(--acc);color:var(--acc)}
+.status b{color:var(--pri);font-weight:600}
 </style>
 </head>
 <body>
@@ -89,7 +97,7 @@ e.classList.add('pc-seal--float');})();
   <div class="brand">파리크라상</div>
   <div class="no">01</div>
   <h1>도면 3D 시안</h1>
-  <div class="sub">평면도(PDF·이미지)를 깔고 따라 그리면 바로 3D로 확인합니다 · 도면은 이 브라우저 안에서만 처리되고 외부로 전송되지 않습니다</div>
+  <div class="sub">CAD에서 출력한 도면 PDF를 넣으면 평면도·축척·벽·기둥·카운터를 자동으로 찾아 3D로 세웁니다 · 도면은 이 브라우저 안에서만 처리됩니다 ([AI로 인식]을 누를 때만 외부 전송)</div>
   <div class="rule"><i></i><b></b></div>
 </header>
 
@@ -97,7 +105,9 @@ e.classList.add('pc-seal--float');})();
   <div class="bar">
     <label class="btn">도면 불러오기<input id="fPlan" type="file" accept=".pdf,image/*" hidden></label>
     <span id="pdfPick" class="hidden"><label class="inl">페이지 <select id="pdfPage"></select></label></span>
-    <button id="bCalib">축척 맞추기</button>
+    <button id="bAI" title="스캔본·이미지 도면을 Google Gemini로 인식합니다 (도면이 외부로 전송됨)">AI로 인식</button>
+    <button id="bEdit">수정하기</button>
+    <button id="bCalib" class="edit-only">축척 맞추기</button>
     <span id="scaleChip" class="chip warn">축척 미설정</span>
     <label class="inl">천장고 <input id="iCeil" type="number" value="2990" step="10"> mm</label>
     <span class="sep"></span>
@@ -108,9 +118,11 @@ e.classList.add('pc-seal--float');})();
     <button id="bNew">새로 만들기</button>
   </div>
 
+  <div class="status" id="status"><b>도면 PDF를 불러오세요.</b> 여러 장짜리 도면이면 평면도 페이지를 자동으로 찾습니다.</div>
+
   <div class="panes">
-    <div class="tools" id="tools"></div>
-    <div class="pane">
+    <div class="tools edit-only" id="tools"></div>
+    <div class="pane edit-only">
       <canvas id="c2d"></canvas>
       <div class="empty" id="empty2d"><b>도면을 불러오세요</b>PDF 또는 이미지(JPG·PNG) 평면도<br>도면 없이 바로 그려도 됩니다</div>
       <div class="ov" id="hint2d"></div>
@@ -129,24 +141,271 @@ e.classList.add('pc-seal--float');})();
   </div>
 
   <div class="lower">
-    <div class="card">
+    <div class="card edit-only">
       <h3>선택한 요소</h3>
       <div id="props"><span class="muted">왼쪽 [선택] 도구로 요소를 클릭하면 높이·재질을 바꿀 수 있습니다.</span></div>
     </div>
     <div class="card">
       <h3>사용 순서</h3>
       <ol class="steps">
-        <li><span><b>도면 불러오기</b> — PDF면 평면도 페이지를 고릅니다.</span></li>
-        <li><span><b>축척 맞추기</b> — 치수가 적힌 두 점을 클릭하고 실제 길이(mm)를 입력합니다. 예: 4,862 치수선 양 끝.</span></li>
-        <li><span><b>따라 그리기</b> — 왼쪽 도구를 고르고 점을 클릭합니다. <b>더블클릭·Enter</b>로 끝, <b>Esc</b> 취소, <b>Shift</b> 수평·수직 고정. 기존 점 근처는 자동으로 붙습니다.</span></li>
-        <li><span><b>수정</b> — [선택]으로 클릭 → 꼭짓점 드래그, 높이·재질 변경, Delete 삭제, Ctrl+Z 되돌리기.</span></li>
-        <li><span><b>저장</b> — 작업 저장(.json)을 다른 사람에게 주면 [작업 불러오기]로 이어서 수정할 수 있습니다.</span></li>
+        <li><span><b>도면 불러오기</b> — CAD에서 출력한 PDF를 넣으면 평면도 페이지·축척(1/60 등)·천장고(SL)를 읽고 벽·기둥·유리창·카운터·테이블을 자동으로 세웁니다. 다른 페이지를 고르면 그 페이지로 다시 분석합니다.</span></li>
+        <li><span><b>스캔본·이미지 도면</b> — 자동 분석이 안 됩니다. [AI로 인식](Google Gemini, 도면 외부 전송·API 키 필요)을 쓰거나 [수정하기]로 직접 그립니다.</span></li>
+        <li><span><b>틀린 곳 고치기</b> — [수정하기] → [선택]으로 클릭해 종류·높이·재질 변경, 꼭짓점 드래그, Delete 삭제, Ctrl+Z 되돌리기. 빠진 것은 왼쪽 도구로 그립니다(더블클릭·Enter 완료, Esc 취소, Shift 수평·수직).</span></li>
+        <li><span><b>저장</b> — 작업 저장(.json)을 다른 사람에게 주면 [작업 불러오기]로 이어서 수정할 수 있습니다. [3D 이미지 저장]은 PNG.</span></li>
       </ol>
       <div class="legend" id="legend"></div>
     </div>
   </div>
 </main>
 
+<script>
+/* 도면 PDF 벡터 자동 분석 — window.FPA.analyze(pdfDoc) */
+window.FPA = (() => {
+  // 인식 규칙: 다른 설계사 도면을 받으면 여기를 넓힌다
+  const RULES = {
+    titleWords: /^(PROJECT\s*TITLE|DRAWING\s*NO\.?|SHEET\s*NO\.?|NAME\s*OF\s*DRAWING|DRAWING\s*BY|CHECKED\s*BY|DESIGN\s*BY|ISSUES\s*&\s*REVISIONS|도면명|도면번호|축척)$/i,
+    planTitle: /^(FLOOR\s*PLAN|LAYOUT\s*PLAN|FURNITURE\s*PLAN|평\s*면\s*도|가구\s*배치도)$/i,
+    planExclude: /(CEIL|SURVEY|PATTERN|KEY|FINISH|ELECTR|LIGHT|천장|전기|조명|패턴|실측)/i,
+    scale: /^1\s*[\/:]\s*(\d{1,4})$/,
+    ceil: /(?:^|\b)(?:SL|CH|C\.H\.?|천장고)\s*[:=]?\s*([0-9],?[0-9]{3})/i,
+    orderWords: /^(ORDER|PICK-?UP|POS|COUNTER|카운터|계산대|주문)$/i,
+    wallLW: 0.5,            // pt 이상 굵은 선 쌍 = 벽, 미만 = 유리
+    pairGapMm: [40, 280],   // 평행 2줄 간격 (mm)
+  };
+  const OPS = () => pdfjsLib.OPS, U = () => pdfjsLib.Util;
+
+  async function pageText(page) {
+    const vp = page.getViewport({ scale: 1 }), tc = await page.getTextContent();
+    const items = tc.items.filter(t => t.str && t.str.trim()).map(t => {
+      const [x, y] = vp.convertToViewportPoint(t.transform[4], t.transform[5]);
+      return { s: t.str.trim(), x, y };
+    });
+    items.inTitle = titleRegion(items, vp.width, vp.height);
+    return items;
+  }
+  // 표제란(도면명·축척 칸) 영역 판정 함수. 표제란 단서가 없으면 null
+  function titleRegion(T, W, H) {
+    const tw = T.filter(t => RULES.titleWords.test(t.s));
+    if (tw.length < 2) return null;
+    const x0 = Math.min(...tw.map(t => t.x)), y0 = Math.min(...tw.map(t => t.y));
+    if (x0 > W * 0.7) return ([x]) => x > x0 - 18;        // 오른쪽 세로 표제란
+    if (y0 > H * 0.6) return ([, y]) => y > y0 - 18;      // 아래쪽 가로 표제란
+    return null;
+  }
+
+  function color(a) {
+    if (typeof a[0] === 'string') { const h = a[0].replace('#', ''); return [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16) / 255); }
+    return [a[0], a[1], a[2]].map(v => v > 1 ? v / 255 : v);
+  }
+
+  async function vectors(page) {
+    const O = OPS(), vp = page.getViewport({ scale: 1 }), ol = await page.getOperatorList();
+    let ctm = [1, 0, 0, 1, 0, 0], fill = [0, 0, 0], lw = 1, path = [];
+    const stack = [], fills = [], segs = [];
+    const tp = (x, y) => { const p = U().applyTransform([x, y], ctm); return vp.convertToViewportPoint(p[0], p[1]); };
+    const sc = () => Math.sqrt(Math.abs(ctm[0] * ctm[3] - ctm[1] * ctm[2]));
+    const doFill = () => { for (const sp of path) if (sp.pts.length >= 3) fills.push({ pts: sp.pts, c: fill }); };
+    const doStroke = () => {
+      const w = lw * sc();
+      for (const sp of path) {
+        const p = sp.closed ? [...sp.pts, sp.pts[0]] : sp.pts;
+        for (let i = 0; i < p.length - 1; i++) segs.push({ a: p[i], b: p[i + 1], w });
+      }
+    };
+    for (let i = 0; i < ol.fnArray.length; i++) {
+      const fn = ol.fnArray[i], a = ol.argsArray[i];
+      switch (fn) {
+        case O.save: stack.push([ctm, fill, lw]); break;
+        case O.restore: if (stack.length) [ctm, fill, lw] = stack.pop(); break;
+        case O.transform: ctm = U().transform(ctm, a); break;
+        case O.paintFormXObjectBegin: stack.push([ctm, fill, lw]); if (a[0]) ctm = U().transform(ctm, a[0]); break;
+        case O.paintFormXObjectEnd: if (stack.length) [ctm, fill, lw] = stack.pop(); break;
+        case O.setLineWidth: lw = a[0]; break;
+        case O.setGState: for (const [k, v] of a[0]) if (k === 'LW') lw = v; break;
+        case O.setFillRGBColor: fill = color(a); break;
+        case O.constructPath: {
+          const [ops, co] = a; let k = 0, cur = null;
+          for (const op of ops) {
+            if (op === O.moveTo) { cur = { pts: [tp(co[k], co[k + 1])], closed: false }; path.push(cur); k += 2; }
+            else if (op === O.lineTo) { cur && cur.pts.push(tp(co[k], co[k + 1])); k += 2; }
+            else if (op === O.curveTo) { cur && cur.pts.push(tp(co[k + 4], co[k + 5])); k += 6; }
+            else if (op === O.curveTo2 || op === O.curveTo3) { cur && cur.pts.push(tp(co[k + 2], co[k + 3])); k += 4; }
+            else if (op === O.closePath) { if (cur) cur.closed = true; }
+            else if (op === O.rectangle) {
+              const [x, y, w, h] = co.slice(k, k + 4); k += 4;
+              path.push({ pts: [tp(x, y), tp(x + w, y), tp(x + w, y + h), tp(x, y + h)], closed: true });
+            }
+          }
+          break;
+        }
+        case O.fill: case O.eoFill: doFill(); path = []; break;
+        case O.fillStroke: case O.eoFillStroke: case O.closeFillStroke: case O.closeEOFillStroke: doFill(); doStroke(); path = []; break;
+        case O.stroke: case O.closeStroke: doStroke(); path = []; break;
+        case O.endPath: path = []; break;
+      }
+    }
+    return { fills, segs, W: vp.width, H: vp.height };
+  }
+
+  /* ---------- 기하 ---------- */
+  const area = p => { let s = 0; for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length]; s += a[0] * b[1] - b[0] * a[1]; } return Math.abs(s) / 2; };
+  const bb = p => { const xs = p.map(q => q[0]), ys = p.map(q => q[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; };
+  const inPoly = ([x, y], pts) => { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; };
+  function simplify(p, tol) {            // 붙은 점 합치기 → 일직선 꼭짓점 제거
+    const D = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    const q = [];
+    for (const b of p) if (!q.length || D(b, q[q.length - 1]) >= tol) q.push(b);
+    if (q.length > 3 && D(q[0], q[q.length - 1]) < tol) q.pop();
+    for (let pass = 0, ch = true; pass < 4 && ch; pass++) {
+      ch = false;
+      for (let i = 0; i < q.length && q.length > 3; i++) {
+        const a = q[(i - 1 + q.length) % q.length], b = q[i], c = q[(i + 1) % q.length];
+        const d = Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / (D(a, c) || 1);
+        if (d < tol) { q.splice(i, 1); i--; ch = true; }
+      }
+    }
+    return q;
+  }
+  const segDist = (p, a, b) => {
+    const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L));
+    return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
+  };
+  const polyDist = (p, r) => inPoly(p, r) ? 0 : Math.min(...r.map((a, i) => segDist(p, a, r[(i + 1) % r.length])));
+  function dims(p) {                     // 최소 외접 사각형 근사 → [긴변, 짧은변]
+    let best = null;
+    for (let i = 0; i < p.length; i++) {
+      const a = p[i], b = p[(i + 1) % p.length], t = Math.atan2(b[1] - a[1], b[0] - a[0]), c = Math.cos(t), s = Math.sin(t);
+      const r = p.map(([x, y]) => [x * c + y * s, -x * s + y * c]), q = bb(r), w = q[2] - q[0], h = q[3] - q[1];
+      if (!best || w * h < best[0] * best[1]) best = [w, h];
+    }
+    return best ? [Math.max(...best), Math.min(...best)] : [0, 0];
+  }
+  const segLen = s => Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1]);
+
+  /* ---------- 분석 ---------- */
+  async function analyze(pdf, forcePage) {
+    const log = [];
+    const texts = [];
+    for (let n = 1; n <= pdf.numPages; n++) texts.push(await pageText(await pdf.getPage(n)));
+    // 1) 평면도 페이지
+    let pageNo = forcePage || null, vec = null;
+    if (!pageNo) {
+      // 표제란 안의 도면명만 본다 (도면 목록 페이지의 'FLOOR PLAN' 글자 배제)
+      const isPlan = (t, x) => RULES.planTitle.test(x.s) && !RULES.planExclude.test(x.s) && (!t.inTitle || t.inTitle([x.x, x.y]));
+      const hits = texts.map((t, i) => ({ i, n: t.filter(x => isPlan(t, x)).length })).filter(h => h.n);
+      if (hits.length) pageNo = hits.sort((a, b) => b.n - a.n)[0].i + 1;
+    }
+    if (!pageNo) {
+      let best = -1;
+      for (let n = 1; n <= pdf.numPages; n++) { const v = await vectors(await pdf.getPage(n)); if (v.fills.length > best) { best = v.fills.length; pageNo = n; vec = v; } }
+      if (pdf.numPages > 1) log.push('평면도 제목을 못 찾아 도형이 가장 많은 페이지를 썼습니다');
+    }
+    const page = await pdf.getPage(pageNo);
+    vec = vec || await vectors(page);
+    const T = texts[pageNo - 1];
+
+    // 2) 축척·천장고
+    const sc = {}; for (const t of T) { const m = t.s.match(RULES.scale); if (m) sc[m[1]] = (sc[m[1]] || 0) + 1; }
+    const N = +(Object.entries(sc).sort((a, b) => b[1] - a[1])[0] || [])[0] || null;
+    const mmPt = N ? 25.4 / 72 * N : null;
+    let ceil = null;
+    for (const t of texts.flat()) { const m = t.s.match(RULES.ceil); if (m) { const v = +m[1].replace(',', ''); if (v >= 2000 && v <= 6000) { ceil = v; break; } } }
+
+    // 3) 표제란 영역 제외
+    const skip = T.inTitle || (() => false);
+    const S = mmPt || 21.17;               // 축척 모르면 1/60 가정
+    const m2 = a => a * S * S / 1e6;
+
+    // 4) 채움 → 색 그룹별 합치기 → 분류
+    const groups = new Map();
+    for (const f of vec.fills) {
+      const b = bb(f.pts);
+      if (b[2] - b[0] > vec.W * 0.7 || b[3] - b[1] > vec.H * 0.7) continue;       // 도곽
+      if (skip([(b[0] + b[2]) / 2, (b[1] + b[3]) / 2])) continue;
+      const [r, g, bl] = f.c, L = (r + g + bl) / 3, sat = Math.max(r, g, bl) - Math.min(r, g, bl);
+      if (L > 0.97) continue;                                                      // 흰색
+      if (r > 0.7 && g < 0.35 && bl < 0.35) continue;                              // 빨강 = 주석
+      const key = f.c.map(v => Math.round(v * 50)).join(',');
+      if (!groups.has(key)) groups.set(key, { c: f.c, L, sat, polys: [] });
+      groups.get(key).polys.push(f.pts);
+    }
+    const els = [], solids = [];
+    for (const g of groups.values()) {
+      let merged;
+      try { merged = polygonClipping.union(...g.polys.map(p => [[...p, p[0]]])); }
+      catch { merged = g.polys.map(p => [[...p, p[0]]]); }
+      for (const mp of merged) {
+        let ring = simplify(mp[0].slice(0, -1), 20 / S);
+        const A = m2(area(ring)); if (ring.length < 3 || A < 0.03) continue;
+        const [lng, sht] = dims(ring).map(v => v * S);
+        let type = null;
+        if (g.sat < 0.12) {
+          if (g.L < 0.15) type = A < 1.5 && A > 0.05 ? 'box' : null;
+          else if (g.L <= 0.65) type = (A < 2 && lng / Math.max(sht, 1) < 2.5) ? 'column' : 'solid';
+          else if (g.L <= 0.95) type = A < 15 ? 'backbar' : null;
+        } else {
+          const [r, gg, b] = g.c;
+          if (r >= gg && gg >= b && g.L > 0.25 && g.L < 0.8) type = A < 8 ? 'table' : null;
+        }
+        if (!type) continue;
+        const e = { type, pts: ring, area: A };
+        if (type === 'box') { e.h = 1200; e.mat = 'dark'; }
+        els.push(e); if (type === 'column' || type === 'solid') solids.push(ring);
+      }
+    }
+    const ow = T.filter(t => RULES.orderWords.test(t.s));         // 주문 글자 근처 연회색 = 바 카운터
+    const bars = els.filter(e => e.type === 'backbar');
+    if (bars.length) {
+      if (ow.length) {
+        const d = e => Math.min(...ow.map(t => Math.min(...e.pts.map(p => Math.hypot(p[0] - t.x, p[1] - t.y)))));
+        bars.sort((a, b) => d(a) - d(b))[0].type = 'counter';
+      } else bars.sort((a, b) => b.area - a.area)[0].type = 'counter';
+    }
+
+    // 5) 평행 2줄 → 벽(굵은 선)·유리(가는 선)
+    const [g0, g1] = RULES.pairGapMm.map(v => v / S);
+    const segs = vec.segs.filter(s => segLen(s) * S >= 600 && !skip(s.a) && !skip(s.b));
+    const used = new Set(), lines = [];
+    const solidDist = p => Math.min(Infinity, ...solids.map(r => polyDist(p, r)));
+    for (let i = 0; i < segs.length; i++) {
+      if (used.has(i)) continue;
+      const s = segs[i], L1 = segLen(s), ux = (s.b[0] - s.a[0]) / L1, uy = (s.b[1] - s.a[1]) / L1, nx = -uy, ny = ux;
+      const cands = [];
+      for (let j = i + 1; j < segs.length; j++) {
+        if (used.has(j)) continue;
+        const t = segs[j], L2 = segLen(t), vx = (t.b[0] - t.a[0]) / L2, vy = (t.b[1] - t.a[1]) / L2;
+        if (Math.abs(ux * vy - uy * vx) > 0.035) continue;                       // 평행 (2도)
+        const dist = Math.abs((t.a[0] - s.a[0]) * nx + (t.a[1] - s.a[1]) * ny);
+        if (dist < g0 || dist > g1) continue;
+        const p1 = (t.a[0] - s.a[0]) * ux + (t.a[1] - s.a[1]) * uy, p2 = (t.b[0] - s.a[0]) * ux + (t.b[1] - s.a[1]) * uy;
+        const lo = Math.max(0, Math.min(p1, p2)), hi = Math.min(L1, Math.max(p1, p2));
+        if (hi - lo < 0.7 * Math.min(L1, L2)) continue;
+        cands.push({ j, dist, lo, hi, t });
+      }
+      cands.sort((a, b) => (b.hi - b.lo) - (a.hi - a.lo) || a.dist - b.dist);
+      for (const c of cands) {                    // 길게 겹치는 짝부터, 조건을 통과하는 첫 짝
+        const t = c.t, side = ((t.a[0] - s.a[0]) * nx + (t.a[1] - s.a[1]) * ny) > 0 ? 1 : -1, off = c.dist / 2 * side;
+        const A = [s.a[0] + ux * c.lo + nx * off, s.a[1] + uy * c.lo + ny * off];
+        const B = [s.a[0] + ux * c.hi + nx * off, s.a[1] + uy * c.hi + ny * off];
+        const mid = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2];
+        if (solidDist(mid) < 150 / S) continue;                                  // 채움 벽·기둥 윤곽선
+        const thick = Math.max(s.w, t.w) >= RULES.wallLW, len = (c.hi - c.lo) * S;
+        if (len < 900) continue;                                                   // 가구·장비 윤곽은 대개 짧음
+        if (!thick && Math.min(solidDist(A), solidDist(B)) > 400 / S) continue;   // 유리는 벽·기둥에 붙어 있음
+        // 이미 잡은 선과 겹치면(같은 창의 안·밖 프레임) 건너뜀
+        if (lines.some(l => Math.min(segDist(A, ...l.pts), segDist(B, ...l.pts), segDist(mid, ...l.pts)) < 250 / S && segDist(mid, ...l.pts) < 250 / S)) { used.add(i); used.add(c.j); break; }
+        used.add(i); used.add(c.j);
+        lines.push({ type: thick ? 'wall' : 'glass', pts: [A, B], t: Math.max(40, Math.round(c.dist * S)) });
+        break;
+      }
+    }
+    els.push(...lines);
+    return { pageNo, N, mmPt, ceil, els, log, W: vec.W, H: vec.H, nFills: vec.fills.length, nSegs: vec.segs.length };
+  }
+  return { analyze, RULES, vectors };
+})();
+</script>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
 "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
@@ -180,6 +439,7 @@ const TYPES = {
   glass:   { n: '유리창',    key: 'G', kind: 'line', t: 40,  h: null, mat: 'glass',    perim: 1 },
   folding: { n: '폴딩도어',  key: 'F', kind: 'line', t: 60,  h: null, mat: 'wood',     perim: 1, door: 2140 },
   column:  { n: '기둥',      key: 'C', kind: 'poly', h: null, mat: 'wood', perim: 1 },
+  solid:   { n: '벽체(면)',  key: 'S', kind: 'poly', h: null, mat: 'graymist', perim: 1 },
   counter: { n: '바 카운터', key: 'B', kind: 'poly', h: 930,  mat: 'burgundy' },
   backbar: { n: '백바·주방', key: 'K', kind: 'poly', h: 850,  mat: 'steel' },
   table:   { n: '테이블',    key: 'T', kind: 'poly', h: 750,  mat: 'slab' },
@@ -475,7 +735,7 @@ function showProps() {
   let len = '';
   if (T.kind === 'line') { let L = 0; for (let i = 0; i < e.pts.length - 1; i++) L += Math.hypot(e.pts[i + 1][0] - e.pts[i][0], e.pts[i + 1][1] - e.pts[i][1]); len = Math.round(L * mmPerPx()).toLocaleString() + ' mm'; }
   box.innerHTML = `<div class="props">
-    <span class="k">종류</span><span><b>${T.n}</b> ${len ? `<span class="muted">· 길이 ${len}</span>` : ''}</span>
+    <span class="k">종류</span><span><select id="pType">${Object.entries(TYPES).filter(([, X]) => X.kind === T.kind).map(([k, X]) => `<option value="${k}" ${k === e.type ? 'selected' : ''}>${X.n}</option>`).join('')}</select> ${len ? `<span class="muted">· 길이 ${len}</span>` : ''}</span>
     <span class="k">${e.type === 'folding' ? '상부 띠 재질' : e.type === 'counter' ? '전면 재질' : '재질'}</span><select id="pMat">${opts}</select>
     <span class="k">색 직접 지정</span><span><input id="pColor" type="color" value="${colorOf(e)}"> <button id="pColorReset" style="padding:3px 8px">재질 기본색</button></span>
     <span class="k">높이 (mm)</span><span><input id="pH" type="number" step="10" value="${e.h ?? ''}" placeholder="${st.ceil}"> <span class="muted">${e.h == null ? '비우면 천장고' : ''}</span></span>
@@ -483,6 +743,10 @@ function showProps() {
     ${T.kind === 'line' ? `<span class="k">두께 (mm)</span><input id="pT" type="number" step="10" value="${e.t}">` : ''}
     ${e.type === 'counter' ? `<span class="k"></span><span class="muted">상판 인조대리석 · 하부 골드 걸레받이 70mm + LED 간접조명 자동 적용</span>` : ''}
     <span class="k"></span><span><button id="pDel">삭제 (Delete)</button></span></div>`;
+  $('pType').onchange = ev => {             // 종류 바꾸면 그 종류의 기본 높이·재질로
+    const N = TYPES[ev.target.value]; e.type = ev.target.value; e.mat = N.mat; e.h = N.h; e.color = null;
+    if (N.kind === 'line') e.t = N.t; e.y0 = N.y0 || 0; commit();
+  };
   $('pMat').onchange = ev => { e.mat = ev.target.value; e.color = null; commit(); };
   $('pColor').onchange = ev => { e.color = ev.target.value; commit(); };
   $('pColorReset').onclick = () => { e.color = null; commit(); };
@@ -501,23 +765,133 @@ $('fPlan').onchange = async ev => {
     const sel = $('pdfPage'); sel.innerHTML = '';
     for (let i = 1; i <= pdfDoc.numPages; i++) sel.add(new Option(`${i} / ${pdfDoc.numPages}`, i));
     $('pdfPick').classList.toggle('hidden', pdfDoc.numPages < 2);
-    await renderPdf(1);
+    await autoFromPdf();
   } else {
     pdfDoc = null; $('pdfPick').classList.add('hidden');
     const url = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
-    await setBg(url, true);
+    resetEls(); await setBg(url, true);
+    setStatus('<b>이미지 도면은 자동 분석이 안 됩니다.</b> [AI로 인식]을 쓰거나 [수정하기]로 직접 그려 주세요. CAD에서 출력한 PDF가 있으면 그걸 넣는 게 가장 정확합니다.', true);
   }
 };
-$('pdfPage').onchange = ev => renderPdf(+ev.target.value);
-async function renderPdf(n) {
+$('pdfPage').onchange = ev => autoFromPdf(+ev.target.value);
+async function renderPdf(n) {               // 페이지를 배경 이미지로. 반환: 배율(px/pt)
   const page = await pdfDoc.getPage(n);
-  const v1 = page.getViewport({ scale: 1 });
-  const vp = page.getViewport({ scale: Math.min(4, 3200 / Math.max(v1.width, v1.height)) });
+  const v1 = page.getViewport({ scale: 1 }), R = Math.min(4, 3200 / Math.max(v1.width, v1.height));
+  const vp = page.getViewport({ scale: R });
   const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
   const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
   await page.render({ canvasContext: g, viewport: vp }).promise;
   await setBg(c.toDataURL('image/jpeg', 0.85), true);
+  return c.width / v1.width;
 }
+function setStatus(html, warn) { const s = $('status'); s.innerHTML = html; s.classList.toggle('warn', !!warn); }
+function resetEls() { st.els = []; st.nextId = 1; sel = null; draft = null; }
+function addEls(list, k) {                  // 분석 결과(좌표 × k = 배경 px) → 요소
+  for (const e of list) {
+    const T = TYPES[e.type]; if (!T) continue;
+    const need = T.kind === 'poly' ? 3 : 2; if (!e.pts || e.pts.length < need) continue;
+    const el = { id: st.nextId++, type: e.type, pts: e.pts.map(([x, y]) => [x * k, y * k]), h: e.h ?? T.h, mat: e.mat && MATS[e.mat] ? e.mat : T.mat, color: null };
+    if (T.kind === 'line') el.t = e.t || T.t;
+    if (T.y0) el.y0 = T.y0;
+    st.els.push(el);
+  }
+}
+function countText() {
+  const c = {}; for (const e of st.els) c[e.type] = (c[e.type] || 0) + 1;
+  return Object.entries(c).map(([k, n]) => `${TYPES[k].n} ${n}`).join(' · ');
+}
+
+/* CAD 출력 PDF 자동 분석 (FPA: 아래 별도 스크립트) */
+async function autoFromPdf(forcePage) {
+  setStatus('<b>도면을 분석하는 중…</b>');
+  let r;
+  try { r = await FPA.analyze(pdfDoc, forcePage); }
+  catch (err) { console.error(err); setStatus('자동 분석에 실패했습니다: ' + err.message + ' — [수정하기]로 직접 그려 주세요.', true); return; }
+  $('pdfPage').value = r.pageNo;
+  const R = await renderPdf(r.pageNo);
+  resetEls();
+  st.scale = (r.mmPt || 21.17) / R;          // 축척 표기 없으면 1/60 가정
+  if (r.ceil) st.ceil = r.ceil;
+  addEls(r.els, R);
+  commit(); syncInputs(); queue3d(true);
+  const pg = pdfDoc.numPages > 1 ? `${r.pageNo} / ${pdfDoc.numPages}쪽` : '1쪽';
+  const info = [`평면도 <b>${pg}</b>`, r.N ? `축척 <b>1/${r.N}</b>` : '<b>축척 표기 없음(1/60 가정)</b>', `천장고 <b>${(r.ceil || st.ceil).toLocaleString()}</b>${r.ceil ? '' : '(기본값)'}`].join(' · ');
+  if (!st.els.length) {
+    setStatus(`${info}<br>이 도면에서는 벽·기둥을 자동으로 찾지 못했습니다. 스캔본이면 [AI로 인식], 아니면 [수정하기]로 직접 그려 주세요.`, true);
+  } else {
+    const warn = !r.N || !r.ceil;
+    setStatus(`<b>자동 인식 완료</b> — ${info}<br>${countText()}<br><span class="muted">틀리거나 빠진 곳은 [수정하기]로 고칠 수 있습니다. 다른 페이지가 평면도면 위에서 페이지를 고르세요.${r.N ? '' : ' 축척이 다르면 [수정하기 → 축척 맞추기]'}</span>`, warn);
+  }
+}
+
+/* AI 인식 (Google Gemini) — 사용자가 누를 때만, 매번 확인 후 전송 */
+const AI_KEY = 'mr_api_key';               // 허브의 회의록 도구와 같은 키 공유 (같은 사이트)
+$('bAI').onclick = async () => {
+  if (!bg) return alert('먼저 도면을 불러오세요.');
+  if (!confirm('지금 보이는 도면 이미지가 Google Gemini 서버로 전송됩니다.\n외부 전송해도 되는 도면인지 확인하세요.\n\n계속할까요?')) return;
+  let key = ''; try { key = localStorage.getItem(AI_KEY) || ''; } catch {}
+  if (!key) {
+    key = (prompt('Gemini API 키를 입력하세요. (이 브라우저에만 저장됩니다)') || '').trim(); if (!key) return;
+    try { localStorage.setItem(AI_KEY, key); } catch {}
+  }
+  setStatus('<b>AI가 도면을 읽는 중…</b> (30초~1분)');
+  try {
+    const d = await aiRecognize(key);
+    resetEls();
+    const kx = bg.w / 1000, ky = bg.h / 1000;
+    addEls((d.elements || []).map(e => ({ type: e.type, pts: (e.points || []).map(([x, y]) => [x * kx, y * ky]), t: e.thickness_mm })), 1);
+    const dm = d.dimension;
+    if (dm && dm.mm > 0 && dm.p1 && dm.p2) {
+      const px = Math.hypot((dm.p2[0] - dm.p1[0]) * kx, (dm.p2[1] - dm.p1[1]) * ky); if (px > 5) st.scale = dm.mm / px;
+    }
+    if (d.ceiling_mm >= 2000 && d.ceiling_mm <= 6000) st.ceil = d.ceiling_mm;
+    commit(); syncInputs(); queue3d(true);
+    setStatus(st.els.length
+      ? `<b>AI 인식 완료</b> — ${countText()}<br><span class="muted">AI 결과는 위치가 어긋날 수 있습니다. [수정하기]로 확인하세요.${dm ? '' : ' 축척을 못 읽었으니 [수정하기 → 축척 맞추기]를 하세요.'}</span>`
+      : 'AI가 요소를 찾지 못했습니다. [수정하기]로 직접 그려 주세요.', !st.els.length || !dm);
+  } catch (err) {
+    console.error(err); setStatus('AI 인식 실패: ' + err.message, true);
+  }
+};
+async function aiRecognize(key) {
+  const k = Math.min(1, 2048 / Math.max(bg.w, bg.h));
+  const c = document.createElement('canvas'); c.width = Math.round(bg.w * k); c.height = Math.round(bg.h * k);
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(bg.img, 0, 0, c.width, c.height);
+  const b64 = c.toDataURL('image/jpeg', 0.85).split(',')[1];
+  const prompt = `This image is an architectural floor plan of a small cafe or bakery store.
+Return JSON only, in this exact shape:
+{"dimension":{"p1":[x,y],"p2":[x,y],"mm":number}|null,"ceiling_mm":number|null,
+ "elements":[{"type":"wall|glass|column|solid|counter|backbar|table|box","points":[[x,y],...],"thickness_mm":number}]}
+Coordinates: integers 0-1000, normalized to image width (x) and height (y), origin top-left.
+- wall, glass: centerline polyline (2+ points) with thickness_mm. glass = windows, glass doors, folding doors.
+- column, solid (thick wall mass), counter (customer service counter), backbar (kitchen/back counters), table, box (large equipment): closed outline polygon (3+ points).
+- Ignore the title block, text, dimension lines, hatching legends, door swing arcs.
+- dimension: choose one clearly labeled dimension line; give its two end points and the labeled length in mm.
+- ceiling_mm: only if a ceiling height (e.g. "SL:2,990" or "CH 2700") is written, else null.`;
+  const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+    body: JSON.stringify({
+      contents: [{ parts: [{ inline_data: { mime_type: 'image/jpeg', data: b64 } }, { text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } },
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    if (res.status === 400 || res.status === 403) { try { localStorage.removeItem(AI_KEY); } catch {} }
+    throw new Error(`HTTP ${res.status} — ${res.status === 400 || res.status === 403 ? 'API 키를 확인하세요(다시 누르면 새로 입력)' : t.slice(0, 120)}`);
+  }
+  const j = await res.json();
+  const txt = (j.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').replace(/^```(json)?|```$/g, '').trim();
+  try { return JSON.parse(txt); } catch { throw new Error('AI 응답을 해석하지 못했습니다'); }
+}
+
+/* 수정 모드 */
+$('bEdit').onclick = () => {
+  const on = document.body.classList.toggle('edit');
+  $('bEdit').classList.toggle('on', on); $('bEdit').textContent = on ? '수정 닫기' : '수정하기';
+  if (!on) setTool('select');
+  requestAnimationFrame(() => { resize2d(); resize3d(); if (on) fit2d(); });
+};
 function setBg(url, isNew) {
   return new Promise(res => {
     const img = new Image();
@@ -563,6 +937,7 @@ async function loadProject(d) {
 $('bNew').onclick = () => {
   if (st.els.length && !confirm('지금 작업을 지우고 새로 시작할까요? (저장하지 않은 내용은 사라집니다)')) return;
   st = blank(); bg = null; sel = null; draft = null; hist.length = 0; hist.push(JSON.stringify(st));
+  setStatus('<b>도면 PDF를 불러오세요.</b> 여러 장짜리 도면이면 평면도 페이지를 자동으로 찾습니다.');
   syncInputs(); fit2d(); showProps(); queue3d(true); autosave();
 };
 const AS_KEY = 'floorplan3d_autosave';
@@ -753,7 +1128,9 @@ new ResizeObserver(() => { resize2d(); resize3d(); }).observe(document.querySele
 resize2d(); resize3d();
 (async () => {
   let saved = null; try { saved = JSON.parse(localStorage.getItem(AS_KEY) || 'null'); } catch {}
-  if (saved && saved.els && (saved.els.length || saved.bg)) { try { await loadProject(saved); return; } catch {} }
+  if (saved && saved.els && (saved.els.length || saved.bg)) {
+    try { await loadProject(saved); setStatus(`<b>이전 작업을 불러왔습니다.</b> ${countText()} <span class="muted">— 새 도면은 [도면 불러오기], 처음부터는 [새로 만들기]</span>`); return; } catch {}
+  }
   hist.push(JSON.stringify(st)); syncInputs(); fit2d(); queue3d(true);
 })();
 </script>
