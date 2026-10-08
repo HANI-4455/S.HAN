@@ -115,6 +115,7 @@ e.classList.add('pc-seal--float');})();
     <button id="bSave" class="pri">작업 저장 (.json)</button>
     <label class="btn">작업 불러오기<input id="fProj" type="file" accept=".json,application/json" hidden></label>
     <button id="bPng">3D 이미지 저장</button>
+    <button id="bPrompt" title="3D 모델 내용으로 Gamma 등 이미지 AI용 실사 렌더 문장을 만듭니다">실사 프롬프트</button>
     <button id="bNew">새로 만들기</button>
   </div>
 
@@ -138,6 +139,16 @@ e.classList.add('pc-seal--float');})();
       </div>
       <div class="ov">드래그: 회전 · 휠: 확대 · 우클릭 드래그: 이동</div>
     </div>
+  </div>
+
+  <div class="card hidden" id="promptCard" style="margin-top:12px">
+    <h3>Gamma 실사 프롬프트</h3>
+    <ol class="steps" style="margin-bottom:10px">
+      <li><span>[3D 이미지 저장]으로 지금 보이는 3D 화면을 PNG로 받습니다. 보여 주고 싶은 각도로 돌려 놓고 저장하세요.</span></li>
+      <li><span>Gamma에서 이미지 만들기 → 받은 PNG를 <b>참고 이미지</b>로 첨부하고 아래 문장을 붙여 넣습니다.</span></li>
+    </ol>
+    <textarea id="promptTxt" rows="14" style="width:100%;font:12px/1.55 Consolas,monospace;padding:10px;border:1px solid #c5ccd8;border-radius:4px;color:var(--txt)"></textarea>
+    <div class="bar" style="margin:8px 0 0"><button id="bCopy" class="pri">복사</button><button id="bPromptClose">닫기</button><span class="muted">문장은 3D 모델(요소·치수·재질)로 만들며 외부로 보내지 않습니다.</span></div>
   </div>
 
   <div class="lower">
@@ -169,6 +180,9 @@ window.FPA = (() => {
     scale: /^1\s*[\/:]\s*(\d{1,4})$/,
     ceil: /(?:^|\b)(?:SL|CH|C\.H\.?|천장고)\s*[:=]?\s*([0-9],?[0-9]{3})/i,
     orderWords: /^(ORDER|PICK-?UP|POS|COUNTER|카운터|계산대|주문)$/i,
+    sizeLabel: /^([\d,]{3,6})\s*[xX×*]\s*([\d,]{3,6})(?:\s*[xX×*]\s*([\d,]{3,6}))?$/,   // 장비 크기 표기 W x D (x H)
+    chairMm: [350, 650],    // 의자 한 변 길이 범위
+    tableMm: [600, 2400],   // 선으로만 그린 테이블 긴 변 범위
     wallLW: 0.5,            // pt 이상 굵은 선 쌍 = 벽, 미만 = 유리
     pairGapMm: [40, 280],   // 평행 2줄 간격 (mm)
   };
@@ -178,7 +192,7 @@ window.FPA = (() => {
     const vp = page.getViewport({ scale: 1 }), tc = await page.getTextContent();
     const items = tc.items.filter(t => t.str && t.str.trim()).map(t => {
       const [x, y] = vp.convertToViewportPoint(t.transform[4], t.transform[5]);
-      return { s: t.str.trim(), x, y };
+      return { s: t.str.trim(), x, y, cx: x + (t.width || 0) / 2, cy: y - (t.height || 0) / 2 };   // cx,cy: 글자 중심(가로쓰기 기준)
     });
     items.inTitle = titleRegion(items, vp.width, vp.height);
     return items;
@@ -201,7 +215,7 @@ window.FPA = (() => {
   async function vectors(page) {
     const O = OPS(), vp = page.getViewport({ scale: 1 }), ol = await page.getOperatorList();
     let ctm = [1, 0, 0, 1, 0, 0], fill = [0, 0, 0], lw = 1, path = [];
-    const stack = [], fills = [], segs = [];
+    const stack = [], fills = [], segs = [], spolys = [];   // spolys: 선으로 그린 닫힌 도형 (장비·가구 윤곽)
     const tp = (x, y) => { const p = U().applyTransform([x, y], ctm); return vp.convertToViewportPoint(p[0], p[1]); };
     const sc = () => Math.sqrt(Math.abs(ctm[0] * ctm[3] - ctm[1] * ctm[2]));
     const doFill = () => { for (const sp of path) if (sp.pts.length >= 3) fills.push({ pts: sp.pts, c: fill }); };
@@ -210,6 +224,8 @@ window.FPA = (() => {
       for (const sp of path) {
         const p = sp.closed ? [...sp.pts, sp.pts[0]] : sp.pts;
         for (let i = 0; i < p.length - 1; i++) segs.push({ a: p[i], b: p[i + 1], w });
+        const f = sp.pts[0], l = sp.pts[sp.pts.length - 1];
+        if (sp.pts.length >= 3 && (sp.closed || Math.hypot(f[0] - l[0], f[1] - l[1]) < 0.5)) spolys.push(sp.pts);
       }
     };
     for (let i = 0; i < ol.fnArray.length; i++) {
@@ -244,7 +260,7 @@ window.FPA = (() => {
         case O.endPath: path = []; break;
       }
     }
-    return { fills, segs, W: vp.width, H: vp.height };
+    return { fills, segs, spolys, W: vp.width, H: vp.height };
   }
 
   /* ---------- 기하 ---------- */
@@ -363,6 +379,46 @@ window.FPA = (() => {
       } else bars.sort((a, b) => b.area - a.area)[0].type = 'counter';
     }
 
+    // 4-2) 장비: 크기 표기(W x D x H)와 치수가 맞는 닫힌 윤곽선 짝짓기
+    const cen = r => [r.reduce((s, p) => s + p[0], 0) / r.length, r.reduce((s, p) => s + p[1], 0) / r.length];
+    const rectish = r => { const [l, s] = dims(r); return l > 0 && area(r) / (l * s) > 0.8; };
+    const fixtures = els.filter(e => e.type === 'counter' || e.type === 'backbar' || e.type === 'table').map(e => e.pts);
+    const blocked = c => fixtures.some(r => inPoly(c, r)) || solids.some(r => inPoly(c, r));
+    const cands = vec.spolys.filter(p => !skip(p[0])).map(p => simplify(p, 20 / S))
+      .filter(r => r.length >= 4 && r.length <= 8 && rectish(r)).map(r => ({ r, c: cen(r), d: dims(r).map(v => v * S) }));
+    const taken = [], near = (c, mm) => taken.some(q => Math.hypot(q[0] - c[0], q[1] - c[1]) * S < mm);
+    for (const t of T) {
+      const m = t.s.match(RULES.sizeLabel); if (!m) continue;
+      const v = m.slice(1).filter(Boolean).map(x => +x.replace(/,/g, '')), a = Math.max(v[0], v[1]), b = Math.min(v[0], v[1]);
+      if (b < 200 || a > 4000) continue;
+      let best = null;
+      for (const k of cands) {
+        if (Math.abs(k.d[0] - a) > a * 0.12 + 40 || Math.abs(k.d[1] - b) > b * 0.12 + 40) continue;
+        const dist = Math.hypot(k.c[0] - t.cx, k.c[1] - t.cy) * S;
+        if (dist < 1500 && !near(k.c, 100) && (!best || dist < best.dist)) best = { k, dist };
+      }
+      if (!best) continue;
+      taken.push(best.k.c);
+      if (blocked(best.k.c)) continue;                           // 카운터 하부 장비 등은 카운터로 충분
+      els.push({ type: 'box', pts: best.k.r, h: v[2] || 850, mat: 'steel', label: t.s });
+    }
+    // 4-3) 의자·테이블: 테이블 근처의 작은 사각형(원은 4점으로 근사됨) = 의자, 의자 2개 이상 둘러싼 선 사각형 = 테이블
+    const [c0, c1] = RULES.chairMm, [t0, t1] = RULES.tableMm;
+    const free = cands.filter(k => !blocked(k.c) && !near(k.c, 100));
+    const chairs = free.filter(k => k.d[0] >= c0 && k.d[0] <= c1 && k.d[1] / k.d[0] > 0.7);
+    const tbls = els.filter(e => e.type === 'table').map(e => e.pts);
+    for (const k of free) {
+      if (k.d[0] < t0 || k.d[0] > t1 || k.d[1] < 450 || chairs.includes(k)) continue;
+      const around = chairs.filter(ch => polyDist(ch.c, k.r) * S < 700).length;
+      if (around >= 2 && !tbls.some(r => inPoly(k.c, r))) { tbls.push(k.r); els.push({ type: 'table', pts: k.r }); taken.push(k.c); }
+    }
+    const seen = [];
+    for (const ch of chairs) {
+      if (!tbls.some(r => polyDist(ch.c, r) * S < 700)) continue;
+      if (seen.some(q => Math.hypot(q[0] - ch.c[0], q[1] - ch.c[1]) * S < 150)) continue;
+      seen.push(ch.c); els.push({ type: 'chair', pts: ch.r });
+    }
+
     // 5) 평행 2줄 → 벽(굵은 선)·유리(가는 선)
     const [g0, g1] = RULES.pairGapMm.map(v => v / S);
     const segs = vec.segs.filter(s => segLen(s) * S >= 600 && !skip(s.a) && !skip(s.b));
@@ -445,6 +501,7 @@ const TYPES = {
   table:   { n: '테이블',    key: 'T', kind: 'poly', h: 750,  mat: 'slab' },
   box:     { n: '장비·가구', key: 'E', kind: 'poly', h: 1000, mat: 'steel' },
   screen:  { n: '메뉴보드',  key: 'M', kind: 'line', t: 50,  h: 610,  mat: 'screen', y0: 2100 },
+  chair:   { n: '의자',      key: 'H', kind: 'poly', h: 850, mat: 'dark' },
 };
 
 /* ================= 상태 ================= */
@@ -791,6 +848,7 @@ function addEls(list, k) {                  // 분석 결과(좌표 × k = 배�
     const T = TYPES[e.type]; if (!T) continue;
     const need = T.kind === 'poly' ? 3 : 2; if (!e.pts || e.pts.length < need) continue;
     const el = { id: st.nextId++, type: e.type, pts: e.pts.map(([x, y]) => [x * k, y * k]), h: e.h ?? T.h, mat: e.mat && MATS[e.mat] ? e.mat : T.mat, color: null };
+    if (e.label) el.label = e.label;          // 도면의 크기 표기 (예: 770x870x1,900)
     if (T.kind === 'line') el.t = e.t || T.t;
     if (T.y0) el.y0 = T.y0;
     st.els.push(el);
@@ -951,6 +1009,80 @@ function autosave() {
 }
 $('bPng').onclick = () => { renderer.render(scene, camera); download(renderer.domElement.toDataURL('image/png'), fileName('png')); };
 
+/* 실사 프롬프트: 3D 모델 내용 → 이미지 AI용 영문 문장 */
+const EN = {
+  burgundy: 'deep burgundy wine-red metal panels', marble: 'white engineered marble with soft gray veining', gold: 'brushed metallic gold',
+  wood: 'oil-stained warm honey-amber pine plywood panels', graymist: 'soft warm gray paint (Benjamin Moore 962 Gray Mist)', white: 'matte white paint',
+  indigo: 'deep indigo-charcoal paint', slab: 'natural solid wood slab', steel: 'brushed stainless steel', dark: 'matte black metal',
+  glass: 'clear glass', frost: 'frosted white film on glass', screen: 'digital menu screens',
+};
+const matEN = e => EN[e.mat] + (e.color ? ` (color ${e.color})` : '');
+function rectMm(e) {                           // 다각형의 최소 외접 사각형 [긴 변, 짧은 변] mm
+  const p = e.pts; let best = null;
+  for (let i = 0; i < p.length; i++) {
+    const a = p[i], b = p[(i + 1) % p.length], t = Math.atan2(b[1] - a[1], b[0] - a[0]), c = Math.cos(t), s = Math.sin(t);
+    const r = p.map(([x, y]) => [x * c + y * s, -x * s + y * c]), xs = r.map(q => q[0]), ys = r.map(q => q[1]);
+    const w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys);
+    if (!best || w * h < best[0] * best[1]) best = [w, h];
+  }
+  return best.map(v => Math.round(v * mmPerPx())).sort((a, b) => b - a);
+}
+function lineLen(e) { let L = 0; for (let i = 0; i < e.pts.length - 1; i++) L += Math.hypot(e.pts[i + 1][0] - e.pts[i][0], e.pts[i + 1][1] - e.pts[i][1]); return L * mmPerPx(); }
+function hullArea() {                          // 전체 요소를 감싸는 볼록 껍질 면적 m² (매장 면적 근사)
+  const pts = st.els.flatMap(e => e.pts).sort((a, b) => a[0] - b[0] || a[1] - b[1]); if (pts.length < 3) return 0;
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]), lo = [], up = [];
+  for (const p of pts) { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (const p of pts.slice().reverse()) { while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+  const h = lo.slice(0, -1).concat(up.slice(0, -1)); let s = 0;
+  for (let i = 0; i < h.length; i++) { const a = h[i], b = h[(i + 1) % h.length]; s += a[0] * b[1] - b[0] * a[1]; }
+  return Math.abs(s) / 2 * mmPerPx() ** 2 / 1e6;
+}
+const fmt = mm => (mm / 1000).toFixed(mm >= 10000 ? 0 : 1) + ' m';
+function realPrompt() {
+  const by = t => st.els.filter(e => e.type === t), uniq = a => [...new Set(a)];
+  const L = [];
+  const A = hullArea();
+  L.push(`Photorealistic interior architectural visualization of ${st.name ? `the "${st.name}" store` : 'a compact cafe store'}${A > 5 ? `, about ${Math.round(A)} m²` : ''}, ceiling height ${st.ceil.toLocaleString()} mm.`);
+  L.push('Use the attached 3D massing image as the exact reference for layout, proportions and camera angle. Keep every element in the same position and size; only turn the simple blocks into realistic materials, fixtures and lighting.');
+  L.push('', 'Elements:');
+  for (const e of by('counter')) {
+    const [l, w] = rectMm(e), per = e.pts.reduce((s, p, i) => s + Math.hypot(e.pts[(i + 1) % e.pts.length][0] - p[0], e.pts[(i + 1) % e.pts.length][1] - p[1]), 0) * mmPerPx();
+    const shape = e.pts.length > 4 ? `Angled / L-shaped service counter with a total run of about ${fmt(per / 2 - 800)}` : `Straight service counter about ${fmt(l)} long and ${w} mm deep`;
+    L.push(`- ${shape}, ${elH(e)} mm high: front in ${matEN(e)}, top in ${EN.marble}, recessed ${EN.gold} kickplate with a warm LED glow on the floor.`);
+  }
+  if (by('backbar').length) L.push(`- ${by('backbar').length > 1 ? by('backbar').length + ' back counters' : 'A back counter'} / kitchen counter behind the service counter in ${uniq(by('backbar').map(matEN)).join(', ')}, with coffee machine, grinders and small equipment on top.`);
+  const tb = by('table'); if (tb.length) L.push(`- ${tb.length > 1 ? tb.length + ' tables' : 'One table'} (${uniq(tb.map(e => rectMm(e).map(v => (v / 1000).toFixed(1)).join(' × ') + ' m')).join(', ')}) in ${uniq(tb.map(matEN)).join(', ')} with black metal legs.`);
+  const ch = by('chair'); if (ch.length) L.push(`- ${ch.length} chair${ch.length > 1 ? 's' : ''} in ${uniq(ch.map(matEN)).join(', ')} around the tables.`);
+  const bx = by('box');
+  if (bx.length) {                             // 높이·깊이로 장비 성격을 풀어 씀
+    const KIND = { shelf: ['storage shelving unit', 'storage shelving units'], tall: ['tall refrigerator / ice machine', 'tall refrigerators / ice machines'],
+      kiosk: ['self-order kiosk or tall fixture', 'self-order kiosks or tall fixtures'], low: ['counter-height equipment cabinet', 'counter-height equipment cabinets'] };
+    const kind = e => { const [, d] = rectMm(e), h = elH(e); return h >= 1600 ? (d <= 650 ? 'shelf' : 'tall') : h >= 1100 ? 'kiosk' : 'low'; };
+    const g = {}; for (const e of bx) { const k = kind(e) + '|' + matEN(e); (g[k] = g[k] || []).push(e); }
+    L.push(`- Equipment / fixtures: ${Object.entries(g).map(([k, a]) => { const [n, m] = k.split('|'); return `${a.length} ${KIND[n][a.length > 1 ? 1 : 0]} in ${m} (${a.map(e => rectMm(e).join('×') + '×' + elH(e)).join(', ')} mm)`; }).join('; ')}.`);
+  }
+  const co = by('column'); if (co.length) L.push(`- ${co.length} structural column(s) clad in ${uniq(co.map(matEN)).join(', ')}, with thin metallic gold trim lines.`);
+  const wl = [...by('wall'), ...by('solid')]; if (wl.length) L.push(`- Walls finished in ${uniq(wl.map(matEN)).join(', ')}.`);
+  const gl = by('glass'), fd = by('folding');
+  if (gl.length || fd.length) L.push(`- Glazing: ${gl.length ? `${gl.length} glass section(s), total about ${fmt(gl.reduce((s, e) => s + lineLen(e), 0))}` : ''}${gl.length && fd.length ? '; ' : ''}${fd.length ? `${fd.length} full-height glass folding door section(s) with ${uniq(fd.map(matEN)).join(', ')} header band` : ''}, bringing in natural daylight.`);
+  if (by('screen').length) L.push(`- ${by('screen').length} digital menu board(s) above the back counter.`);
+  L.push('', 'Lighting: warm 3000K track spotlights aimed at the counter and tables, soft indirect LED under the counter, natural daylight from the glazing.');
+  L.push('Camera: eye level (about 1.6 m), 35 mm lens, natural perspective, same viewpoint as the reference image.');
+  L.push('Style: clean modern premium cafe interior, realistic materials and reflections, high resolution. No people. Do not invent text, logos or signage.');
+  return L.join('\n');
+}
+$('bPrompt').onclick = () => {
+  if (!st.els.length) return alert('먼저 도면을 불러와 3D를 만드세요.');
+  $('promptTxt').value = realPrompt(); $('promptCard').classList.remove('hidden');
+  $('promptCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+$('bPromptClose').onclick = () => $('promptCard').classList.add('hidden');
+$('bCopy').onclick = async () => {
+  const t = $('promptTxt');
+  try { await navigator.clipboard.writeText(t.value); } catch { t.select(); document.execCommand('copy'); }
+  $('bCopy').textContent = '복사됨'; setTimeout(() => $('bCopy').textContent = '복사', 1500);
+};
+
 /* ================= 3D ================= */
 const p3 = $('p3d');
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -1024,6 +1156,14 @@ function seg(a, b, t, y0, h, m, ext = 0) {     // a,b: m 좌표. ext: 양 끝 �
   mesh.rotation.y = -Math.atan2(b[1] - a[1], b[0] - a[0]);
   return add(mesh, m.opacity === undefined || m.opacity === 1);
 }
+const cen = P => [P.reduce((s, p) => s + p[0], 0) / P.length, P.reduce((s, p) => s + p[1], 0) / P.length];
+function edgeAway(P, i, t) {                   // i번째 변 중점이 점 t 에서 떨어진 거리 (의자 등받이 방향)
+  const a = P[i], b = P[(i + 1) % P.length]; return Math.hypot((a[0] + b[0]) / 2 - t[0], (a[1] + b[1]) / 2 - t[1]);
+}
+function legs(P, y0, h, w) {                   // 꼭짓점 안쪽에 검은 다리 (꼭짓점이 많으면 가운데 기둥 하나)
+  const dk = mat('dark', MATS.dark.c), spots = P.length <= 6 ? offsetPoly(P, 0.07) : [cen(P)];
+  for (const [x, z] of spots) { const g = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), dk); g.position.set(x, y0 + h / 2, z); add(g); }
+}
 function offsetPoly(pts, d) {                  // 다각형 안쪽으로 d(m) 오프셋 (걸레받이용)
   let area = 0; for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; area += a[0] * b[1] - b[0] * a[1]; }
   const s = area > 0 ? 1 : -1, n = pts.length;
@@ -1090,6 +1230,19 @@ function build3d() {
         prism(P, y0 + kick, Math.max(0.01, h - kick - top), m);
         prism(P, y0 + h - top, top, mat('marble', MATS.marble.c));
         prism(P, 0.001, 0.003, new THREE.MeshBasicMaterial({ color: '#ffcf86' }));
+      } else if (e.type === 'table') {          // 상판 50mm + 다리
+        prism(P, y0 + h - 0.05, 0.05, m);
+        legs(P, y0, h - 0.05, 0.06);
+      } else if (e.type === 'chair') {          // 좌판 450 + 다리 + 테이블 반대편 등받이
+        prism(offsetPoly(P, 0.02), y0 + 0.42, 0.04, m);
+        legs(P, y0, 0.42, 0.03);
+        const c = cen(P), tb = st.els.filter(q => q.type === 'table').map(q => cen(q.pts.map(toM)));
+        if (tb.length && h > 0.5) {
+          const t = tb.sort((a, b) => Math.hypot(a[0] - c[0], a[1] - c[1]) - Math.hypot(b[0] - c[0], b[1] - c[1]))[0];
+          let far = 0; for (let i = 1; i < P.length; i++) if (edgeAway(P, i, t) > edgeAway(P, far, t)) far = i;
+          const a = P[far], b = P[(far + 1) % P.length], d = 0.03, k = [c[0] - (a[0] + b[0]) / 2, c[1] - (a[1] + b[1]) / 2], kl = Math.hypot(...k) || 1;
+          seg([a[0] + k[0] / kl * d, a[1] + k[1] / kl * d], [b[0] + k[0] / kl * d, b[1] + k[1] / kl * d], 0.03, y0 + 0.46, h - 0.46, m);
+        }
       } else prism(P, y0, h, m);
       if ((e.type === 'counter' || e.type === 'table') && lights < 6) {   // 3000K 웜 스팟
         const cxm = P.reduce((s, p) => s + p[0], 0) / P.length, czm = P.reduce((s, p) => s + p[1], 0) / P.length;
