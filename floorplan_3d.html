@@ -906,7 +906,7 @@ $('bAI').onclick = async () => {
     if (d.ceiling_mm >= 2000 && d.ceiling_mm <= 6000) st.ceil = d.ceiling_mm;
     commit(); syncInputs(); queue3d(true);
     setStatus(st.els.length
-      ? `<b>AI 인식 완료</b> — ${countText()}<br><span class="muted">AI 결과는 위치가 어긋날 수 있습니다. [수정하기]로 확인하세요.${dm ? '' : ' 축척을 못 읽었으니 [수정하기 → 축척 맞추기]를 하세요.'}</span>`
+      ? `<b>AI 인식 완료</b> — ${countText()}<br><span class="muted">AI 결과는 위치가 어긋날 수 있습니다. [수정하기]로 확인하세요.${dm ? '' : ' 축척을 못 읽었으니 [수정하기 → 축척 맞추기]를 하세요.'}${d.truncated ? ' 응답이 길어 일부만 받았습니다 — 빠진 요소는 직접 그려 주세요.' : ''}</span>`
       : 'AI가 요소를 찾지 못했습니다. [수정하기]로 직접 그려 주세요.', !st.els.length || !dm);
   } catch (err) {
     console.error(err); setStatus('AI 인식 실패: ' + err.message, true);
@@ -923,7 +923,8 @@ Return JSON only, in this exact shape:
  "elements":[{"type":"wall|glass|column|solid|counter|backbar|table|box","points":[[x,y],...],"thickness_mm":number}]}
 Coordinates: integers 0-1000, normalized to image width (x) and height (y), origin top-left.
 - wall, glass: centerline polyline (2+ points) with thickness_mm. glass = windows, glass doors, folding doors.
-- column, solid (thick wall mass), counter (customer service counter), backbar (kitchen/back counters), table, box (large equipment): closed outline polygon (3+ points).
+- column, solid (thick wall mass), counter (customer service counter), backbar (kitchen/back counters), table, chair, box (large equipment): closed outline polygon (3+ points). Use 4 corner points for rectangles.
+- Return at most 120 elements; merge small fragments of the same wall.
 - Ignore the title block, text, dimension lines, hatching legends, door swing arcs.
 - dimension: choose one clearly labeled dimension line; give its two end points and the labeled length in mm.
 - ceiling_mm: only if a ceiling height (e.g. "SL:2,990" or "CH 2700") is written, else null.`;
@@ -931,7 +932,7 @@ Coordinates: integers 0-1000, normalized to image width (x) and height (y), orig
     method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
     body: JSON.stringify({
       contents: [{ parts: [{ inline_data: { mime_type: 'image/jpeg', data: b64 } }, { text: prompt }] }],
-      generationConfig: { responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } },
+      generationConfig: { responseMimeType: 'application/json', responseSchema: AI_SCHEMA, temperature: 0.1, maxOutputTokens: 32768, thinkingConfig: { thinkingBudget: 0 } },
     }),
   });
   if (!res.ok) {
@@ -939,9 +940,38 @@ Coordinates: integers 0-1000, normalized to image width (x) and height (y), orig
     if (res.status === 400 || res.status === 403) { try { localStorage.removeItem(AI_KEY); } catch {} }
     throw new Error(`HTTP ${res.status} — ${res.status === 400 || res.status === 403 ? 'API 키를 확인하세요(다시 누르면 새로 입력)' : t.slice(0, 120)}`);
   }
-  const j = await res.json();
-  const txt = (j.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').replace(/^```(json)?|```$/g, '').trim();
-  try { return JSON.parse(txt); } catch { throw new Error('AI 응답을 해석하지 못했습니다'); }
+  const j = await res.json(), cand = j.candidates?.[0];
+  const txt = (cand?.content?.parts || []).map(p => p.text || '').join('').replace(/^\s*```(json)?|```\s*$/g, '').trim();
+  const d = parseAI(txt);
+  if (d) return d;
+  console.warn('Gemini 원문', j);
+  const why = cand?.finishReason || j.promptFeedback?.blockReason || '알 수 없음';
+  throw new Error(`AI 응답을 해석하지 못했습니다 (종료 사유: ${why}${why === 'MAX_TOKENS' ? ' — 응답이 너무 길어 잘림' : ''}). 응답 앞부분: ${txt.slice(0, 80) || '(비어 있음)'}`);
+}
+// Gemini 가 지킬 JSON 구조
+const AI_SCHEMA = {
+  type: 'OBJECT', required: ['elements'], properties: {
+    dimension: { type: 'OBJECT', nullable: true, properties: { p1: { type: 'ARRAY', items: { type: 'NUMBER' } }, p2: { type: 'ARRAY', items: { type: 'NUMBER' } }, mm: { type: 'NUMBER' } } },
+    ceiling_mm: { type: 'NUMBER', nullable: true },
+    elements: { type: 'ARRAY', items: { type: 'OBJECT', required: ['type', 'points'], properties: {
+      type: { type: 'STRING', enum: ['wall', 'glass', 'column', 'solid', 'counter', 'backbar', 'table', 'chair', 'box'] },
+      points: { type: 'ARRAY', items: { type: 'ARRAY', items: { type: 'NUMBER' } } },
+      thickness_mm: { type: 'NUMBER' } } } },
+  },
+};
+// JSON 해석. 앞뒤 군더더기는 잘라내고, 길이 제한으로 잘렸으면 마지막으로 완성된 요소까지 살린다
+function parseAI(txt) {
+  const tryP = s => { try { const v = JSON.parse(s); return v && typeof v === 'object' ? v : null; } catch { return null; } };
+  let d = tryP(txt); if (d) return d;
+  const a = txt.indexOf('{'); if (a < 0) return null;
+  const b = txt.lastIndexOf('}');
+  if (b > a && (d = tryP(txt.slice(a, b + 1)))) return d;
+  const body = txt.slice(a), k = body.indexOf('"elements"'); if (k < 0) return null;
+  for (let i = body.length - 1; i > k; i--) {             // 뒤에서부터 요소 끝 '}' 를 찾아 배열·객체를 닫아 봄
+    if (body[i] !== '}') continue;
+    if ((d = tryP(body.slice(0, i + 1) + ']}'))) { d.truncated = true; return d; }
+  }
+  return null;
 }
 
 /* 수정 모드 */
