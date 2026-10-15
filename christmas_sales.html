@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>크리스마스 판매 조회</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#0F1A2A; --ink2:#33445C; --slate:#6B7A90; --faint:#9AA7B8;
+    --rule:#D7DEE7; --rule-soft:#E8EDF3; --field:#EDF1F6; --card:#FFFFFF;
+    --berry:#C0183C; --pine:#0F5A46; --amber:#9A6200;
+    --sans:'IBM Plex Sans KR','Pretendard','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --shadow:0 1px 2px rgba(15,26,42,.06),0 8px 24px rgba(15,26,42,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--field);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:14px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  body::before{content:"";display:block;height:4px;background:var(--berry)}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 20px 72px}
+
+  /* ---------- top bar ---------- */
+  .topbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:26px 0 20px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:14px}
+  .mark{
+    font-family:var(--mono);font-weight:600;font-size:13px;letter-spacing:.06em;
+    color:#fff;background:var(--ink);border-radius:3px;padding:9px 10px;line-height:1;
+  }
+  .brand h1{margin:0;font-size:20px;font-weight:700;letter-spacing:-.02em}
+  .brand p{margin:2px 0 0;color:var(--slate);font-size:12.5px}
+  .src{font-family:var(--mono);font-size:11.5px;color:var(--slate);letter-spacing:.01em}
+
+  /* ---------- command bar ---------- */
+  .cmdbar{
+    background:var(--card);border:1px solid var(--rule);border-radius:4px;
+    display:flex;align-items:center;gap:0;box-shadow:var(--shadow);position:relative;z-index:5;
+  }
+  .cmdlabel{
+    font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--slate);
+    padding:0 14px;border-right:1px solid var(--rule-soft);align-self:stretch;display:flex;align-items:center;
+    text-transform:uppercase;white-space:nowrap;
+  }
+  #q{
+    flex:1;border:0;outline:0;background:transparent;font-family:var(--sans);
+    font-size:19px;font-weight:600;letter-spacing:-.01em;color:var(--ink);
+    padding:16px 14px;min-width:0;
+  }
+  #q::placeholder{font-weight:500;color:var(--faint)}
+  .cmdbar .hint{font-family:var(--mono);font-size:11px;color:var(--faint);padding-right:14px;white-space:nowrap}
+  .cmdbar button{
+    border:0;background:transparent;font-family:var(--mono);font-size:11px;color:var(--slate);
+    padding:16px 14px;cursor:pointer;border-left:1px solid var(--rule-soft);letter-spacing:.04em;
+  }
+  .cmdbar button:hover{color:var(--berry);background:#FBF3F5}
+  .ac{
+    position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--card);
+    border:1px solid var(--rule);border-radius:4px;box-shadow:0 14px 34px rgba(15,26,42,.14);
+    max-height:298px;overflow:auto;display:none;
+  }
+  .ac.on{display:block}
+  .ac-item{
+    display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+    padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--rule-soft);
+  }
+  .ac-item:last-child{border-bottom:0}
+  .ac-item b{font-weight:600}
+  .ac-item mark{background:rgba(192,24,60,.13);color:var(--berry);font-weight:700;border-radius:2px;padding:0 1px}
+  .ac-item .m{font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .ac-item.sel,.ac-item:hover{background:#F3F6FA}
+  .ac-item.sel{box-shadow:inset 3px 0 0 var(--berry)}
+
+  /* ---------- layout ---------- */
+  main{display:grid;grid-template-columns:250px minmax(0,1fr);gap:22px;align-items:start;margin-top:22px}
+  .panel{background:var(--card);border:1px solid var(--rule);border-radius:4px;box-shadow:var(--shadow);position:sticky;top:16px}
+  .panel-head{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+    padding:11px 13px;border-bottom:1px solid var(--rule-soft);
+    font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--slate);text-transform:uppercase;
+  }
+  .panel-head span{color:var(--ink);font-weight:600}
+  #storeList{list-style:none;margin:0;padding:5px;max-height:60vh;overflow:auto}
+  #storeList li{
+    padding:7px 9px;border-radius:3px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;gap:8px;
+  }
+  #storeList li .n{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+  #storeList li:hover{background:#F3F6FA}
+  #storeList li.on{background:#FBEEF1;color:var(--berry);font-weight:600;box-shadow:inset 3px 0 0 var(--berry)}
+  #storeList li.on .n{color:var(--berry)}
+  .panel-foot{padding:9px 13px;border-top:1px solid var(--rule-soft);font-size:11px;color:var(--faint)}
+
+  /* ---------- empty state ---------- */
+  .empty{
+    background:var(--card);border:1px solid var(--rule);border-radius:4px;padding:40px 28px;text-align:center;
+    box-shadow:var(--shadow);position:relative;overflow:hidden;
+  }
+  .empty::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--berry)}
+  .empty h2{margin:0 0 6px;font-size:16px;font-weight:600}
+  .empty p{margin:0;color:var(--slate);font-size:13px}
+  .chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:18px}
+  .chip{
+    font-family:var(--mono);font-size:12px;background:var(--field);border:1px solid var(--rule);
+    border-radius:999px;padding:6px 12px;cursor:pointer;color:var(--ink2);
+  }
+  .chip:hover{border-color:var(--berry);color:var(--berry);background:#FBF3F5}
+
+  /* ---------- result ---------- */
+  .rhead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+  .rhead .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--slate);text-transform:uppercase}
+  .rhead h2{margin:3px 0 0;font-size:27px;font-weight:700;letter-spacing:-.03em;line-height:1.15}
+  .rhead h2 em{font-style:normal;color:var(--faint);font-weight:500}
+  .tools{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{
+    font-family:var(--mono);font-size:11.5px;letter-spacing:.03em;background:var(--card);
+    border:1px solid var(--rule);border-radius:3px;padding:8px 11px;cursor:pointer;color:var(--ink2);
+  }
+  .btn:hover{border-color:var(--ink2);color:var(--ink)}
+  .btn.pri{background:var(--ink);border-color:var(--ink);color:#fff}
+  .btn.pri:hover{background:var(--berry);border-color:var(--berry);color:#fff}
+
+  /* ---------- dashboard ---------- */
+  .dash{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:12px}
+  .dcard{background:var(--card);border:1px solid var(--rule);border-radius:4px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .dcard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--pine)}
+  .dcard[data-cat="이벤트"]::before{background:var(--berry)}
+  .dhead{display:flex;align-items:center;gap:9px;padding:12px 14px 0 17px}
+  .dhead .dn{font-weight:700;font-size:15px;letter-spacing:-.01em}
+  .dhead .dc{font-family:var(--mono);font-size:11px;color:var(--slate)}
+  .dhead .dbadge{
+    margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--slate);
+    border:1px solid var(--rule);border-radius:999px;padding:2px 9px;white-space:nowrap;
+  }
+  .dbody{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 20px;align-items:end;padding:9px 15px 14px 17px}
+  .dnum .dk{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--slate);text-transform:uppercase}
+  .dnum b{display:block;font-family:var(--mono);font-size:31px;font-weight:600;letter-spacing:-.035em;line-height:1.05;margin-top:2px}
+  .dnum b small{font-size:11px;font-weight:500;color:var(--faint);margin-left:4px;letter-spacing:0}
+  .dcard[data-cat="이벤트"] .dnum b{color:var(--berry)}
+  .dprog{min-width:0;padding-bottom:3px}
+  .dprog .dl{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-family:var(--mono);font-size:10.5px;color:var(--slate)}
+  .dprog .dl b{font-size:16px;color:var(--ink);font-weight:600;letter-spacing:-.02em}
+  .dprog .bar{height:6px;background:var(--rule-soft);border-radius:3px;margin-top:7px;overflow:hidden}
+  .dprog .bar i{display:block;height:100%;background:var(--pine);border-radius:3px}
+  .dcard[data-cat="이벤트"] .dprog .bar i{background:var(--berry)}
+  .dsub{
+    grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;
+    border-top:1px solid var(--rule-soft);margin-top:9px;padding-top:10px;
+  }
+  .dsub div span{display:block;font-family:var(--mono);font-size:10.5px;color:var(--slate)}
+  .dsub div b{font-family:var(--mono);font-size:15px;font-weight:600;letter-spacing:-.02em}
+  .dall{
+    display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:var(--ink);color:#fff;
+    border-radius:4px;padding:11px 15px;margin-bottom:16px;
+  }
+  .dall .lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:#9FB0C6;text-transform:uppercase}
+  .dall span b{font-family:var(--mono);font-size:16px;font-weight:600;letter-spacing:-.02em}
+  .dall .sp{margin-left:auto;font-family:var(--mono);font-size:11px;color:#B9C7D8}
+  .dall .sp b{font-size:18px;color:#fff}
+  .dall .sp i{font-style:normal;color:#fff;font-size:13px}
+  .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  td.prod .pc{display:flex;align-items:center;gap:9px;min-width:0}
+  td.prod .pn{min-width:0}
+  .thumb{width:38px;height:38px;flex:0 0 38px;border-radius:3px;border:1px dashed var(--rule);
+    background:var(--field);display:flex;align-items:center;justify-content:center;cursor:pointer;
+    position:relative;overflow:hidden;padding:0}
+  .thumb.ghost{border:0;background:transparent;cursor:default;visibility:hidden}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .thumb.has{border-style:solid;border-color:var(--rule);background:#fff}
+  .thumb .plus{font-family:var(--mono);font-size:14px;color:var(--faint);line-height:1}
+  .thumb .del{position:absolute;right:0;top:0;display:none;border:0;cursor:pointer;padding:2px 4px;
+    background:rgba(15,26,42,.78);color:#fff;font-size:9px;line-height:1.1;border-radius:0 0 0 3px}
+  .thumb.has:hover .del,.thumb.has:focus-within .del{display:block}
+  .thumb:focus-visible{outline:2px solid var(--berry);outline-offset:1px}
+  .chint{float:right;font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+
+
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+  caption{caption-side:top;text-align:left;font-size:12px;color:var(--slate);padding:0 0 8px}
+  th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--rule-soft);vertical-align:middle}
+  thead th{
+    background:#F7F9FC;font-family:var(--mono);font-size:11px;letter-spacing:.04em;font-weight:600;
+    color:var(--ink2);border-bottom:1px solid var(--rule);white-space:nowrap;
+  }
+  thead th.num{text-align:right;cursor:pointer;user-select:none}
+  thead th.num:hover{color:var(--berry)}
+  thead th .ar{color:var(--berry);font-size:9px;margin-left:4px}
+  thead th:first-child{width:118px}
+  td.num{text-align:right;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+  td.cat{font-family:var(--mono);font-size:11.5px;color:var(--slate)}
+  td.prod{font-weight:500}
+  tr.zero td.num{color:#C3CBD6}
+  tr.zero td.prod{color:var(--slate);font-weight:400}
+
+  tr.grp td{background:#F7F9FC;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:0}
+  tr.grp .gt{display:flex;align-items:center;gap:9px;padding:9px 12px;cursor:pointer}
+  tr.grp .tg{
+    font-family:var(--mono);font-size:12px;width:15px;height:15px;line-height:13px;text-align:center;
+    border:1px solid var(--rule);border-radius:2px;background:#fff;color:var(--ink2);
+  }
+  tr.grp .gn{font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:8px}
+  tr.grp .gn::before{content:"";width:4px;height:15px;border-radius:1px;background:var(--pine)}
+  tr.grp[data-cat="이벤트"] .gn::before{background:var(--berry)}
+  tr.grp .gc{font-family:var(--mono);font-size:11px;color:var(--slate)}
+  tr.grp .gs{margin-left:auto;display:flex;gap:22px;font-family:var(--mono);font-size:11.5px;color:var(--slate)}
+  tr.grp .gs b{color:var(--ink2);font-weight:600}
+
+  tr.sub td{background:#FCFDFE;border-top:1px solid var(--rule-soft)}
+  tr.sub td.prod{font-weight:600;font-size:12.5px;color:var(--ink2)}
+  tr.sub td.num{font-weight:600;color:var(--ink2)}
+
+  tr.total td{border-top:3px double var(--ink);border-bottom:0;background:#fff;font-weight:700;font-size:14px;padding:12px}
+  tr.total td.num{font-size:15px}
+  tr.total td:first-child{letter-spacing:-.01em}
+  tfoot td{background:#F7F9FC;border-bottom:0;font-size:12px;color:var(--slate);padding:10px 12px}
+
+  .note{margin:14px 0 0;font-size:12px;color:var(--slate);line-height:1.7}
+  .note b{color:var(--ink2);font-weight:600}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+  @media (max-width:900px){
+    main{grid-template-columns:minmax(0,1fr)}
+    .panel{position:static;order:2}
+    #storeList{max-height:230px}
+    .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .dash{grid-template-columns:1fr}
+    .dall{gap:12px;padding:11px 13px}
+    .dall .sp{margin-left:0;width:100%}
+    .rhead h2{font-size:22px}
+    #q{font-size:17px}
+    .cmdbar .hint{display:none}
+    tr.grp .gs{display:none}
+    th,td{padding:8px 9px}
+    thead th:first-child{width:auto}
+    td.cat{display:none}
+    thead th.cat{display:none}
+    th,td.prod{white-space:nowrap}
+    .thumb{width:30px;height:30px;flex:0 0 30px}
+    .chint{display:none}
+    td.num{font-size:12.5px}
+    .tablewrap{margin:0 -2px}
+    table{min-width:520px}
+  }
+  /* ---------- 엑셀 업로드 ---------- */
+  .topright{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+  .topbtns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .topbtns .btn.home{text-decoration:none}
+  .drop{
+    margin-top:18px;border:1.5px dashed var(--rule);border-radius:4px;padding:26px 16px;cursor:pointer;
+    background:var(--field);transition:border-color .15s,background .15s;
+  }
+  .drop:hover{border-color:var(--berry);background:#FBF3F5}
+  .drop b{display:block;font-size:14px;color:var(--ink)}
+  .drop span{display:block;margin-top:4px;font-size:12px;color:var(--slate)}
+  .cols{margin-top:14px;font-family:var(--mono);font-size:11px;color:var(--faint);line-height:1.8}
+  body.dragging::after{
+    content:"엑셀 파일을 놓으면 불러옵니다";position:fixed;inset:12px;border:2px dashed var(--berry);border-radius:6px;
+    background:rgba(237,241,246,.92);display:flex;align-items:center;justify-content:center;
+    font:600 18px var(--sans);color:var(--berry);z-index:200;pointer-events:none;
+  }
+  @media (max-width:640px){.topright{align-items:flex-start}.topbtns{justify-content:flex-start}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+  :focus-visible{outline:2px solid var(--berry);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark" id="mark">XMAS</span>
+      <div>
+        <h1 id="h1">크리스마스 판매 조회</h1>
+        <p>점포명을 입력하면 제품별 출하·판매 집계가 나옵니다</p>
+      </div>
+    </div>
+    <div class="topright">
+      <div class="topbtns">
+        <button class="btn pri" type="button" id="upBtn">엑셀 올리기</button>
+        <button class="btn" type="button" id="saveBtn" title="데이터와 사진을 담은 HTML 파일 하나로 저장 — 메일·메신저로 공유하면 인터넷 없이도 열립니다">공유용 HTML 저장</button>
+        <a class="btn home" href="index.html">업무 모음</a>
+      </div>
+      <div class="src" id="src">데이터 없음 · 작년 판매 엑셀을 올려 주세요</div>
+    </div>
+  </header>
+
+  <div class="cmdbar">
+    <label class="cmdlabel" for="q">점포명</label>
+    <input id="q" type="text" autocomplete="off" spellcheck="false" placeholder="예: 길동역, 성남물빛정원, 부산사직" aria-controls="ac" aria-expanded="false">
+    <span class="hint">↑↓ 이동 · Enter 선택</span>
+    <button type="button" id="reset">초기화</button>
+    <div class="ac" id="ac" role="listbox" aria-label="점포명 검색 결과"></div>
+  </div>
+
+  <main>
+    <aside class="panel">
+      <div class="panel-head">전체 점포 <span id="storeCount">0</span></div>
+      <ul id="storeList"></ul>
+      <div class="panel-foot">이름 일부만 입력해도 찾을 수 있습니다</div>
+    </aside>
+    <section id="result" aria-live="polite"></section>
+  </main>
+</div>
+
+<script id="imgmap">window.IMAGES = /*__IMGMAP__*/{};</script>
+<script>
+window.SALES_DATA = /*__DATA__*/null;
+</script>
+<script>
+(function(){
+  "use strict";
+  var D = null, CATS = [], PRODS = [], STORES = [], ROWS = [];
+  var DATA_LSK = 'xmas_sales_data_v1';
+  /* ---- 제품 사진 ---- */
+  var PRISTINE = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  var LSK = 'xmas_imgs_v1';
+  var IMAGES = {}, DELETED = [];
+  function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+  function lsSet(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
+  (function(){
+    var baked = window.IMAGES || {};
+    Object.keys(baked).forEach(function(k){ IMAGES[k] = baked[k]; });
+    var raw = lsGet(LSK);
+    if(raw){ try{ var saved = JSON.parse(raw); Object.keys(saved).forEach(function(k){ IMAGES[k] = saved[k]; }); }catch(e){} }
+    var rawDel = lsGet(LSK + '_del');
+    if(rawDel){ try{ DELETED = JSON.parse(rawDel) || []; }catch(e){ DELETED = []; } }
+    DELETED.forEach(function(k){ delete IMAGES[k]; });
+  })();
+  function saveImgs(){ lsSet(LSK, JSON.stringify(IMAGES)); lsSet(LSK + '_del', JSON.stringify(DELETED)); }
+  function setImg(name, src){
+    IMAGES[name] = src;
+    var k = DELETED.indexOf(name); if(k >= 0) DELETED.splice(k, 1);
+    saveImgs();
+  }
+  function delImg(name){
+    delete IMAGES[name];
+    if(DELETED.indexOf(name) < 0) DELETED.push(name);
+    saveImgs();
+  }
+  function thumb(name){
+    var src = IMAGES[name];
+    if(src){
+      return '<span class="thumb has" data-p="' + esc(name) + '" role="button" tabindex="0" title="클릭해서 사진 변경">' +
+        '<img src="' + src + '" alt="' + esc(name) + ' 사진">' +
+        '<button class="del" type="button" data-del="' + esc(name) + '" title="사진 삭제" aria-label="사진 삭제">\u2715</button></span>';
+    }
+    return '<span class="thumb" data-p="' + esc(name) + '" role="button" tabindex="0" title="클릭해서 사진 넣기">' +
+      '<span class="plus">\uFF0B</span></span>';
+  }
+  function pc(name, ghost){
+    return '<div class="pc">' + (ghost ? '<span class="thumb ghost" aria-hidden="true"></span>' : thumb(name)) +
+           '<span class="pn">' + esc(name) + '</span></div>';
+  }
+
+
+  /* 분류 표기 순서 — 이벤트 우선 */
+  var CAT_ORDER = ['이벤트', '상시'];
+  var ORD = [];
+  var byStore = new Map();
+
+  /* ---- 데이터 적용 (엑셀 업로드 · 저장본 · 내장 데이터 공통) ---- */
+  function setData(d){
+    D = d; CATS = d.cats; PRODS = d.prods; STORES = d.stores; ROWS = d.rows;
+    ORD = CAT_ORDER.filter(function(c){ return CATS.indexOf(c) >= 0; });
+    CATS.forEach(function(c){ if(ORD.indexOf(c) < 0) ORD.push(c); });
+    byStore = new Map();
+    ROWS.forEach(function(r){
+      var a = byStore.get(r[0]);
+      if(!a){ a = []; byStore.set(r[0], a); }
+      a.push(r);
+    });
+    var label = d.label || '';
+    document.title = '점포별 판매 조회' + (label ? ' · ' + label + ' 크리스마스' : '');
+    document.getElementById('h1').textContent = (label ? label + ' ' : '') + '크리스마스 판매 조회';
+    document.getElementById('mark').textContent = /^\d{2}년$/.test(label) ? 'X' + label.slice(0, 2) : 'XMAS';
+    document.getElementById('src').textContent = '원본 · ' + (d.file || '엑셀') + ' · ' + n(STORES.length) + '개 점포 · ' + n(ROWS.length) + '행';
+    state.store = null; state.q = ''; state.closed = {}; elQ.value = '';
+    renderList(); renderEmpty(); closeAc();
+  }
+
+  /* ---- helpers ---- */
+  var nf = new Intl.NumberFormat('ko-KR');
+  function n(v){ return nf.format(v); }
+  function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
+  function hl(name, q){
+    if(!q) return esc(name);
+    var i = name.toLowerCase().indexOf(q.toLowerCase());
+    if(i < 0) return esc(name);
+    return esc(name.slice(0,i)) + '<mark>' + esc(name.slice(i, i+q.length)) + '</mark>' + esc(name.slice(i+q.length));
+  }
+  /* prefix matches first, then substring, then length */
+  function rank(name, q){
+    var l = name.toLowerCase(), s = q.toLowerCase(), i = l.indexOf(s);
+    if(i < 0) return 99;
+    if(i === 0) return 0;
+    return 1 + i / 100;
+  }
+
+  /* ---- aggregate one store into pivot rows ---- */
+  function pivot(storeIdx, sortKey, sortDir){
+    var raw = byStore.get(storeIdx) || [];
+    var groups = new Map();   // catIdx -> Map(prodIdx -> sums)
+    raw.forEach(function(r){
+      var g = groups.get(r[1]);
+      if(!g){ g = new Map(); groups.set(r[1], g); }
+      var p = g.get(r[2]);
+      if(!p){ p = {ship:0, sales:0, order:0, field:0}; g.set(r[2], p); }
+      p.ship += r[3]; p.sales += r[4]; p.order += r[5]; p.field += r[6];
+    });
+    var out = [];
+    ORD.forEach(function(catName){
+      var ci = CATS.indexOf(catName);
+      var g = groups.get(ci);
+      if(!g) return;
+      var items = [];
+      g.forEach(function(v, pi){ items.push({name: PRODS[pi], ship:v.ship, sales:v.sales, order:v.order, field:v.field}); });
+      if(sortKey === 'name'){
+        items.sort(function(a,b){ return a.name.localeCompare(b.name, 'ko'); });
+      } else {
+        items.sort(function(a,b){
+          var d = b[sortKey] - a[sortKey];
+          if(d === 0) return a.name.localeCompare(b.name, 'ko');
+          return sortDir === 'asc' ? -d : d;
+        });
+      }
+      var sum = {ship:0, sales:0, order:0, field:0};
+      items.forEach(function(it){ sum.ship += it.ship; sum.sales += it.sales; sum.order += it.order; sum.field += it.field; });
+      out.push({cat: catName, items: items, sum: sum});
+    });
+    var tot = {ship:0, sales:0, order:0, field:0};
+    out.forEach(function(g){ tot.ship += g.sum.ship; tot.sales += g.sum.sales; tot.order += g.sum.order; tot.field += g.sum.field; });
+    return {groups: out, total: tot};
+  }
+
+  /* ---- state ---- */
+  var state = { store: null, q: '', sel: -1, sortKey: 'name', sortDir: 'desc', closed: {} };
+  var elQ = document.getElementById('q'),
+      elAc = document.getElementById('ac'),
+      elList = document.getElementById('storeList'),
+      elRes = document.getElementById('result'),
+      elCount = document.getElementById('storeCount');
+
+
+  /* ---- autocomplete ---- */
+  function matches(q){
+    if(!q) return STORES.map(function(s,i){ return {i:i, name:s}; });
+    var out = [];
+    for(var i=0;i<STORES.length;i++){
+      var r = rank(STORES[i], q);
+      if(r < 99) out.push({i:i, name:STORES[i], r:r});
+    }
+    out.sort(function(a,b){ return a.r - b.r || a.name.length - b.name.length; });
+    return out.slice(0, 40);
+  }
+  function closeAc(){ elAc.classList.remove('on'); elQ.setAttribute('aria-expanded','false'); state.sel = -1; }
+  function openAc(){
+    var list = matches(state.q);
+    if(!list.length){
+      elAc.innerHTML = '<div class="ac-item" style="cursor:default;color:#6B7A90">일치하는 점포가 없습니다. 이름 일부를 다시 입력해 보세요.</div>';
+      elAc.classList.add('on'); elQ.setAttribute('aria-expanded','true'); return;
+    }
+    elAc.innerHTML = list.map(function(o, k){
+      return '<div class="ac-item' + (k === state.sel ? ' sel' : '') + '" role="option" data-i="' + o.i + '">' +
+             '<b>' + hl(o.name, state.q) + '</b><span class="m">' + n(byStore.get(o.i).length) + '행</span></div>';
+    }).join('');
+    elAc.classList.add('on'); elQ.setAttribute('aria-expanded','true');
+  }
+  elAc.addEventListener('mousedown', function(e){
+    var it = e.target.closest('.ac-item'); if(!it || !it.dataset.i) return;
+    e.preventDefault(); select(+it.dataset.i);
+  });
+  elQ.addEventListener('input', function(){
+    state.q = elQ.value.trim(); state.sel = -1; renderList(); openAc();
+  });
+  elQ.addEventListener('focus', function(){ if(elQ.value.trim() || !state.store) openAc(); });
+  elQ.addEventListener('keydown', function(e){
+    var opts = elAc.querySelectorAll('.ac-item[data-i]');
+    if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      if(!elAc.classList.contains('on')) { openAc(); return; }
+      if(!opts.length) return;
+      e.preventDefault();
+      state.sel = e.key === 'ArrowDown'
+        ? Math.min(state.sel + 1, opts.length - 1)
+        : Math.max(state.sel - 1, 0);
+      opts.forEach(function(o,k){ o.classList.toggle('sel', k === state.sel); });
+      opts[state.sel].scrollIntoView({block:'nearest'});
+    } else if(e.key === 'Enter'){
+      e.preventDefault();
+      var pick = opts[state.sel] || opts[0];
+      if(pick) select(+pick.dataset.i);
+    } else if(e.key === 'Escape'){
+      closeAc();
+    }
+  });
+  document.getElementById('reset').addEventListener('click', function(){
+    state.q = ''; state.store = null; state.closed = {}; elQ.value = ''; renderList(); renderEmpty(); closeAc(); elQ.focus();
+  });
+  document.addEventListener('click', function(e){ if(!e.target.closest('.cmdbar')) closeAc(); });
+
+  /* ---- store list panel ---- */
+  function renderList(){
+    var list = matches(state.q).slice(0, 400);
+    elList.innerHTML = list.map(function(o){
+      return '<li data-i="' + o.i + '"' + (state.store === o.i ? ' class="on"' : '') + '>' +
+             '<span>' + hl(o.name, state.q) + '</span><span class="n">' + n(byStore.get(o.i).length) + '</span></li>';
+    }).join('');
+    elCount.textContent = n(list.length);
+  }
+  elList.addEventListener('click', function(e){
+    var li = e.target.closest('li'); if(!li) return; select(+li.dataset.i);
+  });
+
+  /* ---- select a store ---- */
+  function select(i){
+    state.store = i; state.closed = {};
+    elQ.value = STORES[i]; state.q = STORES[i];
+    renderList(); closeAc(); render();
+    document.getElementById('result').scrollIntoView({block:'start', behavior:'smooth'});
+  }
+
+  /* ---- rendering ---- */
+  function renderEmpty(){
+    if(!D){
+      elRes.innerHTML =
+        '<div class="empty">' +
+        '<h2>작년 크리스마스 판매 엑셀을 올려 주세요</h2>' +
+        '<p>파일은 이 브라우저 안에서만 처리되고 어디에도 전송되지 않습니다.</p>' +
+        '<div class="drop" id="drop" role="button" tabindex="0"><b>엑셀 파일을 끌어놓거나 클릭해서 선택</b>' +
+        '<span>.xlsx · .xls · .csv — 한 번 올리면 이 브라우저에 기억됩니다</span></div>' +
+        '<div class="cols">필요한 열 · 점포명 · 소분류명 · 제품명 · 출하수량 · 판매(오더) · 판매(현장) · 판매수량<br>' +
+        '열 이름이 조금 달라도(매장명, 상품명, 출하, 오더, 현장 …) 자동으로 찾습니다</div></div>';
+      return;
+    }
+    elRes.innerHTML =
+      '<div class="empty">' +
+      '<h2>점포명을 입력하세요</h2>' +
+      '<p>왼쪽 목록에서 고르거나, 이름 일부를 입력하면 점포별 집계가 표시됩니다.</p>' +
+      '<div class="chips">' + [0,1,2,3].filter(function(k){ return k < STORES.length; }).map(function(k){
+        return '<button class="chip" data-i="' + k + '">' + esc(STORES[k]) + '</button>';
+      }).join('') + '</div></div>';
+  }
+  elRes.addEventListener('click', function(e){
+    if(e.target.closest('#drop')){ xlsInput.click(); return; }
+    var dEl = e.target.closest('.thumb .del');
+    if(dEl){ delImg(dEl.dataset.del); render(); toast('사진을 삭제했습니다'); return; }
+    var tb = e.target.closest('.thumb[data-p]');
+    if(tb){ openPicker(tb.dataset.p); return; }
+    var c = e.target.closest('.chip'); if(c) select(+c.dataset.i);
+    var tg = e.target.closest('tr.grp .gt');
+    if(tg){
+      var row = tg.closest('tr.grp'), cat = row.dataset.cat;
+      state.closed[cat] = !state.closed[cat]; render();
+    }
+    var th = e.target.closest('th.num');
+    if(th){
+      var k = th.dataset.k;
+      if(k){
+        if(state.sortKey === k){ state.sortDir = state.sortDir === 'desc' ? 'asc' : 'desc'; }
+        else { state.sortKey = k; state.sortDir = 'desc'; }
+        render();
+      }
+    }
+    var b = e.target.closest('.btn'); if(!b) return;
+    if(b.dataset.act === 'img') exportHtml();
+    if(b.dataset.act === 'copy') doCopy();
+    if(b.dataset.act === 'csv') doCsv();
+    if(b.dataset.act === 'open') toggleAll();
+  });
+
+  var ARROWS = {ship:'출하수량', sales:'판매수량', order:'판매(오더)', field:'판매(현장)'};
+  function hdr(k, label){
+    var on = state.sortKey === k;
+    return '<th class="num" data-k="' + k + '" scope="col" title="' + label + ' 기준 정렬">' + label +
+           (on ? '<span class="ar">' + (state.sortDir === 'desc' ? '▼' : '▲') + '</span>' : '') + '</th>';
+  }
+  function cells(v){
+    return '<td class="num">' + n(v.ship) + '</td><td class="num">' + n(v.order) + '</td>' +
+           '<td class="num">' + n(v.field) + '</td><td class="num">' + n(v.sales) + '</td>';
+  }
+
+  function pct(sales, ship){ return ship > 0 ? Math.round(sales / ship * 100) : 0; }
+  function dash(P, t){
+    var html = '<div class="dash">';
+    P.groups.forEach(function(g){
+      var r = pct(g.sum.sales, g.sum.ship);
+      var share = t.sales > 0 ? Math.round(g.sum.sales / t.sales * 100) : 0;
+      html += '<div class="dcard" data-cat="' + esc(g.cat) + '">' +
+        '<div class="dhead"><span class="dn">' + esc(g.cat) + '</span>' +
+        '<span class="dc">제품 ' + n(g.items.length) + '개</span>' +
+        '<span class="dbadge">전체 판매의 ' + share + '%</span></div>' +
+        '<div class="dbody">' +
+          '<div class="dnum"><span class="dk">판매수량 합계</span>' +
+          '<b>' + n(g.sum.sales) + '<small>개</small></b></div>' +
+          '<div class="dprog"><div class="dl"><span>진도율 · 판매/출하</span><b>' + r + '%</b></div>' +
+          '<div class="bar"><i style="width:' + Math.min(r, 100) + '%"></i></div></div>' +
+          '<div class="dsub">' +
+            '<div><span>출하수량 합계</span><b>' + n(g.sum.ship) + '</b></div>' +
+            '<div><span>판매(오더)</span><b>' + n(g.sum.order) + '</b></div>' +
+            '<div><span>판매(현장)</span><b>' + n(g.sum.field) + '</b></div>' +
+          '</div>' +
+        '</div></div>';
+    });
+    html += '</div>';
+    html += '<div class="dall"><span class="lbl">전체 합계</span>' +
+      '<span>출하 <b>' + n(t.ship) + '</b></span>' +
+      '<span>판매 <b>' + n(t.sales) + '</b></span>' +
+      '<span>오더 <b>' + n(t.order) + '</b></span>' +
+      '<span>현장 <b>' + n(t.field) + '</b></span>' +
+      '<span class="sp">전체 진도율 <b>' + pct(t.sales, t.ship) + '%</b>' +
+      (P.groups.length > 1 ? P.groups.map(function(g){
+        return '<i> · ' + esc(g.cat) + ' ' + pct(g.sum.sales, g.sum.ship) + '%</i>';
+      }).join('') : '') + '</span></div>';
+    return html;
+  }
+  function catSum(P, name){
+    var s = {ship:0, sales:0};
+    P.groups.forEach(function(g){ if(g.cat === name){ s.ship = g.sum.ship; s.sales = g.sum.sales; } });
+    return s;
+  }
+
+  function render(){
+    if(state.store === null){ renderEmpty(); return; }
+    var name = STORES[state.store];
+    var P = pivot(state.store, state.sortKey, state.sortDir);
+    var t = P.total;
+    var rate = t.ship > 0 ? Math.round(t.sales / t.ship * 100) : 0;
+    var prodCount = P.groups.reduce(function(a,g){ return a + g.items.length; }, 0);
+
+    var html = '';
+    html += '<div class="rhead"><div>' +
+      '<div class="eyebrow">조회 결과 · 점포</div>' +
+      '<h2>' + esc(name) + ' <em>' + P.groups.map(function(g){ return esc(g.cat); }).join(' · ') + '</em></h2>' +
+      '</div><div class="tools">' +
+      '<button class="btn pri" data-act="copy" type="button">표 복사</button>' +
+      '<button class="btn" data-act="csv" type="button">CSV 저장</button>' +
+      '<button class="btn" data-act="img" type="button">공유용 HTML 저장</button>' +
+      '<button class="btn" data-act="open" type="button">' + (allClosed() ? '전체 펼치기' : '전체 접기') + '</button>' +
+      '</div></div>';
+
+    html += dash(P, t);
+
+    html += '<div class="tablewrap"><table><caption>점포별 제품 집계 · 출하 대비 판매율 <b>' + rate + '%</b> · 제품 ' + n(prodCount) + '개<span class="chint">제품명 옆 네모를 누르면 사진을 넣을 수 있습니다</span></caption>' +
+      '<thead><tr><th class="cat" scope="col">소분류명</th><th scope="col">제품명</th>' +
+      hdr('ship','출하수량') + hdr('order','판매(오더)') + hdr('field','판매(현장)') + hdr('sales','판매수량') +
+      '</tr></thead><tbody>';
+
+    P.groups.forEach(function(g){
+      var closed = !!state.closed[g.cat];
+      html += '<tr class="grp" data-cat="' + esc(g.cat) + '"><td colspan="6"><div class="gt">' +
+        '<span class="tg">' + (closed ? '+' : '−') + '</span>' +
+        '<span class="gn">' + esc(g.cat) + '</span>' +
+        '<span class="gc">제품 ' + n(g.items.length) + '개</span>' +
+        '<span class="gs"><span>출하 <b>' + n(g.sum.ship) + '</b></span>' +
+        '<span>판매 <b>' + n(g.sum.sales) + '</b></span></span>' +
+        '</div></td></tr>';
+      if(!closed){
+        g.items.forEach(function(it){
+          var zero = (it.ship + it.sales + it.order + it.field) === 0;
+          html += '<tr' + (zero ? ' class="zero"' : '') + '>' +
+            '<td class="cat">' + esc(g.cat) + '</td>' +
+            '<td class="prod">' + pc(it.name) + '</td>' + cells(it) + '</tr>';
+        });
+        html += '<tr class="sub"><td class="cat"></td><td class="prod">' + pc(g.cat + ' 총계', true) + '</td>' + cells(g.sum) + '</tr>';
+      }
+    });
+
+    html += '<tr class="total"><td colspan="2">총계</td>' + cells(t) + '</tr>';
+    html += '</tbody><tfoot><tr><td colspan="6">' +
+      '합계 기준 — 같은 점포·제품이 여러 행이면 모두 더했습니다. <b>판매수량 = 판매(오더) + 판매(현장)</b>. ' +
+      '열 머리글을 누르면 그 기준으로 정렬됩니다.' +
+      '</td></tr></tfoot></table></div>';
+    html += '<p class="note">원본 파일 <b>' + esc(D.file || '엑셀') + '</b>의 점포명·분류·제품명별 합계입니다. ' +
+      '표기 순서는 <b>이벤트 → 상시</b>, 진도율은 <b>판매수량 ÷ 출하수량</b> 기준입니다. ' +
+      '제품 사진은 이 브라우저에 저장되고, <b>공유용 HTML 저장</b>으로 만든 파일에는 데이터와 사진이 함께 담겨 인터넷 없이도 열립니다.</p>';
+
+    elRes.innerHTML = html;
+  }
+  function allClosed(){
+    var g = pivot(state.store, state.sortKey, state.sortDir).groups;
+    return g.length > 0 && g.every(function(x){ return !!state.closed[x.cat]; });
+  }
+  function toggleAll(){
+    var g = pivot(state.store, state.sortKey, state.sortDir).groups;
+    var close = !allClosed();
+    state.closed = {};
+    g.forEach(function(x){ state.closed[x.cat] = close; });
+    render();
+  }
+
+  /* ---- export ---- */
+  function asTable(){
+    var P = pivot(state.store, state.sortKey, state.sortDir);
+    var out = [['소분류명','제품명','출하수량','판매(오더)','판매(현장)','판매수량']];
+    P.groups.forEach(function(g){
+      g.items.forEach(function(it){ out.push([g.cat, it.name, it.ship, it.order, it.field, it.sales]); });
+      out.push([g.cat, g.cat + ' 총계', g.sum.ship, g.sum.order, g.sum.field, g.sum.sales]);
+    });
+    out.push(['총계','', P.total.ship, P.total.order, P.total.field, P.total.sales]);
+    return out;
+  }
+  function toast(msg){
+    var d = document.createElement('div');
+    d.textContent = msg;
+    d.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#0F1A2A;color:#fff;' +
+      'font:600 12.5px/1 ' + getComputedStyle(document.body).fontFamily + ';padding:11px 15px;border-radius:3px;z-index:99';
+    document.body.appendChild(d);
+    setTimeout(function(){ d.remove(); }, 1800);
+  }
+  function doCopy(){
+    var tsv = asTable().map(function(r){ return r.join('\t'); }).join('\n');
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(tsv).then(function(){ toast('표를 복사했습니다 · 엑셀에 붙여넣기'); },
+        function(){ fallbackCopy(tsv); });
+    } else { fallbackCopy(tsv); }
+  }
+  function fallbackCopy(text){
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); toast('표를 복사했습니다 · 엑셀에 붙여넣기'); }
+    catch(err){ toast('복사할 수 없습니다. CSV 저장을 이용해 주세요.'); }
+    ta.remove();
+  }
+  function doCsv(){
+    var csv = '\ufeff' + asTable().map(function(r){
+      return r.map(function(c){ var s = String(c); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; }).join(',');
+    }).join('\r\n');
+    var blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = STORES[state.store] + '_판매집계.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+    toast('CSV 파일을 저장했습니다');
+  }
+
+  elRes.addEventListener('keydown', function(e){
+    if(e.key !== 'Enter' && e.key !== ' ') return;
+    var tb = e.target.closest('.thumb[data-p]'); if(!tb) return;
+    e.preventDefault(); openPicker(tb.dataset.p);
+  });
+
+  var fileInput = document.createElement('input');
+  fileInput.type = 'file'; fileInput.accept = 'image/*'; fileInput.style.display = 'none';
+  document.body.appendChild(fileInput);
+  var pickTarget = null;
+  function openPicker(name){ pickTarget = name; fileInput.value = ''; fileInput.click(); }
+  fileInput.addEventListener('change', function(){
+    var f = fileInput.files && fileInput.files[0];
+    var name = pickTarget; pickTarget = null;
+    if(!f || !name) return;
+    var fr = new FileReader();
+    fr.onload = function(){
+      var img = new Image();
+      img.onload = function(){
+        var max = 280;
+        var sc = Math.min(1, max / Math.max(img.width, img.height));
+        var w = Math.max(1, Math.round(img.width * sc)), h = Math.max(1, Math.round(img.height * sc));
+        var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+        var cx = cv.getContext('2d');
+        cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, w, h);
+        cx.drawImage(img, 0, 0, w, h);
+        var out;
+        try{ out = cv.toDataURL('image/jpeg', 0.82); }
+        catch(err){ toast('사진을 변환할 수 없습니다'); return; }
+        setImg(name, out); render(); toast('사진을 넣었습니다');
+      };
+      img.onerror = function(){ toast('이미지 파일을 읽을 수 없습니다'); };
+      img.src = fr.result;
+    };
+    fr.onerror = function(){ toast('파일을 읽을 수 없습니다'); };
+    fr.readAsDataURL(f);
+  });
+  function exportHtml(){
+    if(!D){ toast('먼저 엑셀을 올려 주세요'); return; }
+    var cnt = Object.keys(IMAGES).length;
+    var html = embed(embed(PRISTINE, '/*__IMGMAP__*/', JSON.stringify(IMAGES)), '/*__DATA__*/', JSON.stringify(D));
+    if(!html){ toast('내보낼 수 없습니다'); return; }
+    var blob = new Blob([html], {type:'text/html;charset=utf-8'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '점포별판매조회_' + (D.label || '크리스마스') + '.html';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+    toast('공유용 파일을 저장했습니다' + (cnt ? ' · 사진 ' + cnt + '장' : ''));
+  }
+  /* 마커 뒤의 값(스크립트 태그 끝까지)을 바꿔 넣는다 */
+  function embed(html, mark, json){
+    if(!html) return null;
+    var mi = html.indexOf(mark);
+    if(mi < 0) return null;
+    var mj = html.indexOf('</scr' + 'ipt>', mi);
+    var body = json.replace(/<\//g, '<\\/');
+    return html.slice(0, mi + mark.length) + body + ';' + html.slice(mj);
+  }
+
+  /* ================= 엑셀 업로드 ================= */
+  var COLS = {
+    store: ['점포명','매장명','지점명','가맹점명','점포','매장','지점'],
+    cat:   ['소분류명','소분류','분류명','분류','구분','카테고리'],
+    prod:  ['제품명','상품명','품목명','메뉴명','제품','상품','품목'],
+    ship:  ['출하수량','출고수량','출하량','출하','출고'],
+    order: ['판매(오더)','오더판매','오더수량','오더','예약'],
+    field: ['판매(현장)','현장판매','현장수량','현장'],
+    sales: ['판매수량','판매량','판매합계','판매계','총판매']
+  };
+  function nk(s){ return String(s == null ? '' : s).toLowerCase().replace(/[\s_()\[\]\-.·/]/g, ''); }
+  function mapHeader(row){
+    var H = row.map(nk), used = {}, m = {}, score = 0;
+    ['store','prod','ship','order','field','sales','cat'].forEach(function(f){
+      var idx = -1;
+      for(var k = 0; k < COLS[f].length && idx < 0; k++){
+        var key = nk(COLS[f][k]);
+        for(var i = 0; i < H.length; i++){ if(!used[i] && H[i] === key){ idx = i; break; } }
+        if(idx < 0) for(var j = 0; j < H.length; j++){
+          if(!used[j] && H[j].indexOf(key) >= 0 && !/코드|code|번호/.test(H[j])){ idx = j; break; }
+        }
+      }
+      m[f] = idx; if(idx >= 0){ used[idx] = 1; score++; }
+    });
+    return {m: m, score: score};
+  }
+  function num(v){
+    if(typeof v === 'number') return isFinite(v) ? v : 0;
+    var t = String(v == null ? '' : v).replace(/[,\s개]/g, '');
+    var x = parseFloat(t); return isNaN(x) ? 0 : x;
+  }
+  function isTotal(v){ return /(^|\s)(합\s*계|총\s*계|소\s*계|total)\s*$/i.test(String(v).trim()); }
+
+  function parseWorkbook(wb, fileName){
+    var best = null;
+    wb.SheetNames.forEach(function(sn){
+      var aoa = XLSX.utils.sheet_to_json(wb.Sheets[sn], {header:1, defval:'', raw:true, blankrows:false});
+      for(var i = 0; i < Math.min(aoa.length, 30); i++){
+        var h = mapHeader(aoa[i]);
+        if(h.m.store >= 0 && h.m.prod >= 0 && (!best || h.score > best.score)) best = {sheet:sn, aoa:aoa, hi:i, m:h.m, score:h.score};
+      }
+    });
+    if(!best) throw new Error('점포명·제품명 열을 찾지 못했습니다. 첫 줄(머리글)에 "점포명", "제품명"이 있는지 확인해 주세요.');
+    var m = best.m;
+    if(m.ship < 0 && m.sales < 0 && m.order < 0 && m.field < 0) throw new Error('출하수량·판매수량 열을 찾지 못했습니다.');
+    var stores = [], cats = [], prods = [], si = {}, ci = {}, pi = {}, rows = [], lastStore = '', lastCat = '';
+    function idx(list, map, v){ if(!(v in map)){ map[v] = list.length; list.push(v); } return map[v]; }
+    best.aoa.slice(best.hi + 1).forEach(function(r){
+      var st = String(r[m.store]).trim(), pr = String(r[m.prod]).trim();
+      var ct = m.cat >= 0 ? String(r[m.cat]).trim() : '';
+      if(isTotal(st) || isTotal(pr) || isTotal(ct)) return;
+      if(!pr) return;
+      st = st || lastStore; ct = ct || lastCat;   /* 병합 셀: 위 행 값 이어받기 */
+      if(!st) return;
+      lastStore = st; lastCat = ct;
+      var order = m.order >= 0 ? num(r[m.order]) : 0, field = m.field >= 0 ? num(r[m.field]) : 0;
+      var sales = m.sales >= 0 ? num(r[m.sales]) : order + field;
+      var ship = m.ship >= 0 ? num(r[m.ship]) : 0;
+      /* 원본처럼 엑셀 한 줄 = 한 행. 같은 점포·제품이 여러 줄이면 조회할 때 합산한다 */
+      rows.push([idx(stores, si, st), idx(cats, ci, ct || '전체'), idx(prods, pi, pr), ship, sales, order, field]);
+    });
+    if(!rows.length) throw new Error('읽을 수 있는 데이터 행이 없습니다.');
+    var miss = [];
+    if(m.ship < 0) miss.push('출하수량');
+    if(m.order < 0) miss.push('판매(오더)');
+    if(m.field < 0) miss.push('판매(현장)');
+    if(m.cat < 0) miss.push('소분류명');
+    return {data:{headers:['소분류명','제품명','출하수량','판매(오더)','판매(현장)','판매수량'],
+                  stores:stores, cats:cats, prods:prods, rows:rows, file:fileName, label:yearLabel(fileName)},
+            sheet:best.sheet, miss:miss};
+  }
+  function yearLabel(name){
+    var mm = String(name).match(/(20)?(\d{2})\s*년/);
+    return mm ? mm[2] + '년' : '';   /* 파일명에 "25년"처럼 있으면 제목에 표시 */
+  }
+  function readXls(f){
+    if(typeof XLSX === 'undefined'){ toast('엑셀 라이브러리를 불러오지 못했습니다 · 인터넷 연결 확인'); return; }
+    var fr = new FileReader();
+    fr.onload = function(){
+      try{
+        var res = parseWorkbook(XLSX.read(fr.result, {type:'array'}), f.name);
+        setData(res.data);
+        try{ localStorage.setItem(DATA_LSK, JSON.stringify(res.data)); }catch(e){}
+        toast('불러왔습니다 · ' + n(res.data.stores.length) + '개 점포' + (res.miss.length ? ' · 없는 열: ' + res.miss.join(', ') : ''));
+      }catch(err){ alert('엑셀을 읽지 못했습니다.\n\n' + err.message); }
+    };
+    fr.readAsArrayBuffer(f);
+  }
+  var xlsInput = document.createElement('input');
+  xlsInput.type = 'file'; xlsInput.accept = '.xlsx,.xls,.xlsm,.csv'; xlsInput.style.display = 'none';
+  document.body.appendChild(xlsInput);
+  xlsInput.addEventListener('change', function(){ if(xlsInput.files[0]) readXls(xlsInput.files[0]); xlsInput.value = ''; });
+  document.getElementById('upBtn').addEventListener('click', function(){ xlsInput.click(); });
+  document.getElementById('saveBtn').addEventListener('click', exportHtml);
+  elRes.addEventListener('keydown', function(e){
+    if((e.key === 'Enter' || e.key === ' ') && e.target.id === 'drop'){ e.preventDefault(); xlsInput.click(); }
+  });
+  var dragDepth = 0;
+  function hasFile(e){ return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') >= 0; }
+  document.addEventListener('dragenter', function(e){ if(hasFile(e)){ dragDepth++; document.body.classList.add('dragging'); } });
+  document.addEventListener('dragleave', function(){ if(--dragDepth <= 0){ dragDepth = 0; document.body.classList.remove('dragging'); } });
+  document.addEventListener('dragover', function(e){ if(hasFile(e)) e.preventDefault(); });
+  document.addEventListener('drop', function(e){
+    if(!hasFile(e)) return;
+    e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragging');
+    var f = e.dataTransfer.files[0];
+    if(f && /\.(xlsx|xls|xlsm|csv)$/i.test(f.name)) readXls(f);
+    else if(f) toast('엑셀 파일(.xlsx · .xls · .csv)만 올릴 수 있습니다');
+  });
+
+  /* ---- init: 파일에 내장된 데이터 → 이 브라우저에 저장된 데이터 → 업로드 안내 ---- */
+  var initial = window.SALES_DATA;
+  if(!initial){ try{ initial = JSON.parse(localStorage.getItem(DATA_LSK) || 'null'); }catch(e){ initial = null; } }
+  if(initial && initial.rows && initial.stores){ setData(initial); }
+  else { renderList(); renderEmpty(); }
+})();
+</script>
+</body></html>
