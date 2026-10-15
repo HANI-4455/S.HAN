@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>크리스마스 판매 분석</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --primary:#15237A;   /* 다크 블루 */
+    --secondary:#2F497D;
+    --accent:#F26300;    /* 오렌지 */
+    --xmas:#B3261E;      /* 크리스마스 레드 */
+    --green:#1E6B47;
+    --bg:#F4F5F9;
+    --line:#dde2ef;
+    --muted:#6B7280;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif;background:var(--bg);color:#272727;font-size:14px;line-height:1.6;min-height:100vh}
+  .header{background:var(--primary);color:#fff;padding:14px 32px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:50;border-bottom:3px solid var(--xmas)}
+  .header-title{font-size:17px;font-weight:700}
+  .header-sub{font-size:12px;opacity:.8}
+  .header a{color:#fff;opacity:.85;font-size:12px;text-decoration:none;border:1px solid rgba(255,255,255,.4);padding:5px 10px;border-radius:4px}
+  .container{max-width:1180px;margin:0 auto;padding:28px 20px 60px}
+  .sec-title{margin:6px 0 16px}
+  .sec-title-row{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+  .sec-num{color:var(--accent);font-size:19px;font-weight:700}
+  .sec-name{color:var(--primary);font-size:19px;font-weight:700}
+  .sec-hint{color:var(--muted);font-size:12px;margin-left:6px}
+  .underline{display:flex;align-items:center;gap:8px;margin-top:5px}
+  .ul-orange{height:2px;width:36px;background:var(--accent);border-radius:1px}
+  .ul-blue{height:1px;flex:1;background:var(--secondary);opacity:.3}
+  .card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:20px 22px;margin-bottom:22px}
+  .drop{border:2px dashed #b9c1da;border-radius:8px;padding:34px 16px;text-align:center;cursor:pointer;transition:.15s;background:#FAFBFE}
+  .drop:hover,.drop.over{border-color:var(--primary);background:#EEF1FB}
+  .drop b{color:var(--primary);font-size:16px}
+  .drop p{color:var(--muted);font-size:13px;margin-top:6px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .btn{background:var(--primary);color:#fff;border:none;border-radius:5px;padding:9px 16px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;white-space:nowrap}
+  .btn:hover{background:#1a2e9e}
+  .btn.ghost{background:#fff;color:var(--primary);border:1px solid #c7cee3}
+  .btn.ghost:hover{background:#EEF1FB}
+  .btn.orange{background:var(--accent)}
+  .btn.orange:hover{background:#d95800}
+  .status{border-radius:5px;padding:10px 14px;font-size:13px;margin-top:14px;display:none;border-left:3px solid}
+  .status.info{background:#EEF1FB;border-color:var(--primary);color:var(--primary)}
+  .status.error{background:#fff0eb;border-color:var(--accent);color:#c94e00}
+  .status.show{display:block}
+  .map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-top:14px}
+  .map-grid label{display:block;font-size:12px;font-weight:600;color:var(--secondary);margin-bottom:4px}
+  .map-grid label .req{color:var(--xmas)}
+  select,input[type=number],input[type=date]{width:100%;border:1.5px solid #cdd3e0;border-radius:5px;padding:7px 9px;font-size:13px;font-family:inherit;background:#fff;outline:none}
+  select:focus,input:focus{border-color:var(--primary)}
+  .preview{margin-top:14px;max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:6px}
+  .hidden{display:none!important}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-bottom:22px}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px;border-top:3px solid var(--primary)}
+  .kpi.red{border-top-color:var(--xmas)}
+  .kpi.orange{border-top-color:var(--accent)}
+  .kpi .l{font-size:12px;color:var(--muted)}
+  .kpi .v{font-size:22px;font-weight:800;color:var(--primary);margin-top:2px;font-variant-numeric:tabular-nums}
+  .kpi .s{font-size:12px;color:var(--muted)}
+  .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:6px;max-height:520px}
+  table{width:100%;border-collapse:collapse;background:#fff;font-size:13px}
+  th{background:var(--primary);color:#fff;font-weight:600;padding:8px 10px;text-align:center;position:sticky;top:0;white-space:nowrap;z-index:1}
+  td{padding:7px 10px;border-bottom:1px solid #eef0f6;white-space:nowrap}
+  td.n{text-align:right;font-variant-numeric:tabular-nums}
+  td.c{text-align:center}
+  tr:hover td{background:#F8F9FD}
+  tr.hl td{background:#FFF4EC}
+  .bar{height:8px;background:#e6e9f3;border-radius:4px;min-width:80px;position:relative}
+  .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--secondary);border-radius:4px}
+  .chart{width:100%;overflow-x:auto}
+  .chart svg{display:block;min-width:640px}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
+  .legend span::before{content:'';display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;background:var(--c)}
+  .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px}
+  .two>.card{margin-bottom:0}
+  .plan-ctl{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+  .plan-ctl label{display:block;font-size:12px;font-weight:600;color:var(--secondary);margin-bottom:4px}
+  .note{font-size:12px;color:var(--muted);margin-top:8px}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:#EEF1FB;color:var(--primary);font-weight:600}
+  .tag.red{background:#FCE8E6;color:var(--xmas)}
+  .tag.green{background:#E6F2EC;color:var(--green)}
+  .sticky-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-bottom:16px}
+  @media (max-width:820px){.two{grid-template-columns:minmax(0,1fr)}.two>.card{margin-bottom:22px}.header{padding:12px 16px}.container{padding:20px 12px 50px}}
+  @media print{.header,.no-print{display:none!important}body{background:#fff}.card,.kpi{break-inside:avoid}.table-wrap{max-height:none}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <div class="header-title">🎄 크리스마스 판매 분석 · 발주 계획</div>
+    <div class="header-sub">작년 판매 원본 엑셀만 넣으면 분석부터 올해 발주안까지 자동으로 만듭니다</div>
+  </div>
+  <a href="index.html" class="no-print">← 업무 모음</a>
+</div>
+
+<div class="container">
+
+  <!-- 1. 업로드 -->
+  <div class="sec-title no-print">
+    <div class="sec-title-row"><span class="sec-num">01</span><span class="sec-name">작년 판매 데이터 올리기</span><span class="sec-hint">.xlsx · .xls · .csv — 파일은 내 브라우저에서만 처리되고 서버로 전송되지 않습니다</span></div>
+    <div class="underline"><div class="ul-orange"></div><div class="ul-blue"></div></div>
+  </div>
+  <div class="card no-print">
+    <div class="drop" id="drop">
+      <b>📂 엑셀 파일을 여기로 끌어놓거나 클릭해서 선택</b>
+      <p>판매일자 · 점포 · 상품 · 수량 · 금액 컬럼이 있으면 자동으로 인식합니다 (컬럼 이름이 달라도 아래에서 직접 지정 가능)</p>
+    </div>
+    <input type="file" id="file" accept=".xlsx,.xls,.xlsm,.csv" class="hidden">
+    <div class="row" style="margin-top:12px">
+      <button class="btn ghost" id="btnTemplate">⬇ 입력 양식(샘플) 받기</button>
+      <button class="btn ghost" id="btnDemo">👀 샘플 데이터로 미리보기</button>
+    </div>
+    <div class="status" id="status"></div>
+
+    <div id="mapBox" class="hidden">
+      <div class="map-grid">
+        <div><label>시트</label><select id="selSheet"></select></div>
+        <div><label>판매일자</label><select id="mDate"></select></div>
+        <div><label>점포</label><select id="mStore"></select></div>
+        <div><label>상품</label><select id="mProduct"></select></div>
+        <div><label>수량 <span class="req">*</span></label><select id="mQty"></select></div>
+        <div><label>매출금액 <span class="req">*</span></label><select id="mAmt"></select></div>
+        <div><label>분류(선택)</label><select id="mCat"></select></div>
+      </div>
+      <div class="map-grid">
+        <div><label>분석 시작일</label><input type="date" id="fFrom"></div>
+        <div><label>분석 종료일</label><input type="date" id="fTo"></div>
+        <div style="display:flex;align-items:flex-end"><button class="btn orange" id="btnRun" style="width:100%">분석 실행 ▶</button></div>
+      </div>
+      <p class="note">* 수량 또는 매출금액 중 하나는 꼭 지정해야 합니다. 합계·소계 행은 자동으로 제외됩니다.</p>
+      <div class="preview" id="preview"></div>
+    </div>
+  </div>
+
+  <div id="result" class="hidden">
+    <div class="sticky-actions no-print">
+      <button class="btn" id="btnExport">📥 분석·발주계획 엑셀 다운로드</button>
+      <button class="btn ghost" onclick="window.print()">🖨 인쇄 / PDF</button>
+    </div>
+
+    <!-- 2. 요약 -->
+    <div class="sec-title">
+      <div class="sec-title-row"><span class="sec-num">02</span><span class="sec-name" id="sumTitle">시즌 요약</span><span class="sec-hint" id="sumRange"></span></div>
+      <div class="underline"><div class="ul-orange"></div><div class="ul-blue"></div></div>
+    </div>
+    <div class="kpis" id="kpis"></div>
+
+    <!-- 3. 일별 추이 -->
+    <div class="sec-title">
+      <div class="sec-title-row"><span class="sec-num">03</span><span class="sec-name">일별 판매 추이 (D-day 기준)</span><span class="sec-hint">막대에 마우스를 올리면 수치가 보입니다</span></div>
+      <div class="underline"><div class="ul-orange"></div><div class="ul-blue"></div></div>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:10px">
+        <div class="row"><span style="font-size:12px;color:var(--muted)">기준</span>
+          <select id="dayMetric" style="width:auto"><option value="amt">매출금액</option><option value="qty">수량</option></select>
+        </div>
+        <div class="legend"><span style="--c:var(--secondary)">일반일</span><span style="--c:var(--accent)">주말</span><span style="--c:var(--xmas)">이브·크리스마스</span></div>
+      </div>
+      <div class="chart" id="dayChart"></div>
+      <p class="note" id="dayNote"></p>
+    </div>
+
+    <!-- 4. 상품 / 점포 -->
+    <div class="two">
+      <div class="card">
+        <div class="sec-title" style="margin-top:0">
+          <div class="sec-title-row"><span class="sec-num">04</span><span class="sec-name">상품별 실적</span></div>
+          <div class="underline"><div class="ul-orange"></div><div class="ul-blue"></div></div>
+        </div>
+        <div class="table-wrap" id="prodTable"></div>
+      </div>
+      <div class="card">
+        <div class="sec-title" style="margin-top:0">
+          <div class="sec-title-row"><span class="sec-num">05</span><span class="sec-name">점포별 실적</span></div>
+          <div class="underline"><div class="ul-orange"></div><div class="ul-blue"></div></div>
+        </div>
+        <div class="table-wrap" id="storeTable"></div>
+      </div>
+    </div>
+    <div style="height:22px"></div>
+
+    <!-- 6. 올해 계획 -->
+    <div class="sec-title">
+      <div class="sec-title-row"><span class="sec-num">06</span><span class="sec-name" id="planTitle">올해 크리스마스 목표 · 발주 계획</span></div>
+      <div class="underline"><div class="ul-orange"></div><div class="ul-blue"></div></div>
+    </div>
+    <div class="card">
+      <div class="plan-ctl no-print">
+        <div><label>목표 연도</label><input type="number" id="pYear"></div>
+        <div><label>전년 대비 성장률 (%)</label><input type="number" id="pGrowth" value="5" step="1"></div>
+        <div><label>안전재고 (%)</label><input type="number" id="pSafety" value="10" step="1"></div>
+        <div><label>점포 선택 (점포별 발주안)</label><select id="pStore"></select></div>
+      </div>
+      <div class="kpis" id="planKpis"></div>
+      <div class="two">
+        <div>
+          <div style="font-weight:700;color:var(--primary);margin-bottom:8px">상품별 목표 수량</div>
+          <div class="table-wrap" id="planProd"></div>
+        </div>
+        <div>
+          <div style="font-weight:700;color:var(--primary);margin-bottom:8px">날짜별 목표 (작년 D-day 패턴 적용)</div>
+          <div class="table-wrap" id="planDay"></div>
+        </div>
+      </div>
+      <div style="font-weight:700;color:var(--primary);margin:20px 0 8px" id="planStoreTitle">점포별 발주안</div>
+      <div class="table-wrap" id="planStore"></div>
+      <p class="note">권장 발주량 = 작년 수량 × (1 + 성장률) × (1 + 안전재고), 올림. 날짜별 목표는 작년 같은 D-day(크리스마스까지 남은 날)의 비중을 그대로 적용합니다 — 요일이 매년 바뀌므로 요일 차이 표시를 참고해 조정하세요. 전체 점포 × 상품 발주표는 엑셀 다운로드에 들어 있습니다.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================== 컬럼 자동 인식 키워드 ================== */
+const KEYS = {
+  date:   ['판매일자','판매일','매출일자','매출일','영업일자','영업일','거래일자','거래일','주문일자','주문일','일자','날짜','date'],
+  store:  ['점포명','매장명','지점명','가맹점명','점포','매장','지점','가맹점','store','shop'],
+  product:['상품명','제품명','품목명','메뉴명','상품','제품','품목','메뉴','item','product'],
+  qty:    ['판매수량','주문수량','수량','판매량','qty','quantity','개수'],
+  amt:    ['실매출','순매출','매출금액','판매금액','매출액','결제금액','금액','매출','amount','sales'],
+  cat:    ['카테고리','분류','대분류','중분류','구분','category']
+};
+const FIELDS = [['date','mDate'],['store','mStore'],['product','mProduct'],['qty','mQty'],['amt','mAmt'],['cat','mCat']];
+
+let WB = null;          // 업로드한 워크북
+let TABLE = null;       // {header:[], rows:[[]]}
+let ROWS = [];          // 정규화된 행
+let AN = null;          // 분석 결과
+
+const $ = id => document.getElementById(id);
+const fmt = n => (Math.round(n)||0).toLocaleString('ko-KR');
+const won = n => {
+  const a = Math.abs(n);
+  if (a >= 1e8) return (n/1e8).toFixed(a>=1e9?1:2).replace(/\.?0+$/,'') + '억';
+  if (a >= 1e4) return fmt(n/1e4) + '만';
+  return fmt(n);
+};
+const pct = (a,b) => b ? (a/b*100).toFixed(1)+'%' : '-';
+const esc = s => String(s??'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const WD = ['일','월','화','수','목','금','토'];
+
+function status(msg, type='info'){
+  const s = $('status'); s.className = 'status show ' + type; s.innerHTML = msg;
+}
+
+/* ================== 파일 읽기 ================== */
+const drop = $('drop');
+drop.onclick = () => $('file').click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]); };
+$('file').onchange = e => { if (e.target.files[0]) readFile(e.target.files[0]); e.target.value=''; };
+
+function readFile(f){
+  if (typeof XLSX === 'undefined'){ status('엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침 해주세요.','error'); return; }
+  status('📖 <b>'+esc(f.name)+'</b> 읽는 중…');
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      WB = XLSX.read(e.target.result, {type:'array'});
+      loadWorkbook(f.name);
+    } catch(err){ status('파일을 읽지 못했습니다: '+esc(err.message),'error'); }
+  };
+  r.readAsArrayBuffer(f);
+}
+
+function loadWorkbook(name){
+  // 각 시트에서 헤더 행을 찾아 점수가 가장 높은 시트를 기본 선택
+  let best = {sheet:WB.SheetNames[0], score:-1};
+  WB.SheetNames.forEach(sn => {
+    const t = sheetTable(sn);
+    const sc = t ? guessMap(t.header).score + Math.min(t.rows.length,1000)/1e4 : -1;
+    if (sc > best.score) best = {sheet:sn, score:sc};
+  });
+  const sel = $('selSheet');
+  sel.innerHTML = WB.SheetNames.map(s => `<option${s===best.sheet?' selected':''}>${esc(s)}</option>`).join('');
+  sel.onchange = () => selectSheet(sel.value, name);
+  selectSheet(best.sheet, name);
+}
+
+/* 시트 → 헤더 + 데이터 행 (위쪽 제목·빈 줄은 건너뜀) */
+function sheetTable(sn){
+  const ws = WB.Sheets[sn];
+  if (!ws || !ws['!ref']) return null;
+  const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:'', raw:true, blankrows:false});
+  if (!aoa.length) return null;
+  let hi = 0, hs = -1;
+  for (let i = 0; i < Math.min(aoa.length, 30); i++){
+    const s = guessMap(aoa[i].map(v => String(v))).score;
+    if (s > hs){ hs = s; hi = i; }
+  }
+  const header = aoa[hi].map((h,i) => String(h).trim() || ('열'+(i+1)));
+  return {header, rows: aoa.slice(hi+1)};
+}
+
+function norm(s){ return String(s).toLowerCase().replace(/[\s_\-()\[\]./]/g,''); }
+
+/* 헤더 이름으로 각 필드 컬럼 추측. 같은 컬럼을 두 필드에 쓰지 않음 */
+function guessMap(header){
+  const H = header.map(norm), used = new Set(), map = {}; let score = 0;
+  for (const f of ['date','qty','amt','store','product','cat']){
+    let found = -1;
+    for (const k of KEYS[f]){
+      const kk = norm(k);
+      found = H.findIndex((h,i) => !used.has(i) && h === kk);
+      if (found < 0) found = H.findIndex((h,i) => !used.has(i) && h.includes(kk) && !(f==='store'&&/코드|code/.test(h)) && !(f==='product'&&/코드|code/.test(h)));
+      if (found >= 0) break;
+    }
+    map[f] = found;
+    if (found >= 0){ used.add(found); score += (f==='cat'?0.5:1); }
+  }
+  return {map, score};
+}
+
+function selectSheet(sn, name){
+  TABLE = sheetTable(sn);
+  if (!TABLE || !TABLE.rows.length){ status('시트 <b>'+esc(sn)+'</b>에 데이터가 없습니다.','error'); return; }
+  const {map} = guessMap(TABLE.header);
+  const opts = '<option value="-1">(없음)</option>' + TABLE.header.map((h,i)=>`<option value="${i}">${esc(h)}</option>`).join('');
+  FIELDS.forEach(([f,id]) => { $(id).innerHTML = opts; $(id).value = String(map[f]); $(id).onchange = updateRange; });
+  const found = FIELDS.filter(([f]) => map[f] >= 0).map(([f,id]) => $(id).closest('div').querySelector('label').firstChild.textContent.trim());
+  status(`✅ <b>${esc(name)}</b> · 시트 <b>${esc(sn)}</b> · ${fmt(TABLE.rows.length)}행 — 자동 인식: ${found.join(', ') || '없음'}. 컬럼이 맞는지 확인 후 <b>분석 실행</b>을 눌러주세요.`);
+  $('mapBox').classList.remove('hidden');
+  renderPreview();
+  updateRange();
+}
+
+function renderPreview(){
+  const h = TABLE.header, rs = TABLE.rows.slice(0,6);
+  $('preview').innerHTML = '<table><tr>'+h.map(x=>`<th>${esc(x)}</th>`).join('')+'</tr>'+
+    rs.map(r=>'<tr>'+h.map((_,i)=>`<td>${esc(r[i] instanceof Date ? ymd(r[i]) : r[i])}</td>`).join('')+'</tr>').join('')+'</table>';
+}
+
+/* ================== 값 파싱 ================== */
+function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function toDate(v){
+  if (v === '' || v == null) return null;
+  if (v instanceof Date) return isNaN(v) ? null : new Date(v.getFullYear(), v.getMonth(), v.getDate());
+  if (typeof v === 'number'){
+    if (v > 19000101 && v < 21001231){ const s = String(Math.floor(v)); return mk(+s.slice(0,4), +s.slice(4,6), +s.slice(6,8)); }
+    if (v > 20000 && v < 80000){ const d = new Date(Math.round((v - 25569) * 864e5)); return mk(d.getUTCFullYear(), d.getUTCMonth()+1, d.getUTCDate()); }
+    return null;
+  }
+  const s = String(v).trim();
+  let m = s.match(/^(\d{4})(\d{2})(\d{2})$/) || s.match(/(\d{4})\s*[.\-\/년]\s*(\d{1,2})\s*[.\-\/월]\s*(\d{1,2})/);
+  if (m) return mk(+m[1], +m[2], +m[3]);
+  m = s.match(/^(\d{2})[.\-\/](\d{1,2})[.\-\/](\d{1,2})$/);   // 25.12.24
+  if (m) return mk(2000 + +m[1], +m[2], +m[3]);
+  return null;
+}
+function mk(y,m,d){ const x = new Date(y, m-1, d); return (x.getMonth()===m-1 && x.getDate()===d) ? x : null; }
+function toNum(v){
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  if (v == null || v === '') return 0;
+  let s = String(v).replace(/[,\s원₩개ea]/gi,'');
+  const neg = /^\(.*\)$/.test(s); if (neg) s = s.slice(1,-1);
+  const n = parseFloat(s); return isNaN(n) ? 0 : (neg ? -n : n);
+}
+const isTotalRow = s => /^(합\s*계|총\s*계|소\s*계|total|subtotal|계)$/i.test(String(s).trim()) || /(합계|소계|총계)\s*$/.test(String(s).trim());
+
+function getMap(){ const m = {}; FIELDS.forEach(([f,id]) => m[f] = +$(id).value); return m; }
+
+function normalize(){
+  const m = getMap(), out = [];
+  for (const r of TABLE.rows){
+    const store = m.store >= 0 ? String(r[m.store]).trim() : '';
+    const product = m.product >= 0 ? String(r[m.product]).trim() : '';
+    if (isTotalRow(store) || isTotalRow(product)) continue;
+    if (m.date >= 0 && isTotalRow(r[m.date])) continue;
+    const date = m.date >= 0 ? toDate(r[m.date]) : null;
+    if (m.date >= 0 && !date) continue;             // 날짜가 없는 행(빈 줄·메모) 제외
+    const qty = m.qty >= 0 ? toNum(r[m.qty]) : 0;
+    const amt = m.amt >= 0 ? toNum(r[m.amt]) : 0;
+    if (!qty && !amt) continue;
+    out.push({date, store: store || '(점포 미지정)', product: product || '(상품 미지정)', cat: m.cat >= 0 ? String(r[m.cat]).trim() : '', qty, amt});
+  }
+  return out;
+}
+
+function updateRange(){
+  if (getMap().date < 0){ $('fFrom').value = $('fTo').value = ''; $('fFrom').disabled = $('fTo').disabled = true; return; }
+  $('fFrom').disabled = $('fTo').disabled = false;
+  const rows = normalize();
+  if (!rows.length) return;
+  let mn = rows[0].date, mx = rows[0].date;
+  rows.forEach(r => { if (r.date < mn) mn = r.date; if (r.date > mx) mx = r.date; });
+  $('fFrom').value = ymd(mn); $('fTo').value = ymd(mx);
+}
+
+/* ================== 분석 ================== */
+$('btnRun').onclick = run;
+function run(){
+  const m = getMap();
+  if (m.qty < 0 && m.amt < 0){ status('수량 또는 매출금액 컬럼을 하나 이상 지정해주세요.','error'); return; }
+  let rows = normalize();
+  if (m.date >= 0){
+    const f = $('fFrom').value ? toDate($('fFrom').value) : null, t = $('fTo').value ? toDate($('fTo').value) : null;
+    rows = rows.filter(r => (!f || r.date >= f) && (!t || r.date <= t));
+  }
+  if (!rows.length){ status('분석할 데이터가 없습니다. 컬럼 지정과 기간을 확인해주세요.','error'); return; }
+  ROWS = rows;
+  analyze();
+  $('result').classList.remove('hidden');
+  status(`✅ ${fmt(rows.length)}건 분석 완료`);
+  $('result').scrollIntoView({behavior:'smooth'});
+}
+
+function group(rows, keyFn){
+  const g = new Map();
+  for (const r of rows){
+    const k = keyFn(r); let o = g.get(k);
+    if (!o){ o = {key:k, qty:0, amt:0, n:0}; g.set(k,o); }
+    o.qty += r.qty; o.amt += r.amt; o.n++;
+  }
+  return g;
+}
+
+function analyze(){
+  const m = getMap(), hasDate = m.date >= 0, hasQty = m.qty >= 0, hasAmt = m.amt >= 0;
+  const totQty = ROWS.reduce((s,r)=>s+r.qty,0), totAmt = ROWS.reduce((s,r)=>s+r.amt,0);
+  const prods = [...group(ROWS, r=>r.product).values()].sort((a,b)=>(b.amt-a.amt)||(b.qty-a.qty));
+  const stores = [...group(ROWS, r=>r.store).values()].sort((a,b)=>(b.amt-a.amt)||(b.qty-a.qty));
+  const storeProd = group(ROWS, r=>r.store+'\u0001'+r.product);
+
+  // 기준 연도: 가장 매출이 많은 연도
+  let year = new Date().getFullYear() - 1, days = [];
+  if (hasDate){
+    const yg = [...group(ROWS, r=>r.date.getFullYear()).values()].sort((a,b)=>(b.amt+b.qty)-(a.amt+a.qty));
+    year = yg[0].key;
+    const dg = group(ROWS, r=>ymd(r.date));
+    // 기간 내 판매 없는 날도 0으로 채움
+    const keys = [...dg.keys()].sort();
+    const d0 = toDate(keys[0]), d1 = toDate(keys[keys.length-1]);
+    for (let d = new Date(d0); d <= d1; d.setDate(d.getDate()+1)){
+      const k = ymd(d), o = dg.get(k) || {key:k, qty:0, amt:0, n:0};
+      const xmas = new Date(d.getFullYear(), 11, 25);
+      days.push({...o, date:new Date(d), dday: Math.round((xmas - d)/864e5), wd:d.getDay()});
+    }
+  }
+  AN = {hasDate, hasQty, hasAmt, totQty, totAmt, prods, stores, storeProd, year, days};
+
+  const v = hasAmt ? 'amt' : 'qty';
+  $('dayMetric').value = v;
+  $('dayMetric').querySelector('[value=amt]').disabled = !hasAmt;
+  $('dayMetric').querySelector('[value=qty]').disabled = !hasQty;
+
+  $('sumTitle').textContent = (hasDate ? year+'년 ' : '') + '크리스마스 시즌 요약';
+  $('sumRange').textContent = hasDate && days.length ? `${ymd(days[0].date)} ~ ${ymd(days[days.length-1].date)} (${days.length}일)` : '';
+  renderKpis(); renderDayChart(); renderProd(); renderStore();
+
+  $('pYear').value = year + 1;
+  $('pStore').innerHTML = stores.map(s=>`<option>${esc(s.key)}</option>`).join('');
+  renderPlan();
+}
+
+function renderKpis(){
+  const a = AN, k = [];
+  const main = a.hasAmt ? 'amt' : 'qty';
+  if (a.hasAmt) k.push(['총 매출', won(a.totAmt)+'원', fmt(a.totAmt)+'원', '']);
+  if (a.hasQty) k.push(['총 판매수량', fmt(a.totQty)+'개', a.hasAmt && a.totQty ? '평균 단가 '+fmt(a.totAmt/a.totQty)+'원' : '', '']);
+  k.push(['판매 점포', fmt(a.stores.length)+'개', '점당 평균 '+(main==='amt' ? won(a.totAmt/a.stores.length)+'원' : fmt(a.totQty/a.stores.length)+'개'), '']);
+  k.push(['판매 상품', fmt(a.prods.length)+'종', '1위 '+(a.prods[0]?.key||'-'), '']);
+  if (a.hasDate && a.days.length){
+    const peak = a.days.reduce((p,d)=>d[main]>p[main]?d:p, a.days[0]);
+    k.push(['최고 판매일', `${peak.date.getMonth()+1}/${peak.date.getDate()}(${WD[peak.wd]})`, (main==='amt'?won(peak.amt)+'원':fmt(peak.qty)+'개')+' · '+ddLabel(peak.dday), 'orange']);
+    const tot = a[main==='amt'?'totAmt':'totQty'];
+    const ev = a.days.filter(d=>d.dday===1||d.dday===0).reduce((s,d)=>s+d[main],0);
+    k.push(['이브+당일 비중', pct(ev, tot), '12/24~25 이틀 합계', 'red']);
+    const last7 = a.days.filter(d=>d.dday>=0&&d.dday<=6).reduce((s,d)=>s+d[main],0);
+    k.push(['마지막 1주 비중', pct(last7, tot), '12/19~25 합계', 'red']);
+  }
+  $('kpis').innerHTML = k.map(([l,v,s,c])=>`<div class="kpi ${c}"><div class="l">${l}</div><div class="v">${esc(v)}</div><div class="s">${esc(s)}</div></div>`).join('');
+}
+
+const ddLabel = d => d === 0 ? 'D-day' : d > 0 ? 'D-'+d : 'D+'+(-d);
+
+$('dayMetric').onchange = renderDayChart;
+function renderDayChart(){
+  const box = $('dayChart');
+  if (!AN.hasDate){ box.innerHTML = '<p class="note">판매일자 컬럼이 없어 일별 추이를 표시할 수 없습니다.</p>'; $('dayNote').textContent=''; return; }
+  const k = $('dayMetric').value, D = AN.days;
+  const W = Math.max(720, D.length*26), H = 280, pl = 56, pr = 10, pt = 16, pb = 46;
+  const max = Math.max(...D.map(d=>d[k]), 1);
+  const nice = niceMax(max), bw = (W-pl-pr)/D.length;
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:320px" font-family="inherit">`;
+  for (let i=0;i<=4;i++){
+    const y = pt + (H-pt-pb)*(1-i/4), val = nice*i/4;
+    s += `<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="#e6e9f3"/>`;
+    s += `<text x="${pl-6}" y="${y+4}" text-anchor="end" font-size="11" fill="#6B7280">${k==='amt'?won(val):fmt(val)}</text>`;
+  }
+  D.forEach((d,i)=>{
+    const h = (H-pt-pb)*d[k]/nice, x = pl + i*bw + bw*0.15, y = H-pb-h;
+    const col = (d.dday===0||d.dday===1) && d.date.getMonth()===11 ? 'var(--xmas)' : (d.wd===0||d.wd===6) ? 'var(--accent)' : 'var(--secondary)';
+    s += `<rect x="${x}" y="${y}" width="${bw*0.7}" height="${Math.max(h,0)}" rx="2" fill="${col}"><title>${ymd(d.date)}(${WD[d.wd]}) ${ddLabel(d.dday)}\n매출 ${fmt(d.amt)}원 · 수량 ${fmt(d.qty)}개</title></rect>`;
+    const step = D.length > 40 ? 7 : D.length > 20 ? 2 : 1;
+    if (i % step === 0 || d.dday === 0){
+      s += `<text x="${x+bw*0.35}" y="${H-pb+15}" text-anchor="middle" font-size="10.5" fill="#374151">${d.date.getMonth()+1}/${d.date.getDate()}</text>`;
+      s += `<text x="${x+bw*0.35}" y="${H-pb+29}" text-anchor="middle" font-size="9.5" fill="${d.dday===0?'#B3261E':'#9CA3AF'}">${ddLabel(d.dday)}</text>`;
+    }
+  });
+  s += '</svg>';
+  box.innerHTML = s;
+  const tot = D.reduce((a,d)=>a+d[k],0);
+  const top3 = [...D].sort((a,b)=>b[k]-a[k]).slice(0,3).map(d=>`${d.date.getMonth()+1}/${d.date.getDate()}(${WD[d.wd]}) ${pct(d[k],tot)}`);
+  $('dayNote').textContent = '판매 상위 3일: ' + top3.join(' · ');
+}
+function niceMax(v){ const p = Math.pow(10, Math.floor(Math.log10(v))); return Math.ceil(v/p*2)/2*p; }
+
+function rankTable(list, label){
+  const a = AN, key = a.hasAmt ? 'amt' : 'qty', tot = a.hasAmt ? a.totAmt : a.totQty, max = list[0]?.[key] || 1;
+  let h = `<table><tr><th>순위</th><th>${label}</th>${a.hasQty?'<th>수량</th>':''}${a.hasAmt?'<th>매출(원)</th>':''}<th>비중</th><th style="min-width:100px"></th></tr>`;
+  list.forEach((r,i)=>{
+    h += `<tr><td class="c">${i+1}</td><td>${esc(r.key)}</td>${a.hasQty?`<td class="n">${fmt(r.qty)}</td>`:''}${a.hasAmt?`<td class="n">${fmt(r.amt)}</td>`:''}<td class="n">${pct(r[key],tot)}</td><td><div class="bar"><i style="width:${(r[key]/max*100).toFixed(1)}%"></i></div></td></tr>`;
+  });
+  return h + '</table>';
+}
+function renderProd(){ $('prodTable').innerHTML = rankTable(AN.prods, '상품'); }
+function renderStore(){ $('storeTable').innerHTML = rankTable(AN.stores, '점포'); }
+
+/* ================== 올해 계획 ================== */
+['pYear','pGrowth','pSafety','pStore'].forEach(id => $(id).addEventListener('input', renderPlan));
+
+function planParams(){
+  return {year: +$('pYear').value || AN.year+1, g: (+$('pGrowth').value||0)/100, sf: (+$('pSafety').value||0)/100};
+}
+const orderQty = (q,p) => Math.ceil(q*(1+p.g)*(1+p.sf));
+
+function renderPlan(){
+  if (!AN) return;
+  const p = planParams(), a = AN;
+  $('planTitle').textContent = `${p.year}년 크리스마스 목표 · 발주 계획`;
+  const k = [];
+  if (a.hasAmt) k.push(['목표 매출', won(a.totAmt*(1+p.g))+'원', `작년 ${won(a.totAmt)}원 × ${(1+p.g).toFixed(2)}`, '']);
+  if (a.hasQty) k.push(['목표 판매수량', fmt(a.totQty*(1+p.g))+'개', `작년 ${fmt(a.totQty)}개`, '']);
+  if (a.hasQty) k.push(['권장 총 발주량', fmt(a.prods.reduce((s,r)=>s+orderQty(r.qty,p),0))+'개', `안전재고 ${Math.round(p.sf*100)}% 포함`, 'orange']);
+  if (a.hasDate){
+    const x = new Date(p.year,11,25);
+    k.push(['올해 크리스마스', `${p.year}.12.25 (${WD[x.getDay()]})`, `작년은 ${WD[new Date(a.year,11,25).getDay()]}요일`, 'red']);
+  }
+  $('planKpis').innerHTML = k.map(([l,v,s,c])=>`<div class="kpi ${c}"><div class="l">${l}</div><div class="v">${esc(v)}</div><div class="s">${esc(s)}</div></div>`).join('');
+
+  // 상품별
+  let h = `<table><tr><th>상품</th>${a.hasQty?'<th>작년 수량</th><th>목표 수량</th><th>권장 발주</th>':''}${a.hasAmt?'<th>목표 매출(원)</th>':''}</tr>`;
+  a.prods.forEach(r=>{
+    h += `<tr><td>${esc(r.key)}</td>${a.hasQty?`<td class="n">${fmt(r.qty)}</td><td class="n">${fmt(r.qty*(1+p.g))}</td><td class="n"><b>${fmt(orderQty(r.qty,p))}</b></td>`:''}${a.hasAmt?`<td class="n">${fmt(r.amt*(1+p.g))}</td>`:''}</tr>`;
+  });
+  $('planProd').innerHTML = h + '</table>';
+
+  // 날짜별 (D-day 매핑)
+  if (a.hasDate){
+    h = `<table><tr><th>D-day</th><th>작년 날짜</th><th>올해 날짜</th>${a.hasQty?'<th>목표 수량</th>':''}${a.hasAmt?'<th>목표 매출(원)</th>':''}</tr>`;
+    planDays(p).forEach(d=>{
+      const wdChange = d.wd !== d.nwd;
+      const weekendShift = (d.wd===0||d.wd===6) !== (d.nwd===0||d.nwd===6);
+      h += `<tr class="${d.dday===0||d.dday===1?'hl':''}"><td class="c">${ddLabel(d.dday)}</td><td class="c">${d.date.getMonth()+1}/${d.date.getDate()}(${WD[d.wd]})</td><td class="c">${d.nd.getMonth()+1}/${d.nd.getDate()}(${WD[d.nwd]})${weekendShift?' <span class="tag green" title="작년과 주말 여부가 다름">요일↔</span>':''}</td>${a.hasQty?`<td class="n">${fmt(d.qty*(1+p.g))}</td>`:''}${a.hasAmt?`<td class="n">${fmt(d.amt*(1+p.g))}</td>`:''}</tr>`;
+    });
+    $('planDay').innerHTML = h + '</table>';
+  } else $('planDay').innerHTML = '<p class="note" style="padding:12px">판매일자 컬럼이 없어 날짜별 목표를 만들 수 없습니다.</p>';
+
+  // 점포별 발주안
+  const st = $('pStore').value;
+  $('planStoreTitle').textContent = `점포별 발주안 — ${st}`;
+  const sp = a.prods.map(pr => ({prod:pr.key, ...(a.storeProd.get(st+'\u0001'+pr.key) || {qty:0, amt:0})})).filter(x=>x.qty||x.amt);
+  h = `<table><tr><th>상품</th>${a.hasQty?'<th>작년 수량</th><th>권장 발주</th>':''}${a.hasAmt?'<th>작년 매출(원)</th><th>목표 매출(원)</th>':''}</tr>`;
+  sp.forEach(x=>{
+    h += `<tr><td>${esc(x.prod)}</td>${a.hasQty?`<td class="n">${fmt(x.qty)}</td><td class="n"><b>${fmt(orderQty(x.qty,p))}</b></td>`:''}${a.hasAmt?`<td class="n">${fmt(x.amt)}</td><td class="n">${fmt(x.amt*(1+p.g))}</td>`:''}</tr>`;
+  });
+  $('planStore').innerHTML = h + '</table>';
+}
+
+function planDays(p){
+  return AN.days.map(d => {
+    const nd = new Date(p.year, 11, 25 - d.dday);
+    return {...d, nd, nwd: nd.getDay()};
+  });
+}
+
+/* ================== 엑셀 내보내기 ================== */
+$('btnExport').onclick = () => {
+  const a = AN, p = planParams(), wb = XLSX.utils.book_new();
+  const add = (name, aoa, widths) => { const ws = XLSX.utils.aoa_to_sheet(aoa); if (widths) ws['!cols'] = widths.map(w=>({wch:w})); XLSX.utils.book_append_sheet(wb, ws, name); };
+  const r0 = n => Math.round(n);
+
+  add('요약', [
+    ['항목','값'],
+    ['기준 연도', a.year], ['분석 건수', ROWS.length],
+    ['총 매출(원)', r0(a.totAmt)], ['총 수량', r0(a.totQty)],
+    ['점포 수', a.stores.length], ['상품 수', a.prods.length],
+    [], ['목표 연도', p.year], ['성장률(%)', p.g*100], ['안전재고(%)', p.sf*100],
+    ['목표 매출(원)', r0(a.totAmt*(1+p.g))], ['목표 수량', r0(a.totQty*(1+p.g))]
+  ], [18,18]);
+  if (a.hasDate) add('일별추이', [['날짜','요일','D-day','수량','매출(원)'], ...a.days.map(d=>[ymd(d.date), WD[d.wd], ddLabel(d.dday), r0(d.qty), r0(d.amt)])], [12,6,8,10,14]);
+  add('상품별', [['순위','상품','수량','매출(원)','목표 수량','권장 발주','목표 매출(원)'], ...a.prods.map((r,i)=>[i+1, r.key, r0(r.qty), r0(r.amt), r0(r.qty*(1+p.g)), orderQty(r.qty,p), r0(r.amt*(1+p.g))])], [6,28,10,14,10,10,14]);
+  add('점포별', [['순위','점포','수량','매출(원)','목표 매출(원)'], ...a.stores.map((r,i)=>[i+1, r.key, r0(r.qty), r0(r.amt), r0(r.amt*(1+p.g))])], [6,22,10,14,14]);
+  if (a.hasDate) add('날짜별목표', [['D-day','작년 날짜','작년 요일','올해 날짜','올해 요일','목표 수량','목표 매출(원)'], ...planDays(p).map(d=>[ddLabel(d.dday), ymd(d.date), WD[d.wd], ymd(d.nd), WD[d.nwd], r0(d.qty*(1+p.g)), r0(d.amt*(1+p.g))])], [8,12,8,12,8,10,14]);
+  if (a.hasQty){
+    // 점포 × 상품 발주 피벗
+    const prods = a.prods.map(r=>r.key);
+    const rows = a.stores.map(s => [s.key, ...prods.map(pr => { const o = a.storeProd.get(s.key+'\u0001'+pr); return o && o.qty ? orderQty(o.qty,p) : 0; })]);
+    const total = ['합계', ...prods.map((_,j)=>rows.reduce((t,r)=>t+r[j+1],0))];
+    add('발주계획', [['점포 \\ 상품', ...prods], ...rows, total], [22, ...prods.map(()=>12)]);
+    add('발주계획_목록', [['점포','상품','작년 수량','작년 매출(원)','권장 발주'],
+      ...[...a.storeProd.values()].map(o=>{ const [s,pr] = o.key.split('\u0001'); return [s, pr, r0(o.qty), r0(o.amt), orderQty(o.qty,p)]; })], [22,28,10,14,10]);
+  }
+  XLSX.writeFile(wb, `크리스마스_판매분석_${a.year}_발주계획_${p.year}.xlsx`);
+};
+
+/* ================== 샘플 / 양식 ================== */
+function sampleRows(){
+  const stores = ['강남역점','홍대입구점','잠실롯데점','판교역점','수원역점','부산서면점','대구동성로점','광주충장로점'];
+  const prods = [['딸기 생크림 케이크',32000,1.0],['초코 가나슈 케이크',30000,.7],['레드벨벳 케이크',29000,.5],['티라미수 케이크',33000,.45],['슈톨렌',18000,.35],['크리스마스 쿠키 박스',12000,.6]];
+  let seed = 7; const rnd = () => (seed = (seed*16807)%2147483647)/2147483647;
+  const rows = [['판매일자','점포명','상품명','판매수량','매출금액']];
+  for (let day=1; day<=25; day++){
+    const d = new Date(2025,11,day), wd = d.getDay();
+    let f = 0.25 + day*0.03; if (wd===0||wd===6) f *= 1.5; if (day===23) f*=2; if (day===24) f*=6; if (day===25) f*=3.2;
+    stores.forEach((s,si)=>{
+      const sf = 1.4 - si*0.1;
+      prods.forEach(([p,price,pf])=>{
+        const q = Math.round(f*sf*pf*(2+rnd()*3));
+        if (q>0) rows.push([ymd(d), s, p, q, q*price]);
+      });
+    });
+  }
+  return rows;
+}
+$('btnTemplate').onclick = () => {
+  if (typeof XLSX === 'undefined') return status('엑셀 라이브러리를 불러오지 못했습니다.','error');
+  const wb = XLSX.utils.book_new(), ws = XLSX.utils.aoa_to_sheet(sampleRows());
+  ws['!cols'] = [{wch:12},{wch:14},{wch:22},{wch:10},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws, '판매데이터');
+  XLSX.writeFile(wb, '크리스마스_판매데이터_양식.xlsx');
+};
+$('btnDemo').onclick = () => {
+  if (typeof XLSX === 'undefined') return status('엑셀 라이브러리를 불러오지 못했습니다.','error');
+  WB = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(WB, XLSX.utils.aoa_to_sheet(sampleRows()), '판매데이터');
+  loadWorkbook('샘플 데이터 (가상)');
+  run();
+};
+</script>
+</body>
+</html>

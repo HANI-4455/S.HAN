@@ -770,12 +770,13 @@ const DEFAULT_CARDS = [
   { id:21, path:"https://store-survey-production.up.railway.app/dashboard", title:"매장 만족도 조사",  desc:"코칭매니저 교육 만족도 조사 결과 대시보드 (관리자 로그인 포함)", emoji:"⭐", tag:"대시보드" },
   { id:23, path:"competitor_trend.html",                               title:"경쟁사 동향 모니터",    desc:"투썸·스타벅스·메가커피 신제품 + 구글·네이버 뉴스 트렌드 분석", emoji:"☕", tag:"도구" },
   { id:24, path:"floorplan_3d.html",                                  title:"도면 3D 시안",          desc:"도면 PDF를 넣으면 평면도·축척·벽·기둥·카운터를 자동 인식해 3D로 · 파스쿠찌 마감재", emoji:"🏗️", tag:"도구" },
-  { id:25, path:"https://script.google.com/macros/s/AKfycbywC6iipu7O4EXltvK8a1ID5F4mjNUIkH4OBid2AGUDAUMRlLn4CrsHwHclQk-MRtPc2A/exec", title:"매출 분석", desc:"POS 자동 수집 · 전주·전년비 대시보드 · 날씨·이슈 사유 분석 · AI 질문 (계정 로그인)", emoji:"📈", tag:"대시보드" }
+  { id:25, path:"https://script.google.com/macros/s/AKfycbywC6iipu7O4EXltvK8a1ID5F4mjNUIkH4OBid2AGUDAUMRlLn4CrsHwHclQk-MRtPc2A/exec", title:"매출 분석", desc:"POS 자동 수집 · 전주·전년비 대시보드 · 날씨·이슈 사유 분석 · AI 질문 (계정 로그인)", emoji:"📈", tag:"대시보드" },
+  { id:26, path:"christmas_sales.html",                               title:"크리스마스 판매 분석",  desc:"작년 판매 엑셀만 넣으면 일별·상품·점포 분석 + 올해 목표·점포별 발주안 자동 생성", emoji:"🎄", tag:"대시보드" }
 ];
 
 /* 기본 카드 구성을 코드에서 바꿀 때 버전을 올리면, 이미 접속했던 브라우저에서도
    아래 삭제 목록의 카드가 정리되고 브라우저별 기본카드 덮어쓰기가 초기화된다 */
-const DEFAULTS_VERSION = 8; /* v8: 경쟁사 동향 모니터 기본카드 추가 */
+const DEFAULTS_VERSION = 9; /* v9: 크리스마스 판매 분석 기본카드 추가 */
 const REMOVED_DEFAULT_PATHS = ["orderbudget.html","ordercreator.html","research.html","조직도.html"];
 
 const PRESET_TAGS = ["업무","보고서","대시보드","게임","도구","양식","디자인","여행"];
