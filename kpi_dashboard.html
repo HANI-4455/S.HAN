@@ -168,7 +168,9 @@ e.classList.add('pc-seal--float');})();
   <!-- 툴바 -->
   <div class="toolbar">
     <label>기준일자</label>
-    <select id="dateSel" title="업로드된 일자 이력"></select>
+    <select id="yearSel" title="연도"></select>
+    <select id="monthSel" title="월"></select>
+    <select id="dateSel" title="그 달의 기준일자"></select>
     <span id="pubAt" style="font-size:11px;color:#9aa3b2;font-weight:400" title="발행 파일이 만들어진 시각"></span>
     <button class="btn admin-only" id="btnDelDate" title="선택한 기준일자 데이터 삭제" style="border-color:#c94b4b;color:#c94b4b">🗑 일자 삭제</button>
     <button class="btn" id="btnPpt">⬇ PPT 다운로드</button>
@@ -508,13 +510,40 @@ function ensureThr(metrics){
   if(changed) persist();
 }
 
+/* 기준일자 고르기: 연도 → 월 → 일자 3단.
+   일자가 쌓이면 한 목록에 다 넣기 어려워서 연/월로 먼저 좁힌다.
+   curDate 가 항상 기준이고, 연·월 칸은 curDate 를 따라간다. */
+function renderDatePicker(dates){
+  const yS=document.getElementById('yearSel'), mS=document.getElementById('monthSel'),
+        dS=document.getElementById('dateSel');
+  if(!yS||!mS||!dS) return;
+  const opt=(v,t,sel)=>`<option value="${v}"${v===sel?' selected':''}>${t}</option>`;
+  const ys=[...new Set(dates.map(d=>d.slice(0,4)))].sort().reverse();
+  const cy=(curDate||dates[0]||'').slice(0,4) || ys[0] || '';
+  yS.innerHTML=ys.map(y=>opt(y,y+'년',cy)).join('');
+
+  const ms=[...new Set(dates.filter(d=>d.slice(0,4)===cy).map(d=>d.slice(5,7)))].sort().reverse();
+  const cm=(curDate||'').slice(5,7) || ms[0] || '';
+  mS.innerHTML=ms.map(m=>opt(m,parseInt(m,10)+'월',cm)).join('');
+
+  const ds=dates.filter(d=>d.slice(0,4)===cy && d.slice(5,7)===cm);
+  dS.innerHTML=ds.map(d=>opt(d,d,curDate)).join('');
+  yS.disabled=ys.length<2;
+}
+/* 연·월을 바꾸면 그 달의 **가장 최신 일자**로 옮긴다 */
+function pickYM(y,m){
+  const dates=Object.keys(store).sort().reverse();
+  let list=dates.filter(d=>d.slice(0,4)===y && (m==null||d.slice(5,7)===m));
+  if(!list.length) list=dates.filter(d=>d.slice(0,4)===y);
+  if(!list.length) return;
+  curDate=list[0]; localStorage.setItem(LS_DATE,curDate); render();
+}
+
 /* ---------- 렌더링 ---------- */
 function render(){
   const dates=Object.keys(store).sort().reverse();
-  const sel=document.getElementById('dateSel');
-  sel.innerHTML=dates.map(d=>`<option value="${d}">${d}</option>`).join('');
   if(dates.length && !store[curDate]) curDate=dates[0];
-  sel.value=curDate;
+  renderDatePicker(dates);
 
   const data=store[curDate];
   const empty=document.getElementById('empty');
@@ -1097,6 +1126,8 @@ drop.ondragover=e=>{e.preventDefault();drop.classList.add('over');};
 drop.ondragleave=()=>drop.classList.remove('over');
 drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over'); if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);};
 document.getElementById('dateSel').onchange=e=>{ curDate=e.target.value; localStorage.setItem(LS_DATE,curDate); render(); };
+document.getElementById('yearSel').onchange=e=>pickYM(e.target.value,null);
+document.getElementById('monthSel').onchange=e=>pickYM(document.getElementById('yearSel').value,e.target.value);
 document.getElementById('btnThr').onclick=openThr;
 document.getElementById('thrCancel').onclick=()=>document.getElementById('modal').classList.remove('show');
 document.getElementById('thrSave').onclick=saveThr;
