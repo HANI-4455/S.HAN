@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>홀케익 판매 현황</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --primary:#15237A; --secondary:#2F497D; --accent:#F26300; --text:#272727;
+    --line:#E3E7EF; --soft:#F5F7FA; --muted:#8a93a6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif;color:var(--text);background:var(--soft);line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 24px 80px}
+
+  /* 헤더 */
+  .brand{text-align:right;font-size:12px;font-weight:600;color:var(--secondary);letter-spacing:.5px;margin-bottom:6px}
+  header h1{font-size:28px;font-weight:600;color:var(--primary)}
+  .updated{font-size:12px;font-weight:300;color:var(--muted);margin-top:4px}
+  .divider{height:2px;background:var(--line);position:relative;margin:12px 0 18px}
+  .divider::before{content:"";position:absolute;left:0;top:0;height:2px;width:48px;background:var(--accent)}
+  .divider::after{content:"";position:absolute;left:48px;top:0;height:2px;width:160px;background:var(--secondary)}
+
+  /* 버튼·입력 */
+  .btn{font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--secondary);background:#fff;color:var(--secondary);border-radius:6px;padding:8px 14px;transition:.15s}
+  .btn:hover{background:var(--secondary);color:#fff}
+  .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+  .btn.primary:hover{background:#0f1a5c}
+  select,input[type=date],input[type=text],input[type=password]{font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--line);border-radius:6px;color:var(--text);background:#fff}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+  .spacer{flex:1}
+
+  /* 관리자 */
+  .admin-only{display:none}
+  body.is-admin .admin-only{display:inline-block}
+  body.is-admin #drop.admin-only{display:block}
+  #drop{border:2px dashed var(--secondary);border-radius:8px;background:#fff;padding:20px;text-align:center;color:var(--secondary);font-weight:600;font-size:14px;cursor:pointer;margin-bottom:12px}
+  #drop small{display:block;font-weight:300;color:var(--muted);margin-top:4px;font-size:12px}
+  #drop.over{background:#eef2fb}
+  #pubNote{display:none;border:1px solid var(--accent);background:#fff;color:var(--text);border-radius:6px;padding:9px 14px;font-size:13px;margin-bottom:12px}
+  #pubNote b{color:var(--accent)}
+
+  /* 탭 */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:14px}
+  .tab{font-family:inherit;font-size:15px;font-weight:600;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:10px 16px;cursor:pointer}
+  .tab.on{color:var(--primary);border-bottom-color:var(--primary)}
+
+  /* 필터 */
+  #filter-form{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;background:#fff;border:1px solid var(--secondary);border-radius:6px;padding:12px 16px;margin-bottom:6px}
+  #filter-form .f{display:flex;flex-direction:column;gap:3px}
+  #filter-form label{font-size:12px;font-weight:600;color:var(--secondary)}
+  .f-note{font-size:12px;font-weight:300;color:var(--muted);margin-bottom:16px}
+
+  /* 섹션 */
+  .sec{display:flex;align-items:baseline;gap:10px;margin:26px 0 0}
+  .sec .num{color:var(--accent);font-weight:600;font-size:22px}
+  .sec h2{color:var(--primary);font-weight:600;font-size:20px}
+  .sec + .divider{margin:8px 0 14px}
+
+  /* 지표 카드 */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .kpi{background:#fff;border:1px solid var(--secondary);border-radius:6px;padding:14px 16px}
+  .kpi .lb{font-size:13px;font-weight:600;color:var(--secondary)}
+  .kpi .v{font-size:24px;font-weight:600;color:var(--primary);margin-top:4px;white-space:nowrap}
+  .kpi .sub{font-size:12px;font-weight:300;color:var(--muted);margin-top:2px}
+
+  /* 차트·표 패널 */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .panel{background:#fff;border:1px solid var(--secondary);border-radius:6px;padding:14px 16px;min-width:0}
+  .panel h3{font-size:15px;font-weight:600;color:var(--primary);margin-bottom:2px}
+  .panel .cap{font-size:12px;font-weight:300;color:var(--muted);margin-bottom:8px;min-height:18px}
+  .chart-box{position:relative;height:280px}
+  .tbl-wrap{max-height:440px;overflow:auto}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left;white-space:nowrap}
+  thead th{background:#F0F3F9;color:var(--primary);font-weight:600;font-size:12px;position:sticky;top:0}
+  td.n,th.n{text-align:right}
+  td.rk{color:var(--secondary);font-weight:600;width:44px}
+  td.empty{text-align:center;color:var(--muted);padding:24px}
+  tr.sum td{font-weight:600;color:var(--primary);background:#F7F9FC}
+  .bar{width:90px;height:8px;background:var(--line);border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px}
+  .bar i{display:block;height:100%;background:var(--secondary)}
+
+  #empty{display:none;background:#fff;border:1px solid var(--secondary);border-radius:6px;padding:40px;text-align:center;color:var(--muted);font-size:14px}
+
+  /* 모달 */
+  .modal-bg{position:fixed;inset:0;background:rgba(20,30,60,.45);display:none;align-items:flex-start;justify-content:center;z-index:50;padding:40px 16px;overflow:auto}
+  .modal-bg.show{display:flex}
+  .modal{background:#fff;border-radius:8px;max-width:560px;width:100%;padding:22px}
+  .modal h2{font-size:18px;color:var(--primary);font-weight:600;margin-bottom:4px}
+  .modal .hint{font-size:12px;color:var(--muted);font-weight:300;margin-bottom:14px}
+  .modal-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+
+  @media (max-width:860px){
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .grid2{grid-template-columns:1fr}
+  }
+  @media (max-width:480px){
+    .wrap{padding:16px 16px 60px}
+    header h1{font-size:22px}
+    .kpi .v{font-size:19px}
+    #filter-form .f{flex:1 1 40%}
+    #filter-form select,#filter-form input{width:100%}
+    #filter-form .f.dates{flex-basis:100%}
+    .dates > div{display:flex;align-items:center;gap:6px}
+    .dates input{flex:1;min-width:0}
+  }
+</style>
+</head>
+<body>
+<!-- pc-seal:v3 · 파리크라상 이성한 서명 -->
+<style>
+.pc-seal{display:flex;align-items:center;justify-content:flex-end;gap:9px;box-sizing:border-box;
+width:100%;margin:0;padding:9px 20px;border-bottom:1px solid rgba(47,73,125,.14);
+font-family:Pretendard,'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif}
+.pc-seal svg{height:24px;width:auto;flex:none;fill:#15237A;opacity:.92}
+.pc-seal span{font-size:10.5px;font-weight:400;letter-spacing:.4px;color:#2F497D;opacity:.85;white-space:nowrap}
+.pc-seal--float{position:fixed;right:0;top:0;width:auto;margin:0;padding:8px 14px;
+border-bottom:0;pointer-events:none;z-index:9990}
+@media print{.pc-seal{break-inside:avoid}.pc-seal--float{position:static;width:100%}}
+@media (max-width:480px){.pc-seal{padding:8px 14px}
+.pc-seal--float span{display:none}}
+</style>
+<div class="pc-seal">
+<svg viewBox="0 0 1673.6 1000" role="img" aria-label="이성한 서명"><path fill-rule="evenodd" d="M8.4,994.0C-26.7,964.9 123.5,830.6 251.3,776.9L261.9,772.4L265.4,755.5C272.3,721.9 299.1,635.2 310.6,609.1C312.2,605.3 315.2,597.6 317.2,591.9C342.2,521.6 400.2,403.1 489.2,240.7C550.5,128.9 578.1,75.4 573.6,77.1C557.4,83.3 499.3,128.3 479.6,149.9C465.1,165.8 464.8,163.5 479.0,144.8C525.1,83.9 586.4,33.6 603.7,42.5C620.0,51.0 618.1,64.5 594.4,107.4C592.8,110.3 588.5,118.6 584.7,126.0C575.6,144.0 535.1,217.0 466.6,338.8C455.4,358.7 439.6,387.8 431.4,403.4C423.3,419.1 416.0,430.9 415.2,429.6C414.3,428.1 413.3,428.5 412.5,430.7C411.7,432.7 412.1,433.6 413.2,432.8C417.0,430.5 415.5,433.8 379.1,505.5C359.2,544.7 343.0,575.7 343.0,574.2C343.0,570.5 341.5,572.5 337.8,581.4C335.8,586.2 335.4,588.7 336.9,587.7C339.8,586.0 337.8,593.4 333.3,601.2C330.2,606.6 330.4,603.4 333.6,594.0C334.9,590.4 334.8,590.3 332.7,593.4C328.7,599.7 299.5,673.3 298.7,679.2C297.8,686.4 292.0,702.3 289.1,705.8C284.4,711.4 267.9,769.3 271.4,767.9C325.4,745.0 356.5,735.4 380.2,734.4C397.2,733.8 397.3,733.8 384.3,735.4C360.0,738.3 319.1,751.3 285.6,766.7L267.2,775.1L263.7,795.1C261.8,806.1 260.2,819.3 260.2,824.4C260.1,832.3 259.8,833.0 258.1,828.8C256.1,823.8 258.7,785.3 261.3,781.1C267.1,771.8 207.5,803.7 160.1,835.3C81.5,887.7 18.6,952.2 18.6,980.3C18.6,996.2 61.1,976.6 186.0,902.9C422.5,763.3 715.2,631.1 998.0,536.2L1027.9,526.2L1043.4,502.2C1077.3,449.9 1133.7,378.1 1141.0,378.1C1151.7,378.1 1159.3,392.3 1152.4,399.3C1137.5,414.2 1072.3,500.5 1072.3,505.3C1072.3,505.8 1074.9,505.0 1078.1,503.3C1081.3,501.7 1089.4,498.4 1096.2,496.1C1102.9,493.8 1115.9,489.3 1125.0,486.0C1205.0,456.9 1324.7,431.1 1399.8,426.7C1411.2,426.0 1427.4,425.0 1436.0,424.4C1511.8,419.0 1592.9,442.0 1601.3,471.1C1605.9,487.2 1578.4,526.9 1562.6,526.9C1561.6,526.9 1556.6,529.5 1551.5,532.7C1514.6,556.1 1387.7,596.2 1354.7,594.9C1352.2,594.8 1364.7,591.6 1382.3,587.9C1609.6,540.0 1664.2,429.4 1460.7,428.9C1323.0,428.5 1068.6,510.7 1035.9,566.0C1024.9,584.6 1002.4,569.1 1012.3,549.8L1016.6,541.4L992.3,549.8C978.9,554.4 966.1,558.9 963.8,560.0C961.6,561.0 949.5,565.7 937.0,570.5C900.9,584.2 803.1,623.2 782.4,632.1C772.0,636.6 739.3,650.7 709.7,663.4C654.9,686.9 638.7,694.2 564.0,728.9C436.4,788.2 313.9,851.8 198.3,918.7C71.6,992.2 27.4,1009.7 8.4,994.0ZM83.7,603.6C39.1,582.4 58.9,525.5 139.0,444.5C215.7,367.1 278.0,336.7 283.7,374.0C284.3,377.5 286.3,379.4 290.7,380.6C312.0,386.1 317.6,416.0 302.7,444.6C260.7,524.8 125.1,623.4 83.7,603.6ZM437.8,586.0C423.9,555.6 534.0,399.5 670.4,256.1C681.8,244.2 696.2,229.0 702.3,222.3C719.0,204.4 731.7,203.4 741.2,219.2C748.6,231.6 746.9,233.8 673.5,307.0L605.2,375.0L613.8,376.5C649.3,382.6 670.2,426.3 657.4,467.5C649.6,492.5 645.1,487.4 633.2,440.2C626.4,413.3 612.4,393.2 601.8,395.2C599.2,395.7 596.0,394.8 594.7,393.2C591.6,389.5 586.4,394.5 543.7,442.1C525.9,462.0 506.7,482.9 500.9,488.6C466.3,523.0 434.9,578.7 444.6,588.4C446.6,590.4 446.3,590.9 443.6,590.9C441.6,590.9 439.0,588.7 437.8,586.0ZM122.5,572.7C213.1,528.3 310.3,424.6 288.6,395.7C283.3,388.6 240.7,402.8 220.4,418.3C216.6,421.2 212.0,423.6 210.3,423.6C191.9,423.6 103.9,525.7 89.6,563.5C80.0,589.1 85.7,590.7 122.5,572.7ZM350.0,556.3C351.9,552.6 352.9,549.6 352.4,549.6C351.2,549.6 345.0,561.0 345.0,563.3C345.0,565.4 346.2,563.8 350.0,556.3ZM743.3,535.9C733.5,528.9 732.5,525.2 736.4,511.8C743.0,489.0 778.4,448.9 802.7,436.8C814.6,430.8 814.7,430.7 819.6,415.3C822.3,406.8 827.3,391.1 830.7,380.4C834.2,369.7 846.1,339.7 857.2,313.7C870.0,284.0 876.1,267.4 873.8,269.1C871.8,270.5 860.6,278.7 848.9,287.2C829.6,301.3 812.1,312.9 757.2,348.4C747.0,355.0 732.8,366.3 725.6,373.4C718.5,380.5 711.8,386.4 710.8,386.4C701.8,386.4 690.1,373.0 690.1,362.6C690.1,354.1 712.1,332.6 722.0,331.5C724.6,331.2 730.4,328.6 734.9,325.6C739.4,322.6 750.5,317.0 759.5,313.2C820.3,287.6 905.0,224.4 905.0,204.6C905.0,193.9 925.2,190.6 935.8,199.6C943.1,205.7 943.8,210.9 938.3,218.7C932.8,226.7 883.6,319.4 861.7,363.3C851.3,384.2 842.2,400.8 841.6,400.1C839.6,398.1 824.4,419.4 824.4,424.3C824.4,424.8 830.2,423.4 837.3,421.2C890.8,404.7 876.7,461.2 815.5,508.6C773.9,540.9 758.5,546.7 743.3,535.9ZM781.6,510.0C808.3,492.1 856.3,438.3 850.7,432.6C846.6,428.6 814.0,452.6 814.0,459.6C814.0,464.4 808.3,467.8 804.8,465.0C798.9,460.0 758.3,508.4 758.3,520.4C758.3,523.8 766.8,520.0 781.6,510.0ZM393.7,470.9C396.6,465.1 398.7,460.0 398.3,459.6C397.8,459.1 395.0,463.9 392.0,470.1C388.9,476.3 386.8,481.4 387.4,481.4C387.9,481.4 390.8,476.7 393.7,470.9ZM1530.1,420.3C1525.4,415.6 1526.7,410.9 1533.7,407.1C1539.2,404.1 1539.7,404.2 1543.6,408.9C1550.9,417.8 1538.3,428.5 1530.1,420.3ZM436.0,388.4C438.3,383.9 439.7,380.2 439.1,380.2C438.6,380.2 436.2,383.9 433.9,388.4C431.6,393.0 430.1,396.7 430.7,396.7C431.3,396.7 433.6,393.0 436.0,388.4ZM1200.9,391.2C1190.1,386.8 1189.8,369.7 1200.2,358.5C1203.6,354.8 1208.0,345.9 1210.8,336.8C1253.6,198.6 1335.1,62.9 1360.8,87.0C1367.9,93.7 1367.0,100.4 1357.7,109.7C1322.6,144.8 1237.6,302.1 1237.6,331.9C1237.6,332.3 1242.1,330.4 1247.7,327.6C1310.3,295.9 1445.7,257.3 1530.7,247.0C1600.7,238.5 1673.6,243.0 1673.6,255.8C1673.6,256.9 1669.6,255.8 1664.8,253.4C1651.9,246.9 1583.0,247.0 1546.5,253.6C1501.9,261.5 1459.4,271.4 1464.5,272.6C1468.0,273.5 1464.3,275.1 1451.1,278.7C1346.6,307.2 1249.4,351.2 1222.6,382.4C1214.1,392.3 1208.9,394.4 1200.9,391.2ZM1048.2,382.7C1038.7,372.4 1043.6,350.6 1060.6,327.5C1063.1,324.1 1067.4,316.9 1070.1,311.6C1072.7,306.2 1084.3,292.4 1095.9,280.6C1107.5,268.9 1119.9,255.1 1123.5,250.0C1127.2,244.9 1136.6,232.8 1144.5,223.2C1152.4,213.5 1158.5,205.4 1158.2,205.0C1151.2,198.1 1038.9,258.8 1029.3,274.7C1022.9,285.5 1001.3,270.2 1005.9,258.1C1014.3,235.7 1155.8,172.6 1183.8,178.7C1191.4,180.4 1200.4,189.3 1200.4,195.0C1200.3,199.6 1167.8,238.7 1165.8,236.7C1165.1,236.1 1158.9,240.9 1151.9,247.4C1144.9,254.0 1135.7,261.9 1131.5,265.2C1122.0,272.3 1122.7,275.8 1133.7,276.0C1181.8,277.0 1164.1,326.7 1099.8,371.4C1070.7,391.6 1058.7,394.2 1048.2,382.7ZM1083.6,359.3C1120.4,334.7 1154.8,289.3 1136.7,289.3C1134.5,289.3 1131.7,290.6 1130.3,292.1C1129.0,293.7 1125.2,296.1 1121.9,297.5C1118.6,298.9 1115.3,301.8 1114.6,303.9C1113.9,306.0 1110.9,308.9 1107.9,310.4C1096.7,315.8 1058.4,369.8 1065.8,369.8C1066.9,369.8 1074.9,365.1 1083.6,359.3ZM1134.4,163.3C1122.9,156.2 1142.1,91.1 1170.7,40.3C1177.2,28.9 1184.3,16.1 1186.5,11.7C1191.8,1.7 1198.0,-1.3 1208.0,1.2C1221.8,4.7 1227.6,21.9 1218.3,31.4C1210.4,39.6 1181.6,84.5 1161.5,120.1C1157.9,126.5 1153.5,132.9 1151.8,134.3C1148.0,137.5 1140.5,154.1 1140.5,159.2C1140.5,163.9 1138.1,165.5 1134.4,163.3Z"/></svg>
+<span>파리크라상 · 이성한</span>
+</div>
+<script>
+/* body 가 flex(row)/grid 인 페이지는 흐름에서 빼내 레이아웃을 건드리지 않는다 */
+(function(){var e=document.querySelector('.pc-seal');if(!e)return;
+var c=getComputedStyle(document.body),d=c.display;
+if(d.indexOf('grid')>-1||(d.indexOf('flex')>-1&&c.flexDirection.indexOf('row')===0))
+e.classList.add('pc-seal--float');})();
+</script>
+<!-- /pc-seal:v3 -->
+
+<div class="wrap">
+  <div class="brand">PARIS CROISSANT · 파리크라상</div>
+  <header>
+    <h1>홀케익 판매 현황</h1>
+    <div class="updated">최종 업데이트: <span id="last-updated">-</span></div>
+  </header>
+  <div class="divider"></div>
+
+  <div class="toolbar">
+    <button class="btn admin-only" id="btnTpl">⬇ 업로드 양식</button>
+    <button class="btn admin-only" id="btnSample">샘플 데이터</button>
+    <button class="btn admin-only" id="btnDiscard">초안 버리기</button>
+    <button class="btn admin-only" id="btnGh">🔗 GitHub 연동</button>
+    <button class="btn primary admin-only" id="btnPublish">⬆ 발행</button>
+    <span class="spacer"></span>
+    <button class="btn" id="btnLogin">🔒 관리자</button>
+  </div>
+  <div id="drop" class="admin-only">엑셀 파일을 끌어다 놓거나 클릭해서 업로드
+    <small>시트: 판매(POS) · 출하(ERP) · 사전예약 · 제품 · 점포 — 들어 있는 시트만 교체되고 나머지는 유지됩니다</small>
+    <input type="file" id="file" accept=".xlsx,.xls" hidden>
+  </div>
+  <div id="pubNote"></div>
+
+  <div class="tabs">
+    <button class="tab on" data-tab="sales">판매 현황</button>
+    <button class="tab" data-tab="pre">사전예약 현황</button>
+  </div>
+
+  <form id="filter-form" onsubmit="return false">
+    <div class="f dates"><label for="start-date" id="date-label">판매일</label>
+      <div><input type="date" id="start-date"> ~ <input type="date" id="end-date"></div></div>
+    <div class="f"><label for="bu-filter">사업부</label><select id="bu-filter"><option value="all">전체</option></select></div>
+    <div class="f"><label for="team-filter">팀</label><select id="team-filter"><option value="all">전체</option></select></div>
+    <div class="f"><label for="store-filter">점포</label><select id="store-filter"><option value="all">전체</option></select></div>
+    <button class="btn primary" id="filter-btn" type="submit">조회</button>
+  </form>
+  <div class="f-note" id="f-note"></div>
+
+  <div id="empty"></div>
+
+  <!-- ===== 판매 현황 ===== -->
+  <section id="view-sales">
+    <div class="sec"><span class="num">01</span><h2>핵심 지표</h2></div><div class="divider"></div>
+    <div class="kpis">
+      <div class="kpi"><div class="lb">총 판매액</div><div class="v" id="total-sales-amount">0</div><div class="sub" id="total-sales-sub"></div></div>
+      <div class="kpi"><div class="lb">총 판매 수량</div><div class="v" id="total-sales-qty">0</div><div class="sub" id="total-qty-sub"></div></div>
+      <div class="kpi"><div class="lb">출하 수량</div><div class="v" id="ship-qty">0</div><div class="sub" id="ship-sub"></div></div>
+      <div class="kpi"><div class="lb">판매율</div><div class="v" id="sell-rate">-</div><div class="sub">판매 수량 ÷ 출하 수량</div></div>
+    </div>
+
+    <div class="sec"><span class="num">02</span><h2>판매 추이 · 채널별 판매</h2></div><div class="divider"></div>
+    <div class="grid2">
+      <div class="panel"><h3 id="trend-title">시간대별 판매 추이</h3><div class="cap" id="trend-cap"></div>
+        <div class="chart-box"><canvas id="sales-trend-chart"></canvas></div></div>
+      <div class="panel"><h3>채널별 판매</h3><div class="cap">POS 판매 채널 기준 · 사전예약 수령은 수령일에 집계</div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>채널</th><th class="n">판매액</th><th>비중</th><th class="n">판매 수량</th></tr></thead>
+          <tbody id="channel-table-body"></tbody></table></div></div>
+    </div>
+
+    <div class="sec"><span class="num">03</span><h2>제품별 판매 · 판매율</h2></div><div class="divider"></div>
+    <div class="grid2">
+      <div class="panel"><h3>제품별 판매 비중</h3><div class="cap">판매액 기준</div>
+        <div class="chart-box"><canvas id="product-sales-chart"></canvas></div></div>
+      <div class="panel"><h3>제품별 판매율</h3><div class="cap">선택 기간 출하 대비 판매 수량</div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>제품명</th><th class="n">출하</th><th class="n">판매</th><th class="n">판매율</th><th class="n">잔여</th></tr></thead>
+          <tbody id="product-rate-table-body"></tbody></table></div></div>
+    </div>
+
+    <div class="sec"><span class="num">04</span><h2>점포별 판매 순위</h2></div><div class="divider"></div>
+    <div class="panel"><div class="tbl-wrap"><table>
+      <thead><tr><th>순위</th><th>점포명</th><th>팀명</th><th class="n">판매액</th><th class="n">판매 수량</th><th class="n">그중 예약 수령</th><th class="n">출하</th><th class="n">판매율</th></tr></thead>
+      <tbody id="store-rank-table-body"></tbody></table></div></div>
+  </section>
+
+  <!-- ===== 사전예약 현황 ===== -->
+  <section id="view-pre" hidden>
+    <div class="sec"><span class="num">01</span><h2>사전예약 지표</h2></div><div class="divider"></div>
+    <div class="kpis">
+      <div class="kpi"><div class="lb">예약 접수 수량</div><div class="v" id="pre-qty">0</div><div class="sub" id="pre-amt"></div></div>
+      <div class="kpi"><div class="lb">수령 완료</div><div class="v" id="pre-done">0</div><div class="sub" id="pre-done-sub"></div></div>
+      <div class="kpi"><div class="lb">미수령</div><div class="v" id="pre-wait">0</div><div class="sub" id="pre-wait-sub"></div></div>
+      <div class="kpi"><div class="lb">취소</div><div class="v" id="pre-cancel">0</div><div class="sub">접수 수량에서 제외</div></div>
+    </div>
+
+    <div class="sec"><span class="num">02</span><h2>접수 추이 · 수령 예정</h2></div><div class="divider"></div>
+    <div class="grid2">
+      <div class="panel"><h3>일자별 예약 접수</h3><div class="cap">예약일 기준 수량 (취소 제외)</div>
+        <div class="chart-box"><canvas id="pre-daily-chart"></canvas></div></div>
+      <div class="panel"><h3>수령일별 예정 수량</h3><div class="cap">위 기간에 접수된 예약의 수령일 분포</div>
+        <div class="chart-box"><canvas id="pre-pickup-chart"></canvas></div></div>
+    </div>
+
+    <div class="sec"><span class="num">03</span><h2>제품별 사전예약 현황</h2></div><div class="divider"></div>
+    <div class="panel"><div class="cap" id="preorder-cap"></div><div class="tbl-wrap"><table>
+      <thead id="preorder-table-head"></thead><tbody id="preorder-table-body"></tbody></table></div></div>
+
+    <div class="sec"><span class="num">04</span><h2>점포별 사전예약 순위</h2></div><div class="divider"></div>
+    <div class="panel"><div class="tbl-wrap"><table>
+      <thead><tr><th>순위</th><th>점포명</th><th>팀명</th><th class="n">예약 수량</th><th class="n">예약 금액</th><th class="n">수령 완료</th><th class="n">미수령</th></tr></thead>
+      <tbody id="pre-store-table-body"></tbody></table></div></div>
+  </section>
+</div>
+
+<div class="modal-bg" id="ghModal">
+  <div class="modal">
+    <h2>GitHub 연동 설정</h2>
+    <p class="hint">토큰을 등록하면 <b>발행</b> 버튼이 저장소에 자동 커밋합니다. 토큰은 이 브라우저에만 저장되니 <b>본인 PC에서만</b> 사용하세요. 미설정 시 발행은 파일 다운로드로 동작합니다.</p>
+    <div style="display:grid;grid-template-columns:110px 1fr;gap:10px 12px;align-items:center;font-size:13px">
+      <label>저장소 소유자</label><input type="text" id="ghOwner">
+      <label>저장소 이름</label><input type="text" id="ghRepo">
+      <label>브랜치</label><input type="text" id="ghBranch">
+      <label>파일 경로</label><input type="text" id="ghPath">
+      <label>토큰(PAT)</label><input type="password" id="ghToken" placeholder="github_pat_... (Contents 쓰기 권한)">
+    </div>
+    <div id="ghStatus" style="font-size:12px;font-weight:600;margin-top:10px;min-height:16px"></div>
+    <div class="modal-foot">
+      <button class="btn" id="ghTest">연결 테스트</button>
+      <button class="btn" id="ghClear">연동 해제</button>
+      <button class="btn" id="ghCancel">닫기</button>
+      <button class="btn primary" id="ghSave">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   홀케익 판매 현황 — 단일 HTML
+   흐름: 관리자 엑셀 업로드 → (초안: localStorage) → 발행(cake_sales_data.json) → 열람자 fetch
+   총 판매액 = POS 판매 전체 (사전예약 수령분은 수령 당일 POS에 '예약' 채널로 잡힘)
+   판매율   = POS 판매 수량 ÷ ERP 출하 수량 (선택 기간·필터 범위)
+   사전예약 시트는 [사전예약 현황] 탭 전용 — 판매 합계에는 더하지 않음(중복 방지)
+   ========================================================= */
+const ADMIN_PW='1111';   // 관리자 비밀번호 — 직접 바꾸세요. 정적 페이지라 소스에 보이므로 '수정 잠금' 수준입니다.
+const PUB_FILE='cake_sales_data.json';
+const LS_DRAFT='cakeSales_draft', LS_DIRTY='cakeSales_dirty', LS_GH='cakeSales_gh';
+const ST_DONE='완료', ST_WAIT='예약', ST_CANCEL='취소';
+const PRE_CHANNEL=/예약/;   // POS 채널명이 이 패턴에 맞으면 '사전예약 수령'으로 봄 — 실제 채널명에 맞게 바꾸세요
+const isPreCh=c=>PRE_CHANNEL.test(c||'');
+const C_PRIMARY='#15237A', C_SECOND='#2F497D', C_TINT='rgba(47,73,125,.35)';
+
+const EMPTY_DB=()=>({products:[],stores:[],sales:[],ship:[],pre:[]});
+let DB=EMPTY_DB();
+let storeMap=new Map(), prodMap=new Map();
+let pubAt='', isAdmin=false, dirty=false, tab='sales';
+const range={sales:{s:'',e:''},pre:{s:'',e:''}};
+const charts={};
+
+const $=id=>document.getElementById(id);
+const won=n=>Math.round(n).toLocaleString('ko-KR')+'원';
+const num=n=>Math.round(n).toLocaleString('ko-KR');
+const sum=(a,f)=>a.reduce((t,r)=>t+f(r),0);
+const amt=r=>r.a!=null?r.a:r.q*r.u;   // 판매: 금액(a) 보관, 사전예약: 수량×단가
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+function loadJSON(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } }
+function saveJSON(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ return false; } }
+
+/* ---------- 데이터 보관 형식 (발행 파일 용량 절감용 배열) ---------- */
+function pack(db){ return { v:2, products:db.products, stores:db.stores,
+  sales:db.sales.map(r=>[r.d,r.t,r.s,r.p,r.c,r.q,r.a]),
+  ship:db.ship.map(r=>[r.d,r.s,r.p,r.q]),
+  pre:db.pre.map(r=>[r.no,r.od,r.s,r.p,r.q,r.u,r.pd,r.st]) }; }
+function unpack(j){ return { products:j.products||[], stores:j.stores||[],
+  sales:(j.sales||[]).map(a=>({d:a[0],t:a[1],s:a[2],p:a[3],c:a[4],q:+a[5]||0,a:+a[6]||0})),
+  ship:(j.ship||[]).map(a=>({d:a[0],s:a[1],p:a[2],q:+a[3]||0})),
+  pre:(j.pre||[]).map(a=>({no:a[0],od:a[1],s:a[2],p:a[3],q:+a[4]||0,u:+a[5]||0,pd:a[6],st:a[7]})) }; }
+function setDB(db){
+  DB=db;
+  storeMap=new Map(db.stores.map(s=>[s.code,s]));
+  prodMap=new Map(db.products.map(p=>[p.code,p]));
+}
+const storeName=c=>(storeMap.get(c)||{}).name||c;
+const teamName=c=>(storeMap.get(c)||{}).team||'-';
+const prodName=c=>(prodMap.get(c)||{}).name||c;
+
+/* ---------- 날짜 ---------- */
+function ymd(dt){ return dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate()); }
+function addDays(s,n){ const [y,m,d]=s.split('-').map(Number); return ymd(new Date(y,m-1,d+n)); }
+function dayList(s,e){ const out=[]; for(let d=s; d<=e && out.length<400; d=addDays(d,1)) out.push(d); return out; }
+const md=s=>s.slice(5).replace('-','/');
+
+/* ---------- 엑셀 양식 ---------- */
+const num0=v=>typeof v==='number'?v:(+String(v).replace(/[,원\s]/g,'')||0);
+const str=v=>String(v??'').trim();
+function normDate(v){
+  if(v==null||v==='') return '';
+  if(typeof v==='number'){ const o=XLSX.SSF.parse_date_code(v); return o?o.y+'-'+pad(o.m)+'-'+pad(o.d):''; }
+  const m=String(v).trim().match(/^(\d{4})\s*[.\-\/]?\s*(\d{1,2})\s*[.\-\/]?\s*(\d{1,2})/);
+  return m?m[1]+'-'+pad(m[2])+'-'+pad(m[3]):'';
+}
+function normTime(v){
+  if(v==null||v==='') return '';
+  if(typeof v==='number'){ const o=XLSX.SSF.parse_date_code(v); return o?pad(o.H)+':'+pad(o.M)+':'+pad(o.S):''; }
+  const m=String(v).trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  return m?pad(m[1])+':'+m[2]+':'+(m[3]||'00'):'';
+}
+function normStatus(v){
+  const s=str(v).replace(/\s/g,'');
+  if(['완료','수령','수령완료'].includes(s)) return ST_DONE;
+  if(['예약','접수','미수령'].includes(s)) return ST_WAIT;
+  if(s==='취소') return ST_CANCEL;
+  return '';
+}
+// 시트 정의: 머리글(공백 무시) → 필드. req=필수 머리글. row()가 null이면 그 행은 형식 오류로 건너뜀.
+const SHEETS={
+  제품:{key:'products', cols:{제품코드:'code',제품명:'name',가격:'price',예약목표:'target'}, req:['제품코드','제품명'],
+    row:o=>o.code===''?null:{code:str(o.code),name:str(o.name),price:num0(o.price),target:num0(o.target)}},
+  점포:{key:'stores', cols:{점포코드:'code',점포명:'name',팀:'team',사업부:'bu'}, req:['점포코드','점포명','팀','사업부'],
+    row:o=>o.code===''?null:{code:str(o.code),name:str(o.name),team:str(o.team),bu:str(o.bu)}},
+  판매:{key:'sales', cols:{판매일:'d',판매시각:'t',점포코드:'s',제품코드:'p',채널:'c',수량:'q',단가:'u',판매금액:'a'}, req:['판매일','점포코드','제품코드','수량'],
+    row:o=>{ const r={d:normDate(o.d),t:normTime(o.t),s:str(o.s),p:str(o.p),c:str(o.c)||'미지정',q:num0(o.q),u:num0(o.u),a:o.a===''?null:num0(o.a)};
+             return (r.d&&r.s&&r.p&&r.q)?r:null; }},
+  출하:{key:'ship', cols:{출하일:'d',점포코드:'s',제품코드:'p',출하수량:'q'}, req:['출하일','점포코드','제품코드','출하수량'],
+    row:o=>{ const r={d:normDate(o.d),s:str(o.s),p:str(o.p),q:num0(o.q)};
+             return (r.d&&r.s&&r.p&&r.q)?r:null; }},
+  사전예약:{key:'pre', cols:{예약번호:'no',예약일:'od',점포코드:'s',제품코드:'p',수량:'q',단가:'u',수령일:'pd',상태:'st'}, req:['예약일','점포코드','제품코드','수량','수령일','상태'],
+    row:o=>{ const r={no:str(o.no),od:normDate(o.od),s:str(o.s),p:str(o.p),q:num0(o.q),u:num0(o.u),pd:normDate(o.pd),st:normStatus(o.st)};
+             return (r.od&&r.pd&&r.st&&r.s&&r.p&&r.q)?r:null; }},
+};
+function parseSheet(rows,name,def){
+  const key=c=>String(c).replace(/\s/g,'');
+  const hi=rows.slice(0,5).findIndex(r=>r.some(c=>key(c)===def.req[0]));
+  if(hi<0) throw new Error(`[${name}] 시트에서 '${def.req[0]}' 머리글을 찾지 못했습니다.`);
+  const head=rows[hi].map(key), idx={};
+  Object.entries(def.cols).forEach(([kr,k])=>{ const i=head.indexOf(kr); if(i>=0) idx[k]=i; });
+  const miss=def.req.filter(kr=>!(def.cols[kr] in idx));
+  if(miss.length) throw new Error(`[${name}] 시트에 필수 열이 없습니다: ${miss.join(', ')}`);
+  const out=[], bad=[];
+  rows.slice(hi+1).forEach((r,ri)=>{
+    if(r.every(c=>c===''||c==null)) return;
+    const o={}; Object.keys(def.cols).forEach(kr=>{ const k=def.cols[kr]; o[k]=k in idx?r[idx[k]]:''; });
+    const v=def.row(o); if(v) out.push(v); else bad.push(hi+ri+2);
+  });
+  return {out,bad};
+}
+async function handleFile(file){
+  try{
+    const buf=new Uint8Array(await file.arrayBuffer());
+    const head=new TextDecoder().decode(buf.slice(0,16));
+    if(head.startsWith('<##')||head.includes('NASCA')) throw new Error('DRM이 걸린 파일입니다. DRM을 해제하고 "다른 이름으로 저장"한 파일을 올려 주세요.');
+    if(!(buf[0]===0x50&&buf[1]===0x4B)) throw new Error('엑셀(.xlsx) 파일이 아닙니다.');
+    const wb=XLSX.read(buf,{type:'array'});
+    const next={...DB}, got=[], warn=[];
+    Object.entries(SHEETS).forEach(([name,def])=>{
+      const sn=wb.SheetNames.find(n=>n.replace(/\s/g,'')===name); if(!sn) return;
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''});
+      const {out,bad}=parseSheet(rows,name,def);
+      next[def.key]=out; got.push(`${name} ${num(out.length)}건`);
+      if(bad.length) warn.push(`[${name}] 형식 오류로 ${bad.length}행 제외 (행 ${bad.slice(0,8).join(', ')}${bad.length>8?' …':''})`);
+    });
+    if(!got.length) throw new Error('판매·출하·사전예약·제품·점포 시트를 찾지 못했습니다. [업로드 양식]으로 받은 파일을 사용하세요.');
+    // 판매금액이 없으면 수량×단가, 단가도 없으면 제품 가격으로 계산
+    const price=new Map(next.products.map(p=>[p.code,p.price]));
+    next.sales=next.sales.map(({u,...r})=>r.a!=null?r:{...r,a:r.q*(u||price.get(r.p)||0)});
+    next.pre=next.pre.map(r=>r.u?r:{...r,u:price.get(r.p)||0});
+    const sc=new Set(next.stores.map(s=>s.code)), pc=new Set(next.products.map(p=>p.code));
+    const rows=[...next.sales,...next.ship,...next.pre];
+    const noStore=new Set(rows.filter(r=>!sc.has(r.s)).map(r=>r.s)), noProd=new Set(rows.filter(r=>!pc.has(r.p)).map(r=>r.p));
+    if(noStore.size) warn.push(`점포 시트에 없는 점포코드 ${noStore.size}개: ${[...noStore].slice(0,6).join(', ')}${noStore.size>6?' …':''} (조직 필터에서 빠짐)`);
+    if(noProd.size) warn.push(`제품 시트에 없는 제품코드 ${noProd.size}개: ${[...noProd].slice(0,6).join(', ')}${noProd.size>6?' …':''}`);
+    if([...next.sales,...next.pre].some(r=>!amt(r))) warn.push('단가도 제품 가격도 없는 행이 있어 금액이 0원으로 집계됩니다.');
+    setDB(next); markDirty(); defaultRanges(); refreshAll();
+    alert('업로드 완료 ✅\n'+got.join(' · ')+(warn.length?'\n\n⚠ 확인 필요\n'+warn.join('\n'):'')+'\n\n[⬆ 발행]해야 열람자에게 보입니다.');
+  }catch(e){ alert('업로드 실패 ❌\n'+e.message); }
+}
+function downloadTemplate(){
+  const wb=XLSX.utils.book_new();
+  const add=(name,aoa)=>{ const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=aoa[0].map(()=>({wch:14})); XLSX.utils.book_append_sheet(wb,ws,name); };
+  add('판매',[['판매일','판매시각','점포코드','제품코드','채널','수량','단가','판매금액'],
+    ['2026-12-24','10:05:21','S001','C001','매장',1,39000,39000],['2026-12-24','15:20:00','S001','C002','사전예약',1,43000,43000]]);
+  add('출하',[['출하일','점포코드','제품코드','출하수량'],['2026-12-24','S001','C001',12]]);
+  add('사전예약',[['예약번호','예약일','점포코드','제품코드','수량','단가','수령일','상태'],['R0001','2026-10-02','S001','C001',1,39000,'2026-12-24','예약']]);
+  add('제품',[['제품코드','제품명','가격','예약목표'],['C001','케익A',39000,200]]);
+  add('점포',[['점포코드','점포명','팀','사업부'],['S001','매장A','영업1팀','수도권사업부']]);
+  add('작성안내',[['항목','설명'],
+    ['판매','POS 판매 전체. 사전예약 수령 건도 수령 당일 POS 데이터 그대로 포함'],
+    ['채널','POS 채널값 그대로 (매장·배달 등). 이름에 \'예약\'이 들어간 채널은 사전예약 수령으로 표시'],
+    ['판매금액','있으면 그대로 사용(할인 반영), 없으면 수량×단가'],
+    ['출하','ERP 출하 내역. 판매율 = 판매 수량 ÷ 출하 수량'],
+    ['사전예약','사전예약 현황 탭 전용 (판매 합계에는 더하지 않음)'],
+    ['사전예약 상태','예약 / 완료 / 취소 중 하나 (수령·접수·미수령도 인식)'],
+    ['총 판매액','POS 판매금액 합계'],
+    ['날짜','2026-12-24 / 2026.12.24 / 엑셀 날짜 형식 모두 가능'],
+    ['단가','비워 두면 제품 시트의 가격으로 계산'],
+    ['부분 업로드','파일에 들어 있는 시트만 교체되고, 없는 시트는 기존 데이터 유지'],
+    ['예약목표','전사 기준 수량. 사업부·팀·점포로 필터하면 달성률은 표시하지 않음']]);
+  XLSX.writeFile(wb,'홀케익판매현황_업로드양식.xlsx');
+}
+
+/* ---------- 샘플 데이터 (가상 — 실제 점포·제품 아님) ---------- */
+function loadSample(){
+  if((DB.sales.length||DB.ship.length||DB.pre.length) && !confirm('현재 화면 데이터를 샘플(가상) 데이터로 바꿀까요? 발행 전까지 열람자에게는 보이지 않습니다.')) return;
+  let seed=7; const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+  const pick=a=>a[Math.floor(rnd()*a.length)];
+  const products=[['C001','케익A',39000,320],['C002','케익B',43000,260],['C003','케익C',53000,180],['C004','케익D',33000,240],['C005','케익E',48000,120]]
+    .map(([code,name,price,target])=>({code,name,price,target}));
+  const org=[['수도권사업부','영업1팀'],['수도권사업부','영업2팀'],['지방사업부','영남팀'],['지방사업부','호남팀']];
+  const stores=Array.from({length:16},(_,i)=>({code:'S'+pad(i+1).padStart(3,'0'),name:'매장'+String.fromCharCode(65+i),team:org[i%4][1],bu:org[i%4][0]}));
+  const tm=h=>pad(h)+':'+pad(Math.floor(rnd()*60))+':'+pad(Math.floor(rnd()*60));
+  const sales=[], channels=['매장','매장','매장','매장','배달','배달','앱주문'];
+  dayList('2026-12-20','2026-12-24').forEach((d,di)=>{
+    const n=50+di*25;
+    for(let i=0;i<n;i++){
+      const h=rnd()<.45?16+Math.floor(rnd()*4):9+Math.floor(rnd()*13), p=pick(products), q=rnd()<.85?1:2;
+      sales.push({d,t:tm(h),s:pick(stores).code,p:p.code,c:pick(channels),q,a:q*p.price});
+    }
+  });
+  const pre=[], odays=dayList('2026-10-01','2026-12-20'), pdays=dayList('2026-12-22','2026-12-25');
+  for(let i=0;i<900;i++){
+    const p=pick(products), pd=pick(pdays), late=rnd()<.6;
+    const od=late?odays[odays.length-1-Math.floor(rnd()*30)]:pick(odays);
+    const st=rnd()<.08?ST_CANCEL:(pd<='2026-12-24'&&rnd()<.88?ST_DONE:ST_WAIT);
+    const r={no:'R'+String(i+1).padStart(5,'0'),od,s:pick(stores).code,p:p.code,q:rnd()<.9?1:2,u:p.price,pd,st};
+    pre.push(r);
+    if(st===ST_DONE) sales.push({d:pd,t:tm(10+Math.floor(rnd()*10)),s:r.s,p:r.p,c:'사전예약',q:r.q,a:r.q*r.u});  // 수령 당일 POS에 잡힘
+  }
+  // 출하: 점포·제품·일자별 판매량에 여유분을 얹어 생성 (판매율 80~95% 수준)
+  const sold=new Map(); sales.forEach(r=>{ const k=r.d+'|'+r.s+'|'+r.p; sold.set(k,(sold.get(k)||0)+r.q); });
+  const ship=[...sold].map(([k,q])=>{ const [d,s,p]=k.split('|'); return {d,s,p,q:q+Math.floor(rnd()*3)+(rnd()<.3?1:0)}; });
+  setDB({products,stores,sales,ship,pre}); markDirty(); defaultRanges(); refreshAll();
+}
+
+/* ---------- 필터 ---------- */
+const uniq=a=>[...new Set(a)].filter(Boolean).sort((x,y)=>x.localeCompare(y,'ko'));
+function fillSelect(el,opts,keep){
+  const cur=keep?el.value:'all';
+  el.innerHTML='<option value="all">전체</option>'+opts.map(o=>`<option value="${esc(o.v)}">${esc(o.t)}</option>`).join('');
+  el.value=opts.some(o=>o.v===cur)?cur:'all';
+}
+function populateFilters(){
+  fillSelect($('bu-filter'),uniq(DB.stores.map(s=>s.bu)).map(v=>({v,t:v})),true);
+  onBuChange(true);
+}
+function onBuChange(keep){
+  const bu=$('bu-filter').value;
+  fillSelect($('team-filter'),uniq(DB.stores.filter(s=>bu==='all'||s.bu===bu).map(s=>s.team)).map(v=>({v,t:v})),keep===true);
+  onTeamChange(keep);
+}
+function onTeamChange(keep){
+  const bu=$('bu-filter').value, team=$('team-filter').value;
+  const st=DB.stores.filter(s=>(bu==='all'||s.bu===bu)&&(team==='all'||s.team===team)).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  fillSelect($('store-filter'),st.map(s=>({v:s.code,t:s.name})),keep===true);
+}
+// 조직 필터가 하나라도 걸려 있으면 허용 점포코드 Set, 전체면 null
+function allowedStores(){
+  const bu=$('bu-filter').value, team=$('team-filter').value, store=$('store-filter').value;
+  if(bu==='all'&&team==='all'&&store==='all') return null;
+  return new Set(DB.stores.filter(s=>(bu==='all'||s.bu===bu)&&(team==='all'||s.team===team)&&(store==='all'||s.code===store)).map(s=>s.code));
+}
+function defaultRanges(){
+  const sd=[...DB.sales.map(r=>r.d),...DB.ship.map(r=>r.d)].filter(Boolean).sort();
+  const last=sd[sd.length-1]||ymd(new Date());
+  range.sales={s:last,e:last};
+  const od=DB.pre.map(r=>r.od).filter(Boolean).sort();
+  range.pre={s:od[0]||last,e:od[od.length-1]||last};
+}
+function writeRangeInputs(){
+  $('start-date').value=range[tab].s; $('end-date').value=range[tab].e;
+  $('date-label').textContent=tab==='sales'?'판매일 · 출하일':'예약 접수일';
+}
+function readRangeInputs(){
+  let s=$('start-date').value, e=$('end-date').value;
+  if(!s) s=e; if(!e) e=s;
+  if(s>e) [s,e]=[e,s];
+  range[tab]={s,e}; writeRangeInputs();
+}
+
+/* ---------- 화면 갱신 ---------- */
+function drawChart(id,cfg){ if(charts[id]) charts[id].destroy(); charts[id]=new Chart($(id),cfg); }
+function barOpts(stacked,horizontal){
+  return { responsive:true, maintainAspectRatio:false, indexAxis:horizontal?'y':'x',
+    plugins:{ legend:{display:stacked,position:'bottom',labels:{boxWidth:12}},
+      tooltip:{callbacks:{label:c=>(c.dataset.label?c.dataset.label+': ':'')+num(c.raw)+(c.dataset.unit||'')}} },
+    scales:{ x:{stacked,grid:{display:!!horizontal,color:'#E3E7EF'},ticks:horizontal?{callback:v=>num(v)}:{}},
+             y:{stacked,grid:{display:!horizontal,color:'#E3E7EF'},beginAtZero:true,ticks:horizontal?{}:{callback:v=>num(v)}} } };
+}
+function emptyRow(cols,msg){ return `<tr><td class="empty" colspan="${cols}">${msg||'선택한 조건에 데이터가 없습니다.'}</td></tr>`; }
+
+function updateDashboard(){
+  const has=DB.sales.length||DB.ship.length||DB.pre.length;
+  $('empty').style.display=has?'none':'block';
+  $('view-sales').hidden=!has||tab!=='sales';
+  $('view-pre').hidden=!has||tab!=='pre';
+  if(!has) return;
+  const allow=allowedStores();
+  $('f-note').textContent=`조회 기간 ${range[tab].s} ~ ${range[tab].e}`+(allow?` · 선택 점포 ${allow.size}개`:' · 전체 점포');
+  tab==='sales'?renderSales(allow):renderPre(allow);
+}
+
+function renderSales(allow){
+  const {s,e}=range.sales, inStore=r=>!allow||allow.has(r.s);
+  const sales=DB.sales.filter(r=>r.d>=s&&r.d<=e&&inStore(r));
+  const ship=DB.ship.filter(r=>r.d>=s&&r.d<=e&&inStore(r));
+  const pre=sales.filter(r=>isPreCh(r.c));
+  const A=sum(sales,amt), Q=sum(sales,r=>r.q), pA=sum(pre,amt), pQ=sum(pre,r=>r.q), SQ=sum(ship,r=>r.q);
+  const rate=(q,sq)=>sq?(q/sq*100).toFixed(1)+'%':'-';
+  $('total-sales-amount').textContent=won(A);
+  $('total-sales-sub').textContent='그중 사전예약 수령 '+won(pA);
+  $('total-sales-qty').textContent=num(Q)+'개';
+  $('total-qty-sub').textContent='그중 사전예약 수령 '+num(pQ)+'개';
+  $('ship-qty').textContent=num(SQ)+'개';
+  $('ship-sub').textContent=SQ?'잔여(출하−판매) '+num(SQ-Q)+'개':'출하 데이터 없음';
+  $('sell-rate').textContent=rate(Q,SQ);
+
+  // 추이: 하루면 시간대별, 여러 날이면 일자별 (일반 / 사전예약 수령 구분)
+  if(s===e){
+    const a=Array(24).fill(0), b=Array(24).fill(0); let noTime=0;
+    sales.forEach(r=>{ const h=parseInt(r.t,10); if(isNaN(h)) noTime++; else (isPreCh(r.c)?b:a)[h]+=amt(r); });
+    const tot=a.map((v,i)=>v+b[i]);
+    let lo=tot.findIndex(v=>v>0), hi=23-[...tot].reverse().findIndex(v=>v>0);
+    if(lo<0){ lo=9; hi=21; }
+    $('trend-title').textContent='시간대별 판매 추이';
+    $('trend-cap').textContent=`${s} · 판매액`+(noTime?` · 판매시각 없는 ${noTime}건 제외`:'');
+    drawChart('sales-trend-chart',{type:'bar',data:{labels:tot.slice(lo,hi+1).map((_,i)=>(lo+i)+'시'),datasets:[
+      {label:'일반 판매',data:a.slice(lo,hi+1),backgroundColor:C_PRIMARY,unit:'원'},
+      {label:'사전예약 수령',data:b.slice(lo,hi+1),backgroundColor:C_TINT,unit:'원'}]},options:barOpts(true)});
+  } else {
+    const days=dayList(s,e), ix=new Map(days.map((d,i)=>[d,i])), a=Array(days.length).fill(0), b=Array(days.length).fill(0);
+    sales.forEach(r=>(isPreCh(r.c)?b:a)[ix.get(r.d)]+=amt(r));
+    $('trend-title').textContent='일자별 판매 추이';
+    $('trend-cap').textContent='판매액 · 사전예약 수령은 수령일 기준';
+    drawChart('sales-trend-chart',{type:'bar',data:{labels:days.map(md),datasets:[
+      {label:'일반 판매',data:a,backgroundColor:C_PRIMARY,unit:'원'},
+      {label:'사전예약 수령',data:b,backgroundColor:C_TINT,unit:'원'}]},options:barOpts(true)});
+  }
+
+  // 채널별
+  const cm=new Map(); sales.forEach(r=>{ const o=cm.get(r.c)||{a:0,q:0}; o.a+=amt(r); o.q+=r.q; cm.set(r.c,o); });
+  const crows=[...cm].sort((x,y)=>y[1].a-x[1].a), share=v=>A?v/A*100:0;
+  $('channel-table-body').innerHTML=crows.length?crows.map(([c,o])=>
+    `<tr><td>${esc(c)}${isPreCh(c)?' <span class="cap">(사전예약 수령)</span>':''}</td><td class="n">${won(o.a)}</td>`+
+    `<td><span class="bar"><i style="width:${share(o.a).toFixed(1)}%"></i></span>${share(o.a).toFixed(1)}%</td><td class="n">${num(o.q)}</td></tr>`).join('')+
+    `<tr class="sum"><td>합계</td><td class="n">${won(A)}</td><td>100%</td><td class="n">${num(Q)}</td></tr>`:emptyRow(4);
+
+  // 제품별 비중 (가로 막대 + %)
+  const pm=new Map(); sales.forEach(r=>pm.set(r.p,(pm.get(r.p)||0)+amt(r)));
+  const prows=[...pm].sort((x,y)=>y[1]-x[1]);
+  drawChart('product-sales-chart',{type:'bar',data:{labels:prows.map(([p,v])=>`${prodName(p)} (${share(v).toFixed(1)}%)`),
+    datasets:[{label:'',data:prows.map(r=>r[1]),backgroundColor:C_SECOND,unit:'원'}]},options:barOpts(false,true)});
+
+  // 제품별 판매율
+  const qm=new Map(), get=(m,k)=>m.get(k)||m.set(k,{q:0,sq:0}).get(k);
+  sales.forEach(r=>get(qm,r.p).q+=r.q); ship.forEach(r=>get(qm,r.p).sq+=r.q);
+  const qrows=[...qm].sort((x,y)=>y[1].sq-x[1].sq||y[1].q-x[1].q);
+  $('product-rate-table-body').innerHTML=qrows.length?qrows.map(([p,o])=>
+    `<tr><td>${esc(prodName(p))}</td><td class="n">${num(o.sq)}</td><td class="n">${num(o.q)}</td><td class="n">${rate(o.q,o.sq)}</td><td class="n">${o.sq?num(o.sq-o.q):'-'}</td></tr>`).join('')+
+    `<tr class="sum"><td>합계</td><td class="n">${num(SQ)}</td><td class="n">${num(Q)}</td><td class="n">${rate(Q,SQ)}</td><td class="n">${SQ?num(SQ-Q):'-'}</td></tr>`:emptyRow(5);
+
+  // 점포별 순위 — 출하만 있고 판매가 없는 점포도 포함
+  const sm=new Map(), st=k=>sm.get(k)||sm.set(k,{a:0,q:0,pq:0,sq:0}).get(k);
+  sales.forEach(r=>{ const o=st(r.s); o.a+=amt(r); o.q+=r.q; if(isPreCh(r.c)) o.pq+=r.q; });
+  ship.forEach(r=>st(r.s).sq+=r.q);
+  const srows=[...sm].sort((x,y)=>y[1].a-x[1].a||y[1].sq-x[1].sq);
+  $('store-rank-table-body').innerHTML=srows.length?srows.map(([c,o],i)=>
+    `<tr><td class="rk">${i+1}</td><td>${esc(storeName(c))}</td><td>${esc(teamName(c))}</td><td class="n">${won(o.a)}</td><td class="n">${num(o.q)}</td><td class="n">${num(o.pq)}</td><td class="n">${num(o.sq)}</td><td class="n">${rate(o.q,o.sq)}</td></tr>`).join(''):emptyRow(8);
+}
+
+function renderPre(allow){
+  const {s,e}=range.pre, inStore=r=>!allow||allow.has(r.s);
+  const rows=DB.pre.filter(r=>r.od>=s&&r.od<=e&&inStore(r));
+  const act=rows.filter(r=>r.st!==ST_CANCEL), done=act.filter(r=>r.st===ST_DONE), wait=act.filter(r=>r.st===ST_WAIT);
+  const aQ=sum(act,r=>r.q), dQ=sum(done,r=>r.q), wQ=sum(wait,r=>r.q);
+  const pct=v=>aQ?(v/aQ*100).toFixed(1)+'%':'-';
+  $('pre-qty').textContent=num(aQ)+'개';            $('pre-amt').textContent='예약 금액 '+won(sum(act,amt));
+  $('pre-done').textContent=num(dQ)+'개';           $('pre-done-sub').textContent='접수 대비 '+pct(dQ);
+  $('pre-wait').textContent=num(wQ)+'개';           $('pre-wait-sub').textContent='접수 대비 '+pct(wQ);
+  $('pre-cancel').textContent=num(sum(rows.filter(r=>r.st===ST_CANCEL),r=>r.q))+'개';
+
+  const days=dayList(s,e), ix=new Map(days.map((d,i)=>[d,i])), a=Array(days.length).fill(0);
+  act.forEach(r=>a[ix.get(r.od)]+=r.q);
+  drawChart('pre-daily-chart',{type:'bar',data:{labels:days.map(md),datasets:[{label:'',data:a,backgroundColor:C_PRIMARY,unit:'개'}]},options:barOpts(false)});
+
+  const pdays=uniq(act.map(r=>r.pd)), pix=new Map(pdays.map((d,i)=>[d,i])), pd1=Array(pdays.length).fill(0), pd2=Array(pdays.length).fill(0);
+  done.forEach(r=>pd1[pix.get(r.pd)]+=r.q); wait.forEach(r=>pd2[pix.get(r.pd)]+=r.q);
+  drawChart('pre-pickup-chart',{type:'bar',data:{labels:pdays.map(md),datasets:[
+    {label:'수령 완료',data:pd1,backgroundColor:C_PRIMARY,unit:'개'},{label:'미수령',data:pd2,backgroundColor:C_TINT,unit:'개'}]},options:barOpts(true)});
+
+  // 제품별 — 조직 필터 중에는 전사 목표 대비 달성률 숨김
+  const showTarget=!allow;
+  $('preorder-table-head').innerHTML=`<tr><th>제품명</th><th class="n">사전예약 수량</th><th class="n">수령 완료</th><th class="n">미수령</th><th class="n">취소</th>`+
+    (showTarget?`<th class="n">목표 수량</th><th class="n">달성률(%)</th>`:'')+`</tr>`;
+  $('preorder-cap').textContent=showTarget?'달성률 = 선택 기간 예약 수량(취소 제외) ÷ 전사 목표':'사업부·팀·점포 필터 중에는 전사 목표 기준 달성률을 표시하지 않습니다.';
+  const codes=uniq([...DB.products.map(p=>p.code),...rows.map(r=>r.p)]);
+  const prow=codes.map(c=>{
+    const my=rows.filter(r=>r.p===c), q=f=>sum(my.filter(f),r=>r.q);
+    return {c,a:q(r=>r.st!==ST_CANCEL),d:q(r=>r.st===ST_DONE),w:q(r=>r.st===ST_WAIT),x:q(r=>r.st===ST_CANCEL),t:(prodMap.get(c)||{}).target||0};
+  }).filter(o=>o.a||o.x||o.t).sort((x,y)=>y.a-x.a);
+  $('preorder-table-body').innerHTML=prow.length?prow.map(o=>`<tr><td>${esc(prodName(o.c))}</td><td class="n">${num(o.a)}</td><td class="n">${num(o.d)}</td><td class="n">${num(o.w)}</td><td class="n">${num(o.x)}</td>`+
+    (showTarget?`<td class="n">${o.t?num(o.t):'-'}</td><td class="n">${o.t?(o.a/o.t*100).toFixed(1):'-'}</td>`:'')+`</tr>`).join(''):emptyRow(showTarget?7:5);
+
+  const sm=new Map();
+  act.forEach(r=>{ const o=sm.get(r.s)||{q:0,a:0,d:0,w:0}; o.q+=r.q; o.a+=amt(r); if(r.st===ST_DONE) o.d+=r.q; else o.w+=r.q; sm.set(r.s,o); });
+  const srows=[...sm].sort((x,y)=>y[1].q-x[1].q);
+  $('pre-store-table-body').innerHTML=srows.length?srows.map(([c,o],i)=>
+    `<tr><td class="rk">${i+1}</td><td>${esc(storeName(c))}</td><td>${esc(teamName(c))}</td><td class="n">${num(o.q)}</td><td class="n">${won(o.a)}</td><td class="n">${num(o.d)}</td><td class="n">${num(o.w)}</td></tr>`).join(''):emptyRow(7);
+}
+
+function refreshAll(){
+  populateFilters(); writeRangeInputs(); updateHeader(); updateDashboard();
+}
+function updateHeader(){
+  const f=iso=>{ const d=new Date(iso); return isNaN(d)?'-':ymd(d)+' '+pad(d.getHours())+':'+pad(d.getMinutes()); };
+  $('last-updated').textContent=(isAdmin&&dirty)?'미발행 초안 (발행본: '+(pubAt?f(pubAt):'없음')+')':(pubAt?f(pubAt):'-');
+  const n=$('pubNote');
+  n.style.display=(isAdmin&&dirty)?'block':'none';
+  n.innerHTML='<b>미발행 변경이 있습니다.</b> [⬆ 발행]해야 열람자에게 보입니다. 이 화면의 초안은 이 브라우저에만 저장됩니다.';
+  $('empty').innerHTML=isAdmin?'데이터가 없습니다. [⬇ 업로드 양식]을 받아 채운 뒤 위 영역에 올리거나, [샘플 데이터]로 화면을 확인하세요.'
+    :'아직 발행된 데이터가 없습니다.';
+}
+function markDirty(){
+  dirty=true;
+  try{ localStorage.setItem(LS_DIRTY,'1'); }catch(e){}
+  if(!saveJSON(LS_DRAFT,pack(DB))) alert('브라우저 저장 용량을 넘어 초안을 보관하지 못했습니다. 새로고침 전에 발행하세요.');
+}
+function markPublished(){ dirty=false; try{ localStorage.setItem(LS_DIRTY,'0'); localStorage.removeItem(LS_DRAFT); }catch(e){} updateHeader(); }
+
+/* ---------- 발행 ---------- */
+async function publish(){
+  if(!DB.sales.length&&!DB.ship.length&&!DB.pre.length){ alert('발행할 데이터가 없습니다. 먼저 엑셀을 업로드하세요.'); return; }
+  const at=new Date().toISOString();
+  const json=JSON.stringify({...pack(DB),exportedAt:at});
+  const cfg=loadJSON(LS_GH,null);
+  if(cfg&&cfg.token&&cfg.owner&&cfg.repo){
+    const btn=$('btnPublish'), t0=btn.textContent; btn.textContent='발행 중…'; btn.disabled=true;
+    try{
+      const res=await ghCommit(cfg,json); pubAt=at; markPublished();
+      alert('GitHub에 자동 발행 완료 ✅\n커밋: '+(res.commit&&res.commit.sha?res.commit.sha.slice(0,7):'-')+'\n경로: '+cfg.owner+'/'+cfg.repo+' → '+cfg.path+'\n\nGitHub Pages 반영에 1분 정도 걸릴 수 있습니다.');
+    }catch(e){
+      alert('자동 발행 실패 ❌\n'+e.message+'\n\n대신 파일 다운로드로 전환합니다.');
+      downloadJson(json); pubAt=at; markPublished();
+    }finally{ btn.textContent=t0; btn.disabled=false; }
+  } else {
+    downloadJson(json); pubAt=at; markPublished();
+    alert('['+PUB_FILE+'] 파일을 저장했습니다.\n이 파일을 cake_sales.html과 같은 폴더(S.HAN 저장소)에 올리면 열람자에게 보입니다.\n\n※ [🔗 GitHub 연동]에 토큰을 등록하면 자동으로 올라갑니다.');
+  }
+}
+function downloadJson(json){
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([json],{type:'application/json'})); a.download=PUB_FILE; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+/* ---------- GitHub API (Contents) ---------- */
+function utf8b64(str){ const bytes=new TextEncoder().encode(str); let bin=''; const CH=0x8000; for(let i=0;i<bytes.length;i+=CH) bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+CH)); return btoa(bin); }
+function ghUrl(cfg){ const p=String(cfg.path||PUB_FILE).split('/').map(encodeURIComponent).join('/'); return `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${p}`; }
+function ghHeaders(cfg){
+  if(!/^[\x21-\x7E]+$/.test(cfg.token||'')) throw new Error('토큰에 잘못된 문자(공백·한글 등)가 있습니다. 토큰을 다시 붙여넣으세요.');
+  return {Authorization:'Bearer '+cfg.token, Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};
+}
+function shortErr(t){ try{ return JSON.parse(t).message||t; }catch(e){ return (t||'').slice(0,120); } }
+async function ghCommit(cfg,content){
+  const r0=await fetch(ghUrl(cfg)+'?ref='+encodeURIComponent(cfg.branch||'main'),{headers:ghHeaders(cfg),cache:'no-store'});
+  let sha=null;
+  if(r0.status===200) sha=(await r0.json()).sha; else if(r0.status!==404) throw new Error('조회 실패 ('+r0.status+') '+shortErr(await r0.text()));
+  const body={message:'홀케익 판매 현황 데이터 발행 '+new Date().toISOString().slice(0,19),content:utf8b64(content),branch:cfg.branch||'main'};
+  if(sha) body.sha=sha;
+  const r=await fetch(ghUrl(cfg),{method:'PUT',headers:{...ghHeaders(cfg),'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok) throw new Error('커밋 실패 ('+r.status+') '+shortErr(await r.text()));
+  return r.json();
+}
+function openGh(){
+  const c=loadJSON(LS_GH,{})||{};
+  ghOwner.value=c.owner||'hani-4455'; ghRepo.value=c.repo||'S.HAN'; ghBranch.value=c.branch||'main'; ghPath.value=c.path||PUB_FILE; ghToken.value=c.token||'';
+  ghStatus.textContent=''; $('ghModal').classList.add('show');
+}
+function readGh(){ return {owner:ghOwner.value.trim(),repo:ghRepo.value.trim(),branch:ghBranch.value.trim()||'main',path:ghPath.value.trim()||PUB_FILE,
+  token:(ghToken.value||'').replace(/[​-‍﻿]/g,'').replace(/\s+/g,'')}; }
+function ghMsg(ok,t){ ghStatus.style.color=ok?C_PRIMARY:'#c94b4b'; ghStatus.textContent=t; }
+function saveGh(){
+  const c=readGh(); if(!c.owner||!c.repo||!c.token) return ghMsg(false,'소유자·저장소·토큰은 필수입니다.');
+  saveJSON(LS_GH,c); applyMode(); ghMsg(true,'저장됨. 이제 발행 시 자동 커밋됩니다.');
+  setTimeout(()=>$('ghModal').classList.remove('show'),700);
+}
+async function testGh(){
+  const c=readGh(); if(!c.owner||!c.repo||!c.token) return ghMsg(false,'소유자·저장소·토큰을 먼저 입력하세요.');
+  ghMsg(true,'확인 중…');
+  try{
+    const r=await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}`,{headers:ghHeaders(c),cache:'no-store'});
+    if(!r.ok) throw new Error('('+r.status+') '+shortErr(await r.text()));
+    const j=await r.json();
+    j.permissions&&j.permissions.push?ghMsg(true,'연결 OK ✅ 쓰기 권한 확인됨'):ghMsg(false,'쓰기 권한이 없습니다. 토큰 권한을 Contents: Read and write로 설정하세요.');
+  }catch(e){ ghMsg(false,'실패: '+e.message); }
+}
+function clearGh(){
+  if(!confirm('GitHub 연동을 해제하고 저장된 토큰을 삭제할까요?')) return;
+  try{ localStorage.removeItem(LS_GH); }catch(e){}
+  ghToken.value=''; applyMode(); ghMsg(false,'연동이 해제되었습니다. 발행은 파일 다운로드로 동작합니다.');
+}
+
+/* ---------- 관리자 ---------- */
+function toggleAdmin(){
+  if(isAdmin){ isAdmin=false; document.body.classList.remove('is-admin'); loadPublished(); return; }
+  const pw=prompt('관리자 비밀번호를 입력하세요.'); if(pw==null) return;
+  if(pw!==ADMIN_PW){ alert('비밀번호가 올바르지 않습니다.'); return; }
+  isAdmin=true; document.body.classList.add('is-admin');
+  const draft=loadJSON(LS_DRAFT,null);
+  if(dirty&&draft){ setDB(unpack(draft)); defaultRanges(); }
+  applyMode(); refreshAll();
+}
+function applyMode(){
+  $('btnLogin').textContent=isAdmin?'🔓 관리자 (로그아웃)':'🔒 관리자';
+  const c=loadJSON(LS_GH,null);
+  $('btnPublish').textContent=(c&&c.token&&c.owner&&c.repo)?'⬆ 발행(자동)':'⬆ 발행';
+}
+function discardDraft(){
+  if(!confirm('업로드한 초안을 버리고 발행본으로 되돌릴까요?')) return;
+  markPublished(); loadPublished();
+}
+async function loadPublished(){
+  setDB(EMPTY_DB()); pubAt='';
+  try{
+    const r=await fetch(PUB_FILE+'?v='+Date.now(),{cache:'no-store'});
+    if(r.ok){ const j=await r.json(); setDB(unpack(j)); pubAt=j.exportedAt||''; }
+    else if(r.status!==404) throw new Error('HTTP '+r.status);
+  }catch(e){ $('f-note').textContent='데이터를 불러오지 못했습니다 ('+e.message+'). 새로고침해 주세요.'; }
+  applyMode(); defaultRanges(); refreshAll();
+}
+
+/* ---------- 이벤트 ---------- */
+function init(){
+  Chart.defaults.font.family="'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif";
+  Chart.defaults.color='#272727';
+  $('filter-btn').addEventListener('click',()=>{ readRangeInputs(); updateDashboard(); });
+  $('bu-filter').addEventListener('change',onBuChange);
+  $('team-filter').addEventListener('change',onTeamChange);
+  document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
+    readRangeInputs(); tab=b.dataset.tab;
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));
+    writeRangeInputs(); updateDashboard();
+  }));
+  $('btnLogin').onclick=toggleAdmin; $('btnTpl').onclick=downloadTemplate; $('btnSample').onclick=loadSample;
+  $('btnDiscard').onclick=discardDraft; $('btnPublish').onclick=publish; $('btnGh').onclick=openGh;
+  $('ghSave').onclick=saveGh; $('ghTest').onclick=testGh; $('ghClear').onclick=clearGh; $('ghCancel').onclick=()=>$('ghModal').classList.remove('show');
+  const drop=$('drop'), file=$('file');
+  drop.onclick=()=>file.click();
+  file.onchange=()=>{ if(file.files[0]) handleFile(file.files[0]); file.value=''; };
+  drop.ondragover=e=>{ e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave=()=>drop.classList.remove('over');
+  drop.ondrop=e=>{ e.preventDefault(); drop.classList.remove('over'); if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); };
+  try{ dirty=localStorage.getItem(LS_DIRTY)==='1'; }catch(e){}
+  loadPublished();
+}
+init();
+</script>
+</body>
+</html>
