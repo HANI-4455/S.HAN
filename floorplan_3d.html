@@ -19,6 +19,7 @@ h1{margin:2px 0 0;color:var(--pri);font-weight:600;font-size:24px}
 .rule{display:flex;margin-top:12px;height:2px}.rule i{width:48px;background:var(--acc)}.rule b{flex:1;background:var(--sec);opacity:.35}
 main{max-width:1600px;margin:0 auto;padding:12px 20px 32px}
 .bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
+.bar .ai{border-color:var(--acc);color:var(--acc)}
 .bar .sep{width:1px;height:24px;background:var(--sec);opacity:.25;margin:0 4px}
 button,.btn{font:inherit;font-size:13px;padding:6px 11px;border:1px solid var(--sec);border-radius:4px;background:#fff;color:var(--sec);cursor:pointer;white-space:nowrap}
 button:hover,.btn:hover{background:#eef1f6}
@@ -116,7 +117,9 @@ e.classList.add('pc-seal--float');})();
     <button id="bSave" class="pri">작업 저장 (.json)</button>
     <label class="btn">작업 불러오기<input id="fProj" type="file" accept=".json,application/json" hidden></label>
     <button id="bPng">3D 이미지 저장</button>
-    <button id="bPrompt" title="3D 모델 내용으로 Gamma 등 이미지 AI용 실사 렌더 문장을 만듭니다">실사 프롬프트</button>
+    <button id="bPrompt" title="3D 모델 내용으로 이미지 AI용 실사 렌더 문장(영문)을 만듭니다">실사 프롬프트</button>
+    <button id="bGemini" class="ai" title="3D 화면을 복사하고 Gemini를 엽니다. 한국어 프롬프트, 무료로 시작">Gemini로 실사 렌더</button>
+    <button id="bKrea" class="ai" title="3D 화면을 복사하고 Krea AI를 엽니다. AI Strength로 변형 정도 조절">Krea로 실사 렌더</button>
     <button id="bNew">새로 만들기</button>
   </div>
 
@@ -143,13 +146,10 @@ e.classList.add('pc-seal--float');})();
   </div>
 
   <div class="card hidden" id="promptCard" style="margin-top:12px">
-    <h3>Gamma 실사 프롬프트</h3>
-    <ol class="steps" style="margin-bottom:10px">
-      <li><span>[3D 이미지 저장]으로 지금 보이는 3D 화면을 PNG로 받습니다. 보여 주고 싶은 각도로 돌려 놓고 저장하세요.</span></li>
-      <li><span>Gamma에서 이미지 만들기 → 받은 PNG를 <b>참고 이미지</b>로 첨부하고 아래 문장을 붙여 넣습니다.</span></li>
-    </ol>
+    <h3 id="promptTitle">실사 프롬프트</h3>
+    <ol class="steps" id="promptSteps" style="margin-bottom:10px"></ol>
     <textarea id="promptTxt" rows="14" style="width:100%;font:12px/1.55 Consolas,monospace;padding:10px;border:1px solid #c5ccd8;border-radius:4px;color:var(--txt)"></textarea>
-    <div class="bar" style="margin:8px 0 0"><button id="bCopy" class="pri">복사</button><button id="bPromptClose">닫기</button><span class="muted">문장은 3D 모델(요소·치수·재질)로 만들며 외부로 보내지 않습니다.</span></div>
+    <div class="bar" style="margin:8px 0 0"><button id="bCopy" class="pri">프롬프트 복사</button><button id="bShot" class="hidden">그림 다시 복사</button><button id="bSite" class="hidden">사이트 다시 열기</button><button id="bPromptClose">닫기</button><span class="muted">문장은 3D 모델(요소·치수·재질)로 만들며 외부로 보내지 않습니다.</span></div>
   </div>
 
   <div class="lower">
@@ -164,6 +164,7 @@ e.classList.add('pc-seal--float');})();
         <li><span><b>스캔본·이미지 도면</b> — 자동 분석이 안 됩니다. [AI로 인식](Google Gemini, 도면 외부 전송·API 키 필요)을 쓰거나 [수정하기]로 직접 그립니다.</span></li>
         <li><span><b>틀린 곳 고치기</b> — [수정하기] → [선택]으로 클릭해 종류·높이·재질 변경, 꼭짓점 드래그, Delete 삭제, Ctrl+Z 되돌리기. 빠진 것은 왼쪽 도구로 그립니다(더블클릭·Enter 완료, Esc 취소, Shift 수평·수직).</span></li>
         <li><span><b>저장</b> — 작업 저장(.json)을 다른 사람에게 주면 [작업 불러오기]로 이어서 수정할 수 있습니다. [3D 이미지 저장]은 PNG.</span></li>
+        <li><span><b>실사 이미지</b> — 3D를 보여 줄 각도로 돌린 뒤 [Gemini로 실사 렌더] 또는 [Krea로 실사 렌더]를 누릅니다. 3D 그림이 복사되고 사이트가 새 탭으로 열리니 Ctrl+V로 붙여 넣고, 아래 [프롬프트 복사]로 문장도 붙여 넣습니다.</span></li>
       </ol>
       <div class="legend" id="legend"></div>
     </div>
@@ -1102,16 +1103,57 @@ function realPrompt() {
   L.push('Style: clean modern premium cafe interior, realistic materials and reflections, high resolution. No people. Do not invent text, logos or signage.');
   return L.join('\n');
 }
-$('bPrompt').onclick = () => {
-  if (!st.els.length) return alert('먼저 도면을 불러와 3D를 만드세요.');
-  $('promptTxt').value = realPrompt(); $('promptCard').classList.remove('hidden');
-  $('promptCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+/* 실사 렌더 안내: 직접 쓰기(영문 프롬프트) / Gemini·Krea 바로가기(3D 그림 복사 + 사이트 새 탭) */
+const AI_SITES = {
+  manual: { name: '', lang: 'en', steps: [
+    '[3D 이미지 저장]으로 지금 보이는 3D 화면을 PNG로 받습니다. 보여 주고 싶은 각도로 돌려 놓고 저장하세요.',
+    '이미지 AI에 받은 PNG를 <b>참고 이미지</b>로 첨부하고 아래 문장을 붙여 넣습니다.'] },
+  gemini: { name: 'Gemini', url: 'https://gemini.google.com/app', lang: 'ko', steps: [
+    '새 탭의 Gemini 입력창에 <b>Ctrl+V</b>로 3D 그림을 붙여 넣습니다. (이미지 생성 모델 Nano Banana를 고르세요)',
+    '아래 <b>[프롬프트 복사]</b>를 누르고 Gemini 입력창에 다시 <b>Ctrl+V</b> 후 보냅니다.',
+    '배치가 바뀌면 "가구 위치는 그대로 두고 다시"라고 한 번 더 요청하세요.'] },
+  krea: { name: 'Krea AI', url: 'https://www.krea.ai/realtime', lang: 'en', steps: [
+    '새 탭의 Krea 화면에 <b>Ctrl+V</b>로 3D 그림을 붙여 넣습니다. (Realtime 또는 Enhancer)',
+    '아래 <b>[프롬프트 복사]</b>를 누르고 프롬프트 칸에 붙여 넣습니다.',
+    '<b>AI Strength 0.5~0.65</b>에서 시작해, 배치가 바뀌면 낮추고 밋밋하면 높이세요.'] }
 };
+function koPrompt() {                          // Gemini용: 지시는 한국어, 요소 목록은 영문 프롬프트를 그대로 붙임
+  const en = realPrompt().split('\n'), a = en.indexOf('Elements:'), b = en.findIndex(l => l.startsWith('Lighting:'));
+  const L = [];
+  L.push(`첨부한 3D 이미지를 ${st.name ? `"${st.name}" 매장의` : '카페 매장의'} 실사 인테리어 렌더링으로 바꿔 주세요. 천장고는 ${st.ceil.toLocaleString()}mm입니다.`);
+  L.push('벽, 카운터, 진열대, 테이블, 의자의 위치와 크기, 카메라 각도는 첨부 이미지 그대로 유지하고 단순한 블록만 실제 재질과 조명으로 바꿔 주세요. 새 가구를 추가하거나 배치를 옮기지 마세요.');
+  if (a >= 0) L.push('', '요소별 재질 (영문):', ...en.slice(a + 1, b > a ? b : undefined).filter(Boolean));
+  L.push('', '조명: 3000K 따뜻한 트랙 스포트라이트, 카운터 아래 은은한 LED 간접조명, 유리창으로 들어오는 자연광.');
+  L.push('깔끔하고 고급스러운 모던 카페 인테리어, 실제 같은 재질과 반사, 고해상도. 사람 없이, 글자·로고·간판은 새로 만들지 마세요.');
+  return L.join('\n');
+}
+let aiCur = null;
+const shotBlob = () => new Promise(r => { renderer.render(scene, camera); renderer.domElement.toBlob(r, 'image/png'); });
+async function copyShot() {
+  try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': shotBlob() })]); return true; }
+  catch { renderer.render(scene, camera); download(renderer.domElement.toDataURL('image/png'), fileName('png')); return false; }   // 그림 복사가 안 되는 브라우저는 파일로 저장
+}
+async function showPrompt(key) {
+  if (!st.els.length) return alert('먼저 도면을 불러와 3D를 만드세요.');
+  const s = aiCur = AI_SITES[key];
+  let ok = true;
+  if (s.url) { ok = await copyShot(); window.open(s.url, '_blank', 'noopener'); }
+  $('promptTitle').textContent = s.name ? `${s.name}로 실사 렌더` : '실사 프롬프트';
+  $('promptSteps').innerHTML = (ok ? '' : '<li><span>이 브라우저는 그림 복사가 안 돼서 PNG 파일로 저장했습니다. 그 파일을 끌어다 놓으세요.</span></li>') + s.steps.map(t => `<li><span>${t}</span></li>`).join('');
+  $('bShot').classList.toggle('hidden', !s.url); $('bSite').classList.toggle('hidden', !s.url);
+  $('promptTxt').value = s.lang === 'ko' ? koPrompt() : realPrompt(); $('promptCard').classList.remove('hidden');
+  $('promptCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+$('bPrompt').onclick = () => showPrompt('manual');
+$('bGemini').onclick = () => showPrompt('gemini');
+$('bKrea').onclick = () => showPrompt('krea');
+$('bShot').onclick = async () => { if (await copyShot()) { $('bShot').textContent = '복사됨'; setTimeout(() => $('bShot').textContent = '그림 다시 복사', 1500); } };
+$('bSite').onclick = () => aiCur?.url && window.open(aiCur.url, '_blank', 'noopener');
 $('bPromptClose').onclick = () => $('promptCard').classList.add('hidden');
 $('bCopy').onclick = async () => {
   const t = $('promptTxt');
   try { await navigator.clipboard.writeText(t.value); } catch { t.select(); document.execCommand('copy'); }
-  $('bCopy').textContent = '복사됨'; setTimeout(() => $('bCopy').textContent = '복사', 1500);
+  $('bCopy').textContent = '복사됨'; setTimeout(() => $('bCopy').textContent = '프롬프트 복사', 1500);
 };
 
 /* ================= 3D ================= */
