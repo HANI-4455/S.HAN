@@ -190,5 +190,13 @@
   "desc": "일반 판매·사전예약 수령 합산 매출, 사업부·팀·점포 필터, 사전예약 접수·수령 현황 탭",
   "emoji": "🎂",
   "tag": "대시보드"
+ },
+ {
+  "id": 28,
+  "path": "https://script.google.com/macros/s/AKfycbx5YwsbBeu_qawYiwu2kuGNCjpEgTKzPwlgMiPae_fEm6tf_jlogWezn42q4sW1NeYcWw/exec",
+  "title": "직영점 폐점 분석",
+  "desc": "점포별 누적손익·잔여임차료·폐점비용·잔존가치 · 최적 폐점 시점 시뮬레이션 · AI 챗봇",
+  "emoji": "🏪",
+  "tag": "대시보드"
  }
 ]
