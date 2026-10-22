@@ -12,7 +12,7 @@
  *   5. Sheets 화면으로 돌아와 새로고침(F5)하면 상단에 [🏪 폐점분석] 메뉴가 생깁니다.
  *   6. [🏪 폐점분석 → 🛠 시트 만들기 (샘플 데이터 포함)]을 처음 한 번 실행합니다.
  *      (최초 실행 시 Google 권한 승인 창이 뜨면 [허용]을 눌러 주세요.)
- *   7. 챗봇을 쓰려면 [🔑 챗봇 API 키 설정]에서 Anthropic API 키를 한 번 등록합니다.
+ *   7. 챗봇을 쓰려면 [🔑 챗봇 API 키 설정 (Gemini)]에서 Gemini API 키를 한 번 등록합니다.
  *
  *  [시트 구성]
  *   - 손익현황   : (입력) 브랜드·점포별 월별 매출/비용 → 영업이익 자동 계산
@@ -349,7 +349,7 @@ function onOpen() {
     .addItem('📊 대시보드 열기', 'openDashboard')
     .addItem('🔗 대시보드 새 창으로 열기 (웹앱 링크)', 'openDashboardLink')
     .addItem('💬 챗봇 열기 (사이드바)', 'openChatSidebar')
-    .addItem('🔑 챗봇 API 키 설정', 'setClaudeApiKey')
+    .addItem('🔑 챗봇 API 키 설정 (Gemini)', 'setChatApiKey')
     .addSeparator()
     .addItem('⏰ 매일 자동 갱신 켜기 (오전 6시)', 'installDailyTrigger')
     .addItem('⏰ 매일 자동 갱신 끄기', 'removeDailyTrigger')
@@ -2266,29 +2266,28 @@ function getDashboardData() {
 
 
 // ============================================================================
-// 5단계. 폐점분석 챗봇 (Claude API)
-//   - [🔑 챗봇 API 키 설정]에서 Anthropic API 키를 한 번 등록하면 됩니다.
+// 5단계. 폐점분석 챗봇 (Google Gemini API)
+//   - [🔑 챗봇 API 키 설정 (Gemini)]에서 Gemini API 키를 한 번 등록하면 됩니다.
+//     (허브의 회의록 챗봇·도면 3D 등과 같은 Gemini 키를 써도 됩니다)
 //   - 챗봇은 아래 '도구'로 시트 데이터를 직접 조회·계산합니다. (숫자를 지어내지 않도록)
 //     대시보드와 같은 계산 함수(evaluateClosing_)를 쓰므로 결과가 항상 일치합니다.
-//   - 질문과 조회 결과는 Anthropic API로 전송됩니다. (사내 공유 데이터 기준)
+//   - 질문과 조회 결과는 Google Gemini API로 전송됩니다. (사내 공유 데이터 기준)
 // ============================================================================
 
-const CLAUDE_MODEL = 'claude-opus-5-5';
-const CLAUDE_EFFORT = 'low';        // 답변 깊이: 'low'(빠름) / 'medium' / 'high'(깊지만 느림)
-const CLAUDE_MAX_TOKENS = 16000;
-const CHAT_MAX_TOOL_ROUNDS = 8;     // 한 질문에 도구를 최대 몇 번 연달아 쓸지
+const GEMINI_MODEL = 'gemini-2.5-flash';   // 허브의 다른 도구와 같은 모델
+const CHAT_MAX_TOOL_ROUNDS = 8;            // 한 질문에 도구를 최대 몇 번 연달아 쓸지
 
-// [메뉴] API 키 등록
-function setClaudeApiKey() {
+// [메뉴] Gemini API 키 등록
+function setChatApiKey() {
   const ui = SpreadsheetApp.getUi();
-  const res = ui.prompt('🔑 챗봇 API 키 설정',
-    'Anthropic API 키(sk-ant-...)를 붙여넣으세요.\n키는 이 스크립트 속성에만 저장되고 시트에는 표시되지 않습니다.',
+  const res = ui.prompt('🔑 챗봇 API 키 설정 (Gemini)',
+    'Gemini API 키(AIza...)를 붙여넣으세요.\n키는 이 스크립트 속성에만 저장되고 시트에는 표시되지 않습니다.',
     ui.ButtonSet.OK_CANCEL);
   if (res.getSelectedButton() !== ui.Button.OK) return;
   const key = res.getResponseText().trim();
   if (!key) return;
-  PropertiesService.getScriptProperties().setProperty('ANTHROPIC_API_KEY', key);
-  ui.alert('API 키를 저장했습니다. [💬 챗봇 열기] 또는 대시보드의 챗봇 탭에서 사용해 보세요.');
+  PropertiesService.getScriptProperties().setProperty('GEMINI_API_KEY', key);
+  ui.alert('Gemini API 키를 저장했습니다. [💬 챗봇 열기] 또는 대시보드의 챗봇 탭에서 사용해 보세요.');
 }
 
 // 챗봇이 쓸 수 있는 도구 목록
@@ -2368,86 +2367,106 @@ const CHAT_TOOLS = [
 ];
 
 // 대시보드·사이드바의 챗봇이 호출하는 함수
-//   messagesJson: 지금까지의 대화 전체 (Claude API messages 형식, 문자열)
+//   messagesJson: 지금까지의 대화 전체 (Gemini contents 형식, 문자열)
 //   돌려주는 값: { messages: 새 대화 전체, note: 안내 문구, error: 오류 문구 }
 function chatTurn(messagesJson) {
-  const messages = JSON.parse(messagesJson);
-  const key = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
+  const contents = JSON.parse(messagesJson);
+  const key = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
   if (!key) {
-    return JSON.stringify({ messages: messages,
-      error: 'API 키가 없습니다. 시트 메뉴 [🏪 폐점분석 → 🔑 챗봇 API 키 설정]에서 먼저 등록해 주세요.' });
+    return JSON.stringify({ messages: contents,
+      error: 'Gemini API 키가 없습니다. 시트 메뉴 [🏪 폐점분석 → 🔑 챗봇 API 키 설정 (Gemini)]에서 먼저 등록해 주세요.' });
   }
 
   const data = chatData_();
   for (let round = 0; round < CHAT_MAX_TOOL_ROUNDS; round++) {
-    const res = callClaude_(key, data.system, messages);
-    if (res.error) return JSON.stringify({ messages: messages, error: res.error });
+    const res = callGemini_(key, data.system, contents);
+    if (res.error) return JSON.stringify({ messages: contents, error: res.error });
 
+    const cand = res.candidates && res.candidates[0];
+    if (!cand || !cand.content || !cand.content.parts) {
+      const why = (res.promptFeedback && res.promptFeedback.blockReason) || (cand && cand.finishReason) || '알 수 없음';
+      return JSON.stringify({ messages: contents, note: '답변을 만들지 못했습니다 (' + why + '). 질문을 바꿔 다시 시도해 주세요.' });
+    }
     // 응답은 손대지 않고 그대로 대화에 붙입니다. (다음 요청에서 그대로 다시 보내야 합니다)
-    messages.push({ role: 'assistant', content: res.content });
+    contents.push(cand.content);
 
-    if (res.stop_reason === 'tool_use') {
+    const calls = cand.content.parts.filter(function (p) { return p.functionCall; });
+    if (calls.length) {
       // 요청된 도구를 모두 실행하고, 결과를 한 번에 돌려줍니다.
-      const results = res.content.filter(function (b) { return b.type === 'tool_use'; }).map(function (b) {
+      contents.push({ role: 'user', parts: calls.map(function (p) {
+        const fc = p.functionCall;
+        let response;
         try {
-          return { type: 'tool_result', tool_use_id: b.id,
-            content: JSON.stringify(roundDeep_(runChatTool_(b.name, b.input || {}, data))) };
+          response = { result: roundDeep_(runChatTool_(fc.name, fc.args || {}, data)) };
         } catch (err) {
-          return { type: 'tool_result', tool_use_id: b.id, content: err.message, is_error: true };
+          response = { error: err.message };
         }
-      });
-      messages.push({ role: 'user', content: results });
+        return { functionResponse: { name: fc.name, response: response } };
+      }) });
       continue;
     }
 
     let note = '';
-    if (res.stop_reason === 'refusal') note = '이 요청에는 답변할 수 없습니다. 질문을 바꿔 다시 시도해 주세요.';
-    if (res.stop_reason === 'max_tokens') note = '답변이 길어 중간에 잘렸습니다. 범위를 좁혀 다시 물어봐 주세요.';
-    return JSON.stringify({ messages: messages, note: note });
+    if (cand.finishReason === 'MAX_TOKENS') note = '답변이 길어 중간에 잘렸습니다. 범위를 좁혀 다시 물어봐 주세요.';
+    if (cand.finishReason === 'SAFETY') note = '안전 필터 때문에 답변이 중단되었습니다. 질문을 바꿔 다시 시도해 주세요.';
+    return JSON.stringify({ messages: contents, note: note });
   }
-  return JSON.stringify({ messages: messages,
-    note: '조회가 너무 많아 중단했습니다. 질문을 나눠서 해 주세요.' });
+  return JSON.stringify({ messages: contents, note: '조회가 너무 많아 중단했습니다. 질문을 나눠서 해 주세요.' });
 }
 
-// Claude API 호출 (일시적 오류는 최대 3번까지 재시도)
-function callClaude_(key, system, messages) {
+// Gemini API 호출 (일시적 오류는 최대 3번까지 재시도)
+function callGemini_(key, system, contents) {
   const body = {
-    model: CLAUDE_MODEL,
-    max_tokens: CLAUDE_MAX_TOKENS,
-    system: system,
-    tools: CHAT_TOOLS,
-    messages: messages,
-    output_config: { effort: CLAUDE_EFFORT },
-    fallbacks: 'default',                      // 안전 필터에 걸리면 다른 모델로 자동 재시도
-    cache_control: { type: 'ephemeral' }       // 반복되는 앞부분(도구·지침·대화)을 캐시해 비용 절감
+    systemInstruction: { parts: [{ text: system }] },
+    contents: contents,
+    tools: [{ functionDeclarations: CHAT_TOOLS.map(toGeminiFunction_) }],
+    generationConfig: { temperature: 0.2, maxOutputTokens: 8192 }
   };
   const options = {
     method: 'post',
     contentType: 'application/json',
     muteHttpExceptions: true,
-    headers: {
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'anthropic-beta': 'server-side-fallback-2026-07-01'
-    },
+    headers: { 'x-goog-api-key': key },
     payload: JSON.stringify(body)
   };
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL + ':generateContent';
   for (let attempt = 0; attempt < 3; attempt++) {
-    const resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', options);
+    const resp = UrlFetchApp.fetch(url, options);
     const code = resp.getResponseCode();
     let json = null;
     try { json = JSON.parse(resp.getContentText()); } catch (err) { json = null; }
     if (code === 200 && json) return json;
 
     const msg = json && json.error ? json.error.message : resp.getContentText().slice(0, 300);
-    if (code === 429 || code === 529 || code >= 500) {   // 혼잡·일시 오류 → 잠시 후 재시도
+    if (code === 429 || code === 503 || code >= 500) {   // 혼잡·일시 오류 → 잠시 후 재시도
       Utilities.sleep(2000 * (attempt + 1));
       continue;
     }
-    if (code === 401) return { error: 'API 키가 올바르지 않습니다. [🔑 챗봇 API 키 설정]에서 다시 등록해 주세요.' };
-    return { error: 'Claude API 오류 (' + code + '): ' + msg };
+    if (code === 400 && /API key/i.test(msg) || code === 401 || code === 403) {
+      return { error: 'Gemini API 키가 올바르지 않거나 권한이 없습니다. [🔑 챗봇 API 키 설정 (Gemini)]에서 다시 등록해 주세요. (' + msg + ')' };
+    }
+    return { error: 'Gemini API 오류 (' + code + '): ' + msg };
   }
-  return { error: 'Claude API가 혼잡합니다. 잠시 후 다시 시도해 주세요.' };
+  return { error: 'Gemini API가 혼잡합니다. 잠시 후 다시 시도해 주세요.' };
+}
+
+// 도구 정의를 Gemini 형식(functionDeclarations)으로 바꿉니다.
+function toGeminiFunction_(tool) {
+  const conv = function (sc) {
+    const o = { type: String(sc.type).toUpperCase() };
+    if (sc.description) o.description = sc.description;
+    if (sc.enum) o.enum = sc.enum;
+    if (sc.properties) {
+      o.properties = {};
+      Object.keys(sc.properties).forEach(function (k) { o.properties[k] = conv(sc.properties[k]); });
+    }
+    if (sc.required) o.required = sc.required;
+    return o;
+  };
+  const fn = { name: tool.name, description: tool.description };
+  const props = tool.input_schema && tool.input_schema.properties;
+  if (props && Object.keys(props).length) fn.parameters = conv(tool.input_schema);   // 입력이 없는 도구는 parameters 생략
+  return fn;
 }
 
 // 챗봇 한 턴 동안 쓸 데이터와 지침을 준비합니다.
@@ -2542,7 +2561,7 @@ function runChatTool_(name, input, data) {
     }
     const row = ev.rows[idx];
     return {
-      store: m.brand + ' ' + m.store, close_month: ym, assumptions: assumptions(o),
+      store: storeLabel_(m.brand, m.store), close_month: ym, assumptions: assumptions(o),
       closing_cost: { total: row.cost, remaining_rent: row.rent, sunk_residual_asset: row.residual,
         restore: row.restore, other: row.other, penalty: row.penalty },
       cumulative_op_until_close: row.cumOp, net_value: row.value,
@@ -2556,7 +2575,7 @@ function runChatTool_(name, input, data) {
     const o = optsOf();
     const ev = evaluateClosing_(m, o);
     return {
-      store: m.brand + ' ' + m.store, assumptions: assumptions(o),
+      store: storeLabel_(m.brand, m.store), assumptions: assumptions(o),
       trend: m.trend, recommendation: ev.recommendation,
       best: brief(ev.rows[ev.best]), immediate: brief(ev.rows[0]), lease_end_operation: brief(ev.rows[ev.last]),
       gain_vs_now: ev.gainVsNow, gain_vs_lease_end: ev.gainVsLast,
@@ -2594,6 +2613,11 @@ function runChatTool_(name, input, data) {
   throw new Error('알 수 없는 도구: ' + name);
 }
 
+// 점포 표시 이름: 점포명이 이미 브랜드로 시작하면(예: PB 양재본점) 브랜드를 다시 붙이지 않음
+function storeLabel_(brand, store) {
+  return str_(store).toUpperCase().indexOf(str_(brand).toUpperCase() + ' ') === 0 ? store : brand + ' ' + store;
+}
+
 // 점포명으로 점포 찾기 (공백 무시, 일부 일치 허용)
 function findStore_(models, store, brand) {
   const norm = function (s) { return str_(s).replace(/\s/g, '').toLowerCase(); };
@@ -2602,7 +2626,7 @@ function findStore_(models, store, brand) {
   let hits = pool.filter(function (m) { return norm(m.store) === q; });
   if (!hits.length) hits = pool.filter(function (m) { return norm(m.store).indexOf(q) !== -1 || q.indexOf(norm(m.store)) !== -1; });
   if (hits.length === 1) return hits[0];
-  const names = (hits.length ? hits : pool).slice(0, 30).map(function (m) { return m.brand + ' ' + m.store; });
+  const names = (hits.length ? hits : pool).slice(0, 30).map(function (m) { return storeLabel_(m.brand, m.store); });
   throw new Error((hits.length ? '여러 점포가 해당됩니다: ' : '점포를 찾을 수 없습니다. 등록된 점포: ') + names.join(', '));
 }
 
@@ -2913,11 +2937,11 @@ const DASHBOARD_HTML_ = `<!DOCTYPE html>
     <div class="chat-log" id="chat-log" aria-live="polite"></div>
     <div class="chips" id="chips"></div>
     <div class="chat-input">
-      <textarea id="chat-text" rows="1" placeholder="예) 샘플 신촌점은 언제 폐점하는 게 좋아?  (Enter 보내기, Shift+Enter 줄바꿈)"></textarea>
+      <textarea id="chat-text" rows="1" placeholder="예) 양재본점은 언제 폐점하는 게 좋아?  (Enter 보내기, Shift+Enter 줄바꿈)"></textarea>
       <button class="btn primary" id="chat-send">보내기</button>
     </div>
     <div class="chat-foot">
-      <span>질문과 조회 결과는 Anthropic Claude API로 전송됩니다 · 숫자는 시트 데이터를 조회해 계산합니다</span>
+      <span>질문과 조회 결과는 Google Gemini API로 전송됩니다 · 숫자는 시트 데이터를 조회해 계산합니다</span>
       <button id="chat-new">새 대화</button>
     </div>
   </div>
@@ -3325,7 +3349,7 @@ var MODE = <?!= JSON.stringify(mode) ?>;
     if (!text || state.busy) return;
     state.busy = true;
     $('chat-text').value = ''; autoGrow();
-    state.chat.push({ role: 'user', content: text });
+    state.chat.push({ role: 'user', parts: [{ text: text }] });   // Gemini 대화 형식
     renderChat('분석 중입니다… (시트 조회·계산에 10~40초 걸릴 수 있어요)');
     google.script.run
       .withSuccessHandler(function (json) {
@@ -3365,18 +3389,20 @@ var MODE = <?!= JSON.stringify(mode) ?>;
       tools = []; texts = [];
     };
     state.chat.forEach(function (msg) {
-      if (msg.role === 'user' && typeof msg.content === 'string') {
+      var parts = msg.parts || [];
+      var userText = parts.filter(function (p) { return typeof p.text === 'string'; });
+      if (msg.role === 'user' && userText.length) {
         flush();
-        html.push('<div class="msg user">' + esc(msg.content) + '</div>');
+        html.push('<div class="msg user">' + esc(userText.map(function (p) { return p.text; }).join('\\n')) + '</div>');
         return;
       }
-      if (msg.role !== 'assistant' || !Array.isArray(msg.content)) return;   // 도구 결과(user)는 화면에 표시하지 않음
-      msg.content.forEach(function (b) {
-        if (b.type === 'text' && b.text) texts.push(b.text);
-        if (b.type === 'tool_use') {
-          var inp = b.input || {};
+      if (msg.role !== 'model') return;   // 도구 결과(functionResponse)는 화면에 표시하지 않음
+      parts.forEach(function (p) {
+        if (p.text && !p.thought) texts.push(p.text);
+        if (p.functionCall) {
+          var inp = p.functionCall.args || {};
           var target = inp.store || inp.brand ? ': ' + (inp.brand ? inp.brand + ' ' : '') + (inp.store || '') : '';
-          tools.push('<span class="tool-chip">🔎 ' + esc((TOOL_NAMES[b.name] || b.name) + target + (inp.close_month ? ' · ' + inp.close_month : '')) + '</span>');
+          tools.push('<span class="tool-chip">🔎 ' + esc((TOOL_NAMES[p.functionCall.name] || p.functionCall.name) + target + (inp.close_month ? ' · ' + inp.close_month : '')) + '</span>');
         }
       });
     });
@@ -3431,7 +3457,7 @@ var MODE = <?!= JSON.stringify(mode) ?>;
 
   // ───────── 시작 ─────────
   renderChat();
-  if (MODE === 'chat') { $('chat-text').placeholder = '예) 신촌점 언제 폐점하는 게 좋아?'; showTab('chat'); }
+  if (MODE === 'chat') { $('chat-text').placeholder = '예) 양재본점 언제 폐점하는 게 좋아?'; showTab('chat'); }
   else load();
 })();
 </script>
