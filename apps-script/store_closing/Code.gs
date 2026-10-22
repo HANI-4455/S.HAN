@@ -462,6 +462,14 @@ function getSpreadsheet_() {
   return SpreadsheetApp.openById(id);
 }
 
+// [편집기에서 실행] 이 스크립트가 연결된 원본 시트 주소를 '실행 로그'에 보여줍니다.
+//   시트를 못 찾을 때: Apps Script 편집기 위쪽 함수 목록에서 showSheetUrl 선택 → ▶ 실행
+function showSheetUrl() {
+  const ss = getSpreadsheet_();
+  Logger.log('원본 시트: ' + ss.getName());
+  Logger.log(ss.getUrl());
+}
+
 // 계산에 필요한 공통 정보(시간대, 설정값, 기준일)를 한 번에 모읍니다.
 function makeContext_() {
   const ss = getSpreadsheet_();
