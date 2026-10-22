@@ -2277,6 +2277,9 @@ function getDashboardData() {
 const GEMINI_MODEL = 'gemini-2.5-flash';   // 허브의 다른 도구와 같은 모델
 const CHAT_MAX_TOOL_ROUNDS = 8;            // 한 질문에 도구를 최대 몇 번 연달아 쓸지
 
+// 예전 메뉴(🔑 챗봇 API 키 설정)를 눌러도 같은 화면이 뜨도록 연결
+function setClaudeApiKey() { setChatApiKey(); }
+
 // [메뉴] Gemini API 키 등록
 function setChatApiKey() {
   const ui = SpreadsheetApp.getUi();
