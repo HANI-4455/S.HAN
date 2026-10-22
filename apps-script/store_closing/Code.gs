@@ -1926,6 +1926,7 @@ function getDashboardData() {
   return JSON.stringify({
     asOf: partsToString_(r.ctx.baseDate),
     updated: r.ctx.now,
+    sheetUrl: r.ctx.ss.getUrl(),   // [📄 원본 시트 열기] 버튼용 (주소는 코드에 저장하지 않음)
     defaults: { rate: r.ctx.cfg.rentRate, level: r.ctx.cfg.level, method: 'trend',
       trendMonths: r.ctx.cfg.trendMonths, depInPL: r.ctx.cfg.depInPL },
     models: buildStoreModels_(r)
@@ -2370,6 +2371,8 @@ const DASHBOARD_HTML_ = `<!DOCTYPE html>
   .btn:hover { border-color: var(--accent); }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   .btn:disabled { opacity: .5; cursor: default; }
+  a.btn { text-decoration: none; color: var(--text); display: inline-block; }
+  a.btn[hidden] { display: none; }
 
   /* ── 탭 ── */
   nav.tabs { display: flex; gap: 4px; padding: 0 20px; border-bottom: 1px solid var(--border); }
@@ -2488,6 +2491,8 @@ const DASHBOARD_HTML_ = `<!DOCTYPE html>
   <h1>📊 직영점 폐점 분석 대시보드</h1>
   <span class="meta" id="meta">불러오는 중…</span>
   <span class="spacer"></span>
+  <!-- 시트 주소는 코드에 넣지 않고, 실행할 때 서버에서 받아 채웁니다 -->
+  <a class="btn" id="sheet-link" target="_blank" rel="noopener" hidden title="이 대시보드의 원본 데이터가 있는 구글 시트를 새 탭에서 엽니다">📄 원본 시트 열기</a>
   <button class="btn" id="reload" title="시트 데이터를 다시 불러옵니다">🔄 새로고침</button>
 </header>
 
@@ -2660,6 +2665,7 @@ var MODE = <?!= JSON.stringify(mode) ?>;
     state.models = d.models;
     state.opts = { rate: d.defaults.rate, level: d.defaults.level, method: d.defaults.method };
     $('meta').textContent = '계산 기준일 ' + d.asOf + ' · 금액 단위 천원 · 갱신 ' + d.updated;
+    if (d.sheetUrl) { $('sheet-link').href = d.sheetUrl; $('sheet-link').hidden = false; }
     if (!state.models.length) {
       $('loading').textContent = '점포 데이터가 없습니다. 시트 메뉴 [🛠 시트 만들기] 후 데이터를 입력하고 다시 열어 주세요.';
       return;
