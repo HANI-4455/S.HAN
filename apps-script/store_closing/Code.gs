@@ -66,6 +66,7 @@ const SHEETS = {
   TIMING: '폐점시점분석',   // [자동] 4단계 점포별 최적 폐점 시점
   SUMMARY: '폐점요약',    // [자동] 최종 점포별 요약 (AI 챗봇 연동용)
   BRAND: '브랜드요약',    // [자동] 최종 브랜드별 합계
+  BRAND_MAP: '브랜드매핑', // [입력+자동] 원본 시트 '소속' → 브랜드명 (원본 연동 시)
   CONFIG: '설정',         // 설정값
   GUIDE: '사용안내'       // 안내문
 };
@@ -108,6 +109,12 @@ const CFG = {
   RENT_RATE: '잔여임차료 반영률(%)',
   TREND: '추세 분석 기간(개월)',
   DEP_IN_PL: '손익에 감가상각비 포함',
+  SRC_URL: '원본 시트 주소',
+  SRC_PL: '원본 손익 탭',
+  SRC_INFO: '원본 점포정보 탭',
+  SRC_CLOSE: '원본 폐점비 탭',
+  PROFIT: '손익 기준 이익',
+  LAST_IMPORT: '마지막 원본 가져오기',
   LAST: '마지막 갱신'
 };
 const UNITS = { '원': 0.001, '천원': 1, '만원': 10 };   // 천원으로 바꾸는 배수
@@ -163,7 +170,8 @@ const ASSET_COLS = [
   { name: '잔존자산가치(천원)', type: AUTO, fmt: FMT_MONEY, width: 130, note: '(인테리어+집기+기타) − 감가상각누계액. 폐점 시 손실 처리되는 금액' },
   { name: '잔여임차개월', type: AUTO, fmt: FMT_MONTH, note: '계산기준일부터 임차종료일까지 남은 개월 수' },
   { name: '잔여임차료(천원)', type: AUTO, fmt: FMT_MONEY, width: 130, note: '월임차료 × 잔여임차개월' },
-  { name: '데이터점검', type: AUTO, width: 220 }
+  { name: '데이터점검', type: AUTO, width: 220 },
+  { name: 'POS코드', type: IN, width: 80, note: '원본 시트 연동 시 자동으로 채워집니다. 원본과 점포를 잇는 기준' }
 ];
 
 // ── 3단계: 폐점이력(입력+자동) 열 구성 ──
@@ -336,7 +344,7 @@ function onOpen() {
     .addItem('🛠 시트 만들기 (샘플 데이터 포함)', 'setupWithSample')
     .addItem('🛠 시트 만들기 (빈 양식)', 'setupBlank')
     .addSeparator()
-    .addItem('🔄 전체 다시 계산 (1~3단계)', 'updateAll')
+    .addItem('🔄 원본 가져오기 + 전체 다시 계산', 'updateAll')
     .addSeparator()
     .addItem('📊 대시보드 열기', 'openDashboard')
     .addItem('🔗 대시보드 새 창으로 열기 (웹앱 링크)', 'openDashboardLink')
@@ -366,10 +374,11 @@ function onEdit(e) {
 // [메뉴] 전체 다시 계산
 function updateAll() {
   try {
-    const r = runAll_();
+    const r = runAll_({ importSource: true });
     SpreadsheetApp.getActiveSpreadsheet().toast(
+      (r.imported ? r.imported + '\n' : '') +
       '손익 ' + r.plCount + '개 점포, 자산 ' + r.assetCount + '개 점포, 폐점이력 ' + r.histCount +
-      '건, 폐점검토 ' + r.reviewCount + '개 점포를 반영하여 폐점요약을 갱신했습니다.', '🏪 폐점분석', 5);
+      '건, 폐점검토 ' + r.reviewCount + '개 점포를 반영하여 폐점요약을 갱신했습니다.', '🏪 폐점분석', 10);
   } catch (err) {
     showAlert_('계산 중 오류가 발생했습니다.\n\n' + err.message);
   }
@@ -377,7 +386,7 @@ function updateAll() {
 
 // 매일 자동 갱신(시간 트리거)에서 호출되는 함수
 function scheduledUpdate() {
-  runAll_();
+  runAll_({ importSource: true });
 }
 
 // [메뉴] 매일 오전 6시 자동 갱신 켜기
@@ -409,7 +418,9 @@ function removeTriggers_(handlerName) {
 // 전체 실행 순서: 1단계 → 2단계 → 3단계(기준값 → 검토점포) → 최종 요약
 // ============================================================================
 
-function runAll_() {
+//   opts.importSource = true 이면 계산 전에 원본 시트에서 데이터를 먼저 가져옵니다. (0단계)
+function runAll_(opts) {
+  opts = opts || {};
   // 여러 사람이 동시에 입력해도 계산이 겹치지 않도록 잠금을 겁니다.
   let lock = null;
   try {
@@ -420,11 +431,12 @@ function runAll_() {
   }
 
   try {
+    const imported = opts.importSource ? step0_importSource_(makeContext_()) : null;   // 0단계: 원본 연동
     const r = computeAll_(false);
     step4_writeTimingSheet_(r);                               // 4단계: 점포별 최적 폐점 시점 표
     writeConfigValue_(r.ctx.ss, CFG.LAST, r.ctx.now);
     return { plCount: r.pl.size, assetCount: r.assets.list.length, histCount: r.bench.all.values.length,
-      reviewCount: r.review.size };
+      reviewCount: r.review.size, imported: imported };
   } finally {
     if (lock) lock.releaseLock();
   }
@@ -458,7 +470,7 @@ function getSpreadsheet_() {
     return active;
   }
   const id = props.getProperty('SPREADSHEET_ID');
-  if (!id) throw new Error('스프레드시트를 찾을 수 없습니다. 시트에서 [🔄 전체 다시 계산]을 한 번 실행해 주세요.');
+  if (!id) throw new Error('스프레드시트를 찾을 수 없습니다. 시트에서 [🔄 원본 가져오기 + 전체 다시 계산]을 한 번 실행해 주세요.');
   return SpreadsheetApp.openById(id);
 }
 
@@ -483,6 +495,303 @@ function makeContext_() {
     baseDate: cfg.baseDate || today,                 // 설정 기준일이 없으면 오늘
     now: Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd HH:mm')
   };
+}
+
+
+// ============================================================================
+// 0단계. 원본 시트(직영점 데이터) 연동
+//   - [설정]의 '원본 시트 주소'에 직영점 데이터 구글 시트 주소를 넣으면,
+//     [🔄 원본 가져오기 + 전체 다시 계산] 메뉴와 매일 자동 갱신 때 아래를 자동으로 채웁니다.
+//       · 원본 [시트3]   월별 손익 → [손익현황]  (폐점한 점포는 빼고 가져옴)
+//       · 원본 [점포정보] 점포 마스터 → [자산투자비]의 평수·투자시점(오픈일)·POS코드 (빈 칸만 채움)
+//       · 원본 [폐점비]   폐점 비용 → [폐점비용실적]
+//   - 원본 시트는 읽기만 하고 고치지 않습니다.
+//   - 투자비(인테리어·집기)·보증금·임차종료일·월임차료는 원본에 없으므로 [자산투자비]에 직접 입력합니다.
+//   - 셀을 고칠 때 자동 실행되는 계산(onEdit)은 다른 파일을 열 권한이 없어 원본을 가져오지 않습니다.
+// ============================================================================
+
+const SOURCE_PL_UNIT = 0.001;   // 원본 손익(시트3)은 원 단위 → 천원으로 바꾸는 배수
+
+// 브랜드 코드 추정용 단서 (점포명 앞머리나 소속 이름에 이 글자가 있으면 그 브랜드로 봄)
+const BRAND_HINTS = [
+  ['PAS', ['PAS', '파스쿠찌']],
+  ['PB', ['PB', '파리바게뜨']],
+  ['PC', ['PC', '파리크라상']],
+  ['CW', ['C@W', 'CW', '커피앳웍스']],
+  ['LAG', ['LAG', '라그릴리아']],
+  ['STR', ['STR', '스트릿']],
+  ['LI', ['리나스']]
+];
+
+function step0_importSource_(ctx) {
+  const cfg = ctx.cfg;
+  const id = sourceId_(cfg.sourceUrl);
+  if (!id) return null;                       // 원본 시트 주소가 없으면 연동하지 않음
+  const src = SpreadsheetApp.openById(id);
+  const msgs = [];
+
+  // (1) 폐점비 탭: 폐점한 점포 목록 + [폐점비용실적] 채우기
+  const closedPos = {};
+  if (cfg.sourceClosingTab) {
+    const t = readSourceTable_(src, cfg.sourceClosingTab, ['년', '월', 'POS코드', '점포명', '원상복구', '매몰비']);
+    const toCheon = unitFactor_(t.unitText, 1);   // 제목 위 '(단위 : 천)' 표시를 읽어 천원으로 환산
+    const rows = t.rows.filter(function (r) { return num_(t.get(r, '년')) && str_(t.get(r, '점포명')); });
+    rows.forEach(function (r) { closedPos[str_(t.get(r, 'POS코드'))] = true; });
+    writeClosingActuals_(ctx, rows.map(function (r) {
+      return { y: t.get(r, '년'), m: t.get(r, '월'), brand: str_(t.get(r, '브랜드')), code: str_(t.get(r, 'POS코드')),
+        name: str_(t.get(r, '점포명')), restore: num0_(t.get(r, '원상복구')) * toCheon, sunk: num0_(t.get(r, '매몰비')) * toCheon };
+    }));
+    msgs.push('폐점비 ' + rows.length + '건');
+  }
+
+  // (2) 점포정보 탭: POS코드 → 평수·오픈일
+  const info = {};
+  if (cfg.sourceInfoTab) {
+    const t = readSourceTable_(src, cfg.sourceInfoTab, ['POS코드', '점포명']);
+    t.rows.forEach(function (r) {
+      const pos = str_(t.get(r, 'POS코드'));
+      if (pos && !info[pos]) info[pos] = { area: num_(t.get(r, '평수')), open: t.get(r, '오픈일') };
+    });
+  }
+
+  // (3) 손익 탭: 점포별 월 손익 모으기
+  const t = readSourceTable_(src, cfg.sourcePlTab, ['년', '월', 'POS코드', '점포명', '순매출액', cfg.profitField]);
+  const stores = {};
+  let maxYm = '';
+  t.rows.forEach(function (r) {
+    const pos = str_(t.get(r, 'POS코드'));
+    const y = num_(t.get(r, '년')), m = num_(t.get(r, '월'));
+    if (!pos || !y || !m) return;               // 합계·빈 행은 건너뜀
+    const ym = y + '-' + pad2_(m);
+    if (ym > maxYm) maxYm = ym;
+    if (!stores[pos]) {
+      stores[pos] = { pos: pos, name: str_(t.get(r, '점포명')), org: str_(t.get(r, '소속')),
+        org2: str_(t.get(r, '소속 2')), months: [] };
+    }
+    stores[pos].months.push({ ym: ym, sales: num0_(t.get(r, '순매출액')), profit: num0_(t.get(r, cfg.profitField)) });
+  });
+
+  // 폐점한 점포 제외: 폐점비 탭에 있거나, 가장 최근 달 손익이 없는 점포
+  const active = [], skipped = [];
+  Object.keys(stores).forEach(function (pos) {
+    const s = stores[pos];
+    s.lastYm = s.months.map(function (x) { return x.ym; }).sort().pop();
+    if (closedPos[pos] || s.lastYm < maxYm) skipped.push(s.name); else active.push(s);
+  });
+
+  // 브랜드: [브랜드매핑]에 직접 지정한 값 → 없으면 점포명·소속으로 추정
+  const brandOf = updateBrandMap_(ctx, active);
+  active.forEach(function (s) { s.brand = brandOf(s); });
+  active.sort(function (a, b) { return cmp_(a.brand, b.brand) || cmp_(a.name, b.name); });
+
+  const plRows = writeSourceProfitLoss_(ctx, active);
+  const assetMsg = upsertSourceAssets_(ctx, active, info);
+  const removed = removeSampleStores_(ctx);
+
+  msgs.unshift('손익 ' + active.length + '개 점포·' + plRows + '행 (' + maxYm + '까지, 폐점 ' + skipped.length + '곳 제외)');
+  msgs.push(assetMsg);
+  if (removed) msgs.push('샘플 점포 ' + removed + '행 삭제');
+  const summary = '원본 가져오기 완료: ' + msgs.join(' · ');
+  writeConfigValue_(ctx.ss, CFG.LAST_IMPORT, ctx.now + ' · ' + msgs.join(' · '));
+  return summary;
+}
+
+// 주소(…/d/ID/edit) 또는 ID만 넣어도 ID를 꺼냅니다.
+function sourceId_(text) {
+  const s = str_(text);
+  const m = s.match(/\/d\/([a-zA-Z0-9_-]{20,})/);
+  if (m) return m[1];
+  return /^[a-zA-Z0-9_-]{20,}$/.test(s) ? s : '';
+}
+
+// 원본 탭에서 제목 행(필요한 열 이름이 모두 있는 행)을 찾아 읽습니다. 위쪽 제목·단위 줄은 건너뜀
+function readSourceTable_(src, tab, required) {
+  const sh = src.getSheetByName(tab);
+  if (!sh) throw new Error('원본 시트에 [' + tab + '] 탭이 없습니다. [설정]의 원본 탭 이름을 확인하세요.');
+  const values = sh.getDataRange().getValues();
+  const norm = function (v) { return str_(v).replace(/\s/g, ''); };
+  for (let r = 0; r < Math.min(values.length, 15); r++) {
+    const names = values[r].map(norm);
+    if (required.every(function (n) { return names.indexOf(norm(n)) !== -1; })) {
+      const idx = {};
+      names.forEach(function (n, i) { if (n && idx[n] === undefined) idx[n] = i; });
+      return {
+        rows: values.slice(r + 1),
+        unitText: values.slice(0, r).map(function (row) { return row.join(' '); }).join(' '),
+        get: function (row, name) { const i = idx[norm(name)]; return i === undefined ? '' : row[i]; }
+      };
+    }
+  }
+  throw new Error('원본 [' + tab + '] 탭에서 제목 행(' + required.join(', ') + ')을 찾지 못했습니다.');
+}
+
+// '(단위 : 천)' 같은 표시를 읽어 천원으로 바꾸는 배수를 돌려줍니다.
+function unitFactor_(text, dflt) {
+  const s = str_(text).replace(/\s/g, '');
+  if (/단위[:：]?백만/.test(s)) return 1000;
+  if (/단위[:：]?천/.test(s)) return 1;
+  if (/단위[:：]?만/.test(s)) return 10;
+  if (/단위[:：]?원/.test(s)) return 0.001;
+  return dflt;
+}
+
+// 점포명 앞머리 → 소속 이름 순서로 브랜드 코드를 추정합니다.
+function guessBrand_(org, name) {
+  const up = function (s) { return str_(s).toUpperCase(); };
+  for (let i = 0; i < BRAND_HINTS.length; i++) {
+    if (BRAND_HINTS[i][1].some(function (w) { return up(name).indexOf(up(w)) === 0; })) return BRAND_HINTS[i][0];
+  }
+  for (let i = 0; i < BRAND_HINTS.length; i++) {
+    if (BRAND_HINTS[i][1].some(function (w) { return up(org).indexOf(up(w)) !== -1; })) return BRAND_HINTS[i][0];
+  }
+  return str_(org).replace(/직영|팀|사업부/g, '').trim() || '미분류';
+}
+
+// [브랜드매핑] 시트: 원본 '소속'별로 자동 추정 브랜드를 보여 주고, 직접 지정한 브랜드명을 우선 적용합니다.
+function updateBrandMap_(ctx, stores) {
+  const keyOf = function (s) { return s.org2 && s.org2 !== s.org ? s.org + ' / ' + s.org2 : s.org; };
+  let sh = ctx.ss.getSheetByName(SHEETS.BRAND_MAP);
+  const manual = {};
+  if (sh && sh.getLastRow() > 1) {
+    sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues().forEach(function (r) {
+      if (str_(r[0]) && str_(r[2])) manual[str_(r[0])] = str_(r[2]);
+    });
+  }
+  const groups = {};
+  stores.forEach(function (s) {
+    const k = keyOf(s);
+    if (!groups[k]) groups[k] = { guesses: [], n: 0 };
+    groups[k].n++;
+    const g = guessBrand_(s.org, s.name);
+    if (groups[k].guesses.indexOf(g) === -1) groups[k].guesses.push(g);
+  });
+  const rows = Object.keys(groups).sort(cmp_).map(function (k) {
+    return [k, groups[k].guesses.join(', '), manual[k] || '', groups[k].n];
+  });
+  if (!sh) {
+    sh = ctx.ss.insertSheet(SHEETS.BRAND_MAP);
+    sh.getRange(1, 1, 1, 5).setValues([['원본 소속', '자동 추정 브랜드', '브랜드명 (직접 지정)', '점포 수', '설명']])
+      .setFontWeight('bold').setBackground(COLOR_AUTO);
+    sh.getRange(1, 3).setBackground(COLOR_IN);
+    sh.getRange(2, 5).setValue('자동 추정이 틀리면 C열에 브랜드 코드(예: PB, PAS)를 넣고 [🔄 원본 가져오기]를 다시 누르세요. ' +
+      'C열이 비어 있으면 점포명·소속으로 추정합니다.');
+    sh.setColumnWidth(1, 220); sh.setColumnWidth(2, 140); sh.setColumnWidth(3, 150); sh.setColumnWidth(5, 520);
+    sh.setFrozenRows(1);
+  }
+  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 4).clearContent();
+  if (rows.length) sh.getRange(2, 1, rows.length, 4).setValues(rows);
+  return function (s) { return manual[keyOf(s)] || guessBrand_(s.org, s.name); };
+}
+
+// [손익현황]을 원본 손익으로 다시 채웁니다. (기존 행은 지우고 새로 씀)
+function writeSourceProfitLoss_(ctx, stores) {
+  const sh = ensureInputSheet_(ctx.ss, SHEETS.PL, PL_COLS);
+  const c = readTable_(sh).idx;
+  const width = sh.getLastColumn();
+  const f = SOURCE_PL_UNIT / ctx.cfg.fPL;       // 원 → [설정]의 손익현황 입력 단위
+  const rows = [];
+  stores.forEach(function (s) {
+    s.months.sort(function (a, b) { return a.ym < b.ym ? -1 : 1; }).forEach(function (m) {
+      const row = new Array(width).fill('');
+      const sales = Math.round(m.sales * f), profit = Math.round(m.profit * f);
+      row[c['브랜드명']] = s.brand;
+      row[c['점포명']] = s.name;
+      row[c['연월']] = m.ym;
+      row[c['매출']] = sales;
+      row[c['비용']] = sales - profit;               // 비용 = 매출 − 기준 이익
+      row[c['영업이익']] = profit;
+      row[c['비고']] = '원본 POS ' + s.pos + ' · ' + ctx.cfg.profitField;
+      rows.push(row);
+    });
+  });
+  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, width).clearContent();
+  if (rows.length) {
+    sh.getRange(2, c['연월'] + 1, rows.length, 1).setNumberFormat(FMT_TEXT);
+    sh.getRange(2, 1, rows.length, width).setValues(rows);
+  }
+  return rows.length;
+}
+
+// [자산투자비]: 원본 점포가 없으면 행을 추가하고, 평수·투자시점·POS코드는 빈 칸만 채웁니다. (직접 입력한 값은 그대로)
+function upsertSourceAssets_(ctx, stores, info) {
+  const sh = ensureInputSheet_(ctx.ss, SHEETS.ASSET, ASSET_COLS);
+  const t = readTable_(sh);
+  const c = t.idx;
+  const width = sh.getLastColumn();
+  const byPos = {}, byKey = {};
+  t.rows.forEach(function (r, i) {
+    const pos = str_(r[c['POS코드']]);
+    if (pos) byPos[pos] = i;
+    byKey[storeKey_(str_(r[c['브랜드명']]), str_(r[c['점포명']]))] = i;
+  });
+  let added = 0, filled = 0;
+  const newRows = [];
+  stores.forEach(function (s) {
+    const inf = info[s.pos] || {};
+    const i = byPos[s.pos] !== undefined ? byPos[s.pos] : byKey[storeKey_(s.brand, s.name)];
+    if (i === undefined) {
+      const row = new Array(width).fill('');
+      row[c['브랜드명']] = s.brand;
+      row[c['점포명']] = s.name;
+      row[c['평수']] = inf.area || '';
+      row[c['투자시점']] = inf.open || '';
+      row[c['POS코드']] = s.pos;
+      newRows.push(row);
+      added++;
+      return;
+    }
+    const r = t.rows[i];
+    let touched = false;
+    [['평수', inf.area], ['투자시점', inf.open], ['POS코드', s.pos]].forEach(function (x) {
+      if (str_(r[c[x[0]]]) === '' && x[1] !== undefined && x[1] !== null && x[1] !== '') {
+        sh.getRange(i + 2, c[x[0]] + 1).setValue(x[1]);
+        touched = true;
+      }
+    });
+    if (touched) filled++;
+  });
+  if (newRows.length) sh.getRange(sh.getLastRow() + 1, 1, newRows.length, width).setValues(newRows);
+  return '자산투자비 신규 ' + added + '곳·평수/오픈일 보완 ' + filled + '곳';
+}
+
+// [폐점비용실적]을 원본 폐점비로 다시 채웁니다. 기존 정산 표시(○/△)는 점포코드로 이어 붙입니다.
+function writeClosingActuals_(ctx, items) {
+  const sh = ensureInputSheet_(ctx.ss, SHEETS.BS, BS_COLS);
+  const t = readTable_(sh);
+  const c = t.idx;
+  const width = sh.getLastColumn();
+  const marks = {};
+  t.rows.forEach(function (r) {
+    const code = str_(r[c['점포코드']]), mk = str_(r[c['정산']]);
+    if (code && mk && marks[code] !== '△') marks[code] = mk;
+  });
+  const f = 1 / ctx.cfg.fBS;                    // 천원 → [설정]의 폐점비용실적 입력 단위
+  const rows = items.map(function (x) {
+    const row = new Array(width).fill('');
+    row[c['년']] = x.y; row[c['월']] = x.m; row[c['브랜드']] = x.brand; row[c['점포코드']] = x.code;
+    row[c['점포명']] = x.name;
+    row[c['원상복구(예가)']] = Math.round(x.restore * f);
+    row[c['매몰비']] = Math.round(x.sunk * f);
+    row[c['정산']] = marks[x.code] || '';
+    row[c['비고']] = '원본 폐점비';
+    return row;
+  });
+  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, width).clearContent();
+  if (rows.length) sh.getRange(2, 1, rows.length, width).setValues(rows);
+}
+
+// 원본을 처음 가져올 때, 시트를 만들 때 넣었던 '샘플 ○○점' 행을 지웁니다.
+function removeSampleStores_(ctx) {
+  let removed = 0;
+  [SHEETS.ASSET, SHEETS.REVIEW].forEach(function (name) {
+    const sh = ctx.ss.getSheetByName(name);
+    if (!sh || sh.getLastRow() < 2) return;
+    const t = readTable_(sh);
+    for (let i = t.rows.length - 1; i >= 0; i--) {
+      if (/^샘플\s/.test(str_(t.rows[i][t.idx['점포명']]))) { sh.deleteRow(i + 2); removed++; }
+    }
+  });
+  return removed;
 }
 
 
@@ -1206,8 +1515,8 @@ function setup_(withSample) {
   if (ensureConfigSheet_(ss)) created.push(SHEETS.CONFIG);
   if (!ss.getSheetByName(SHEETS.GUIDE)) { createGuideSheet_(ss); created.push(SHEETS.GUIDE); }
 
-  // (3) 전체 계산 실행 → 결과 시트 자동 생성
-  runAll_();
+  // (3) 전체 계산 실행 → 결과 시트 자동 생성 (원본 시트 주소가 있으면 원본 데이터도 가져옴)
+  runAll_({ importSource: true });
 
   // (4) 시트 순서 정리
   const order = [SHEETS.SUMMARY, SHEETS.BRAND, SHEETS.TIMING, SHEETS.PL, SHEETS.PL_SUM, SHEETS.ASSET,
@@ -1269,6 +1578,12 @@ const CONFIG_ROWS = [
   [CFG.RENT_RATE, 100, '폐점 후에도 내야 하는 잔여 임차료 비율. 계약상 전액 부담이면 100, 위약금으로 대신하면 0 (위약금은 폐점검토에 입력)', null],
   [CFG.TREND, 12, '최적 폐점 시점 계산 시 영업이익 추세를 볼 최근 개월 수', null],
   [CFG.DEP_IN_PL, 'Y', '[손익현황]의 비용에 감가상각비가 포함되어 있으면 Y', YN],
+  [CFG.SRC_URL, '', '직영점 데이터 구글 시트 주소. 넣으면 [🔄 원본 가져오기]·매일 자동 갱신 때 손익현황·자산투자비(평수·오픈일)·폐점비용실적을 자동으로 채웁니다. 비우면 연동 안 함', null],
+  [CFG.SRC_PL, '시트3', '원본 시트의 월별 손익 탭 이름 (년·월·소속·POS코드·점포명·순매출액·점포이익·사업부이익·영업이익)', null],
+  [CFG.SRC_INFO, '점포정보', '원본 시트의 점포 마스터 탭 이름 (POS코드·평수·오픈일). 비우면 가져오지 않음', null],
+  [CFG.SRC_CLOSE, '폐점비', '원본 시트의 폐점비 탭 이름 (년·월·브랜드·POS코드·점포명·원상복구·매몰비). 비우면 가져오지 않음', null],
+  [CFG.PROFIT, '점포이익', '손익현황에 쓸 이익. 폐점 판단에는 점포이익을 권장합니다 (본부·사업부 배부 비용은 폐점해도 남기 때문)', ['점포이익', '사업부이익', '영업이익']],
+  [CFG.LAST_IMPORT, '', '자동 기록 (수정하지 마세요)', null],
   [CFG.LAST, '', '자동 기록 (수정하지 마세요)', null]
 ];
 
@@ -1291,7 +1606,7 @@ function ensureConfigSheet_(ss) {
     if (labels.indexOf(row[0]) !== -1) return;
     const r = sh.getLastRow() + 1;
     sh.getRange(r, 1, 1, 3).setValues([[row[0], row[1], row[2]]]);
-    if (row[0] !== CFG.LAST) sh.getRange(r, 2).setBackground('#FFFDE7');
+    if (row[0] !== CFG.LAST && row[0] !== CFG.LAST_IMPORT) sh.getRange(r, 2).setBackground('#FFFDE7');
     if (row[0] === CFG.BASE) sh.getRange(r, 2).setNumberFormat(FMT_DATE);
     if (row[3]) {
       sh.getRange(r, 2).setDataValidation(
@@ -1343,7 +1658,9 @@ function createGuideSheet_(ss) {
     ['■ 자동 갱신'],
     ['· 입력 시트를 수정하면 즉시 자동 갱신됩니다.'],
     ['· 날짜 경과를 반영하려면 메뉴 [🏪 폐점분석 → ⏰ 매일 자동 갱신 켜기]를 한 번 실행하세요.'],
-    ['· 수동 갱신: 메뉴 [🏪 폐점분석 → 🔄 전체 다시 계산]']
+    ['· 수동 갱신: 메뉴 [🏪 폐점분석 → 🔄 원본 가져오기 + 전체 다시 계산]'],
+    ['· 원본 연동: [설정]의 "원본 시트 주소"에 직영점 데이터 시트 주소를 넣으면, 수동 갱신·매일 자동 갱신 때 손익현황·자산투자비·폐점비용실적을 자동으로 채웁니다'],
+    ['  (셀을 고칠 때 자동 실행되는 계산에서는 원본을 가져오지 않습니다. 원본이 바뀌었으면 수동 갱신을 눌러 주세요)']
   ];
   sh.getRange(1, 1, lines.length, 1).setValues(lines);
   sh.getRange(1, 1).setFontSize(14).setFontWeight('bold');
@@ -1441,7 +1758,8 @@ function writeOutputSheet_(ss, name, cols, rows) {
 // [설정] 시트 값 읽기
 function readConfig_(ss, tz) {
   const cfg = { fPL: 1, fAsset: 1, fHist: UNITS['만원'], fBS: UNITS['원'], baseDate: null, minCases: 3,
-    level: 'mid', scope: SCOPE_ALL, rentRate: 1, trendMonths: 12, depInPL: true };
+    level: 'mid', scope: SCOPE_ALL, rentRate: 1, trendMonths: 12, depInPL: true,
+    sourceUrl: '', sourcePlTab: '시트3', sourceInfoTab: '점포정보', sourceClosingTab: '폐점비', profitField: '점포이익' };
   const sh = ss.getSheetByName(SHEETS.CONFIG);
   if (!sh || sh.getLastRow() < 1) return cfg;
   sh.getRange(1, 1, sh.getLastRow(), 2).getValues().forEach(function (r) {
@@ -1459,6 +1777,11 @@ function readConfig_(ss, tz) {
     if (k === CFG.RENT_RATE && num_(v) !== null) cfg.rentRate = Math.min(Math.max(num_(v), 0), 100) / 100;
     if (k === CFG.TREND && num_(v) >= 3) cfg.trendMonths = Math.floor(num_(v));
     if (k === CFG.DEP_IN_PL && str_(v)) cfg.depInPL = str_(v).toUpperCase() !== 'N';
+    if (k === CFG.SRC_URL) cfg.sourceUrl = str_(v);
+    if (k === CFG.SRC_PL && str_(v)) cfg.sourcePlTab = str_(v);
+    if (k === CFG.SRC_INFO) cfg.sourceInfoTab = str_(v);
+    if (k === CFG.SRC_CLOSE) cfg.sourceClosingTab = str_(v);
+    if (k === CFG.PROFIT && str_(v)) cfg.profitField = str_(v);
   });
   return cfg;
 }
