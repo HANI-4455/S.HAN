@@ -7,6 +7,13 @@ import json
 import os
 from datetime import datetime, timedelta, timezone
 
+try:  # 사내망처럼 SSL을 가로채는 환경에서는 윈도우 인증서 저장소를 쓴다
+    import truststore
+
+    truststore.inject_into_ssl()
+except ImportError:
+    pass
+
 import mega_crawler
 import news_trend
 import starbucks_crawler
