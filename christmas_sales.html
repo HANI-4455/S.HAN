@@ -284,6 +284,7 @@
       <div class="topbtns">
         <button class="btn pri" type="button" id="upBtn">엑셀 올리기</button>
         <button class="btn" type="button" id="saveBtn" title="데이터와 사진을 담은 HTML 파일 하나로 저장 — 메일·메신저로 공유하면 인터넷 없이도 열립니다">공유용 HTML 저장</button>
+        <button class="btn" type="button" id="pubBtn" title="데이터와 사진을 christmas_sales_data.json 으로 저장 — 이 파일을 저장소(이 HTML과 같은 폴더)에 올리면 다른 PC에서도 링크로 같은 데이터가 보입니다">발행 파일 저장</button>
         <a class="btn home" href="index.html">업무 모음</a>
       </div>
       <div class="src" id="src">데이터 없음 · 작년 판매 엑셀을 올려 주세요</div>
@@ -317,6 +318,7 @@ window.SALES_DATA = /*__DATA__*/null;
   "use strict";
   var D = null, CATS = [], PRODS = [], STORES = [], ROWS = [];
   var DATA_LSK = 'xmas_sales_data_v1';
+  var PUB_FILE = 'christmas_sales_data.json';   /* 발행본 — 이 HTML과 같은 폴더 */
   /* ---- 제품 사진 ---- */
   var PRISTINE = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
   var LSK = 'xmas_imgs_v1';
@@ -790,6 +792,18 @@ window.SALES_DATA = /*__DATA__*/null;
     setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
     toast('공유용 파일을 저장했습니다' + (cnt ? ' · 사진 ' + cnt + '장' : ''));
   }
+  /* 발행: 데이터·사진을 JSON 한 파일로 — 저장소에 올리면 페이지가 열릴 때 이걸 불러온다 */
+  function exportJson(){
+    if(!D){ toast('먼저 엑셀을 올려 주세요'); return; }
+    var cnt = Object.keys(IMAGES).length;
+    var blob = new Blob([JSON.stringify({exportedAt: Date.now(), data: D, images: IMAGES})], {type:'application/json'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = PUB_FILE;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+    toast('발행 파일을 저장했습니다' + (cnt ? ' · 사진 ' + cnt + '장' : '') + ' · 저장소에 올려야 다른 PC에 보입니다');
+  }
   /* 마커 뒤의 값(스크립트 태그 끝까지)을 바꿔 넣는다 */
   function embed(html, mark, json){
     if(!html) return null;
@@ -881,6 +895,7 @@ window.SALES_DATA = /*__DATA__*/null;
     fr.onload = function(){
       try{
         var res = parseWorkbook(XLSX.read(fr.result, {type:'array'}), f.name);
+        res.data.savedAt = Date.now();   /* 발행본보다 새로 올린 것이면 이 브라우저에선 이쪽을 보여준다 */
         setData(res.data);
         try{ localStorage.setItem(DATA_LSK, JSON.stringify(res.data)); }catch(e){}
         toast('불러왔습니다 · ' + n(res.data.stores.length) + '개 점포' + (res.miss.length ? ' · 없는 열: ' + res.miss.join(', ') : ''));
@@ -894,6 +909,7 @@ window.SALES_DATA = /*__DATA__*/null;
   xlsInput.addEventListener('change', function(){ if(xlsInput.files[0]) readXls(xlsInput.files[0]); xlsInput.value = ''; });
   document.getElementById('upBtn').addEventListener('click', function(){ xlsInput.click(); });
   document.getElementById('saveBtn').addEventListener('click', exportHtml);
+  document.getElementById('pubBtn').addEventListener('click', exportJson);
   elRes.addEventListener('keydown', function(e){
     if((e.key === 'Enter' || e.key === ' ') && e.target.id === 'drop'){ e.preventDefault(); xlsInput.click(); }
   });
@@ -910,11 +926,25 @@ window.SALES_DATA = /*__DATA__*/null;
     else if(f) toast('엑셀 파일(.xlsx · .xls · .csv)만 올릴 수 있습니다');
   });
 
-  /* ---- init: 파일에 내장된 데이터 → 이 브라우저에 저장된 데이터 → 업로드 안내 ---- */
-  var initial = window.SALES_DATA;
-  if(!initial){ try{ initial = JSON.parse(localStorage.getItem(DATA_LSK) || 'null'); }catch(e){ initial = null; } }
-  if(initial && initial.rows && initial.stores){ setData(initial); }
-  else { renderList(); renderEmpty(); }
+  /* ---- init: 파일에 내장된 데이터 → 발행본·이 브라우저 저장본 중 최신 → 업로드 안내 ---- */
+  function valid(d){ return d && d.rows && d.stores ? d : null; }
+  function localData(){ try{ return valid(JSON.parse(localStorage.getItem(DATA_LSK) || 'null')); }catch(e){ return null; } }
+  function start(d){ if(d){ setData(d); } else { renderList(); renderEmpty(); } }
+  if(valid(window.SALES_DATA)){ start(window.SALES_DATA); }
+  else {
+    elRes.innerHTML = '<div class="empty"><p>데이터를 불러오는 중…</p></div>';
+    fetch(PUB_FILE, {cache:'no-store'})
+      .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function(pub){
+        var imgs = pub.images || {};
+        Object.keys(imgs).forEach(function(k){ if(!(k in IMAGES) && DELETED.indexOf(k) < 0) IMAGES[k] = imgs[k]; });
+        var p = valid(pub.data), loc = localData();
+        if(loc && (!p || (loc.savedAt || 0) > (pub.exportedAt || 0))){ start(loc); return; }
+        start(p);
+        if(p) document.getElementById('src').textContent += ' · 발행 ' + new Date(pub.exportedAt).toLocaleString('ko-KR');
+      })
+      .catch(function(){ start(localData()); });   /* 아직 발행 전(404)·로컬 파일로 열었을 때 */
+  }
 })();
 </script>
 </body></html>
